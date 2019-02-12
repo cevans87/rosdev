@@ -14,16 +14,6 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class TempDirContext:
-    name: str
-
-
-@dataclass(frozen=True)
-class TempDir:
-    cwd: str
-
-
-@dataclass(frozen=True)
 class Dockerfile:
     arch: str
     release: str
@@ -48,7 +38,6 @@ class Dockerfile:
             'arm64v8': 'aarch64'
         }[self.arch]
 
-        #return f'COPY /usr/bin/qemu-{arch}-static /usr/bin'
         return f'VOLUME /usr/bin/qemu-{arch}-static'
 
     @property
@@ -70,9 +59,6 @@ class Dockerfile:
                 colcon-common-extensions \
                 pytest \
                 pytest-cov
-
-            CMD ln /opt/ros/crystal ${self.cwd}/ros
-            CMD source {self.cwd}/ros/setup.bash
         ''')
 
     @property
@@ -101,11 +87,13 @@ class Dockerfile:
 
 
 @memoize
-async def gen_docker_image(**kwargs) -> None:
-    await Dockerfile(**kwargs).build()
+async def gen_docker_image(arch: str, release: str) -> Dockerfile:
+    dockerfile = Dockerfile(arch, release)
+    await dockerfile.build()
+
+    return dockerfile
 
 
-async def gen_docker_images(arch: List[str], release: List[str], **kwargs) -> None:
+async def gen_docker_images(arch: List[str], release: List[str]) -> None:
     await asyncio.gather(
-        *[gen_docker_image(arch=arch, release=release, **kwargs)
-          for arch, release in product(arch, release)])
+        *[gen_docker_image(arch, release) for arch, release in product(arch, release)])
