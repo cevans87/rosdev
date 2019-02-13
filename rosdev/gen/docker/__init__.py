@@ -16,7 +16,7 @@ def argument_parser(
 
     default = 'amd64'
     parent_parser.add_argument(
-        '--arch',
+        '--architecture', '-a',
         default=[default],
         nargs='+',
         choices=sorted({default, 'arm32v7', 'arm64v8'}),
@@ -25,7 +25,7 @@ def argument_parser(
 
     default = 'crystal'
     parent_parser.add_argument(
-        '--release',
+        '--release', '-r',
         default=[default],
         choices=sorted({'ardent', 'bionic', default, 'kinetic', 'melodic'}),
         help=f'List of ROS releases to build. Default: {default}',

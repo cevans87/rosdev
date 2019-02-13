@@ -16,7 +16,8 @@ def argument_parser(
     parser = parser if parser is not None else ArgumentParser()
     parents = parents if parents is not None else []
 
-    parser.add_argument('-a', '--attach', action='store_true')
+    parser.add_argument('--interactive', '-i', action='store_true')
+    parser.add_argument('--ports', '-p', nargs='*', default=[], type=int)
 
     def func(**kwargs) -> int:
         import asyncio

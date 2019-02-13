@@ -15,14 +15,14 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class Dockerfile:
-    arch: str
+    architecture: str
     release: str
 
     cwd: str = field(init=False, default_factory=os.getcwd)
 
     @property
     def base_tag(self) -> str:
-        return f'{self.arch}/ros:{self.release}-ros-core'
+        return f'{self.architecture}/ros:{self.release}-ros-core'
 
     @property
     def tag(self) -> str:
@@ -30,15 +30,15 @@ class Dockerfile:
 
     @property
     def special_commands(self):
-        if self.arch == 'amd64':
+        if self.architecture == 'amd64':
             return ''
 
-        arch = {
+        architecture = {
             'arm32v7': 'arm',
             'arm64v8': 'aarch64'
-        }[self.arch]
+        }[self.architecture]
 
-        return f'VOLUME /usr/bin/qemu-{arch}-static'
+        return f'VOLUME /usr/bin/qemu-{architecture}-static'
 
     @property
     def contents(self) -> str:
@@ -51,14 +51,23 @@ class Dockerfile:
             RUN apt-get install -y \
                 build-essential \
                 gdbserver \
-                openssh-server
+                openssh-server \
+                python3-pip \
+                sudo
             RUN apt-get clean
 
             RUN python3 -m pip install -U \
                 colcon-core \
                 colcon-common-extensions \
                 pytest \
-                pytest-cov
+                pytest-cov \
+                vcstool
+
+            RUN groupadd -r -g {os.getgid()} {os.getlogin()}
+            RUN useradd {os.getlogin()} -r -u {os.getuid()} -g {os.getgid()} -G sudo 1>/dev/null
+            RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+            USER {os.getlogin()}
         ''')
 
     @property
@@ -87,13 +96,13 @@ class Dockerfile:
 
 
 @memoize
-async def gen_docker_image(arch: str, release: str) -> Dockerfile:
-    dockerfile = Dockerfile(arch, release)
+async def gen_docker_image(architecture: str, release: str) -> Dockerfile:
+    dockerfile = Dockerfile(architecture, release)
     await dockerfile.build()
 
     return dockerfile
 
 
-async def gen_docker_images(arch: List[str], release: List[str]) -> None:
+async def gen_docker_images(architecture: List[str], release: List[str]) -> None:
     await asyncio.gather(
-        *[gen_docker_image(arch, release) for arch, release in product(arch, release)])
+        *[gen_docker_image(architecture, release) for architecture, release in product(architecture, release)])
