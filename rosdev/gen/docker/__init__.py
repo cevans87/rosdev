@@ -27,6 +27,7 @@ def argument_parser(
     parent_parser.add_argument(
         '--release', '-r',
         default=[default],
+        nargs='+',
         choices=sorted({'ardent', 'bionic', default, 'kinetic', 'melodic'}),
         help=f'List of ROS releases to build. Default: {default}',
     )
