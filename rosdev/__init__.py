@@ -4,6 +4,11 @@
 from argparse import ArgumentParser
 import logging
 from typing import List, Optional
+from .parser import (
+    architecture_parser,
+    log_level_parser,
+    release_parser,
+)
 
 try:
     from argcomplete import autocomplete
@@ -20,21 +25,22 @@ def argument_parser(
     parser = parser if parser is not None else ArgumentParser()
     parents = parents if parents is not None else []
 
-    parent_parser = ArgumentParser(add_help=False)
-    parents += [parent_parser]
-
-    default = 'INFO'
-    parent_parser.add_argument(
-        '--log-level',
-        default=default,
-        choices=[name for _, name in sorted(logging._levelToName.items())],
-        help=f'Default: {default}',
-    )
-
     sub_parser = parser.add_subparsers(required=True)
 
+    clion_parents = parents + [architecture_parser, log_level_parser, release_parser]
+    from .clion import argument_parser
+    argument_parser(sub_parser.add_parser(
+        name='clion', parents=clion_parents), parents=clion_parents)
+
+    gdb_parents = parents + [architecture_parser, log_level_parser, release_parser]
+    from .gdb import argument_parser
+    argument_parser(sub_parser.add_parser(
+        name='gdb', parents=gdb_parents), parents=gdb_parents)
+
+    gen_parents = parents + [log_level_parser]
     from .gen import argument_parser
-    argument_parser(sub_parser.add_parser(name='gen', parents=parents), parents=parents)
+    argument_parser(sub_parser.add_parser(
+        name='gen', parents=gen_parents), parents=gen_parents)
 
     return parser
 

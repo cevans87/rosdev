@@ -4,11 +4,6 @@
 from argparse import ArgumentParser
 from typing import List, Optional
 
-try:
-    from argcomplete import autocomplete
-except ImportError:
-    def autocomplete(_parser: ArgumentParser): ...
-
 
 def argument_parser(
         parser: Optional[ArgumentParser] = None, parents: Optional[List[ArgumentParser]] = None
@@ -16,15 +11,13 @@ def argument_parser(
     parser = parser if parser is not None else ArgumentParser()
     parents = parents if parents is not None else []
 
-    parser.add_argument('command')
+    parser.add_argument('--port', '-p', type=int, default=6013)
 
-    def func(ports: List[int], **kwargs) -> int:
+    def func(**kwargs) -> int:
         import asyncio
-        from . import container
+        from . import gdbserver
 
-        asyncio.run(container.gen_docker_container(
-            ports=frozenset(ports),
-            **kwargs))
+        asyncio.run(gdbserver.gen_docker_gdbserver(**kwargs))
 
         return 0
 

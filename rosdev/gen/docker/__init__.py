@@ -4,6 +4,15 @@
 from argparse import ArgumentParser
 from typing import List, Optional
 
+from rosdev.parser import (
+    architecture_parser,
+    architectures_parser,
+    interactive_parser,
+    ports_parser,
+    release_parser,
+    releases_parser,
+)
+
 
 def argument_parser(
         parser: Optional[ArgumentParser] = None, parents: Optional[List[ArgumentParser]] = None
@@ -11,37 +20,23 @@ def argument_parser(
     parser = parser if parser is not None else ArgumentParser()
     parents = parents if parents is not None else []
 
-    parent_parser = ArgumentParser(add_help=False)
-    parents += [parent_parser]
-
-    default = 'amd64'
-    parent_parser.add_argument(
-        '--architecture', '-a',
-        default=[default],
-        nargs='+',
-        choices=sorted({default, 'arm32v7', 'arm64v8'}),
-        help=f'List of architectures to build. Default: {default}',
-    )
-
-    default = 'crystal'
-    parent_parser.add_argument(
-        '--release', '-r',
-        default=[default],
-        nargs='+',
-        choices=sorted({'ardent', 'bionic', default, 'kinetic', 'melodic'}),
-        help=f'List of ROS releases to build. Default: {default}',
-    )
-
     sub_parser = parser.add_subparsers(required=True)
 
-    from .image import argument_parser
-    argument_parser(sub_parser.add_parser(name='image', parents=parents), parents=parents)
+    images_parents = parents + [architectures_parser, releases_parser]
+    from .images import argument_parser
+    argument_parser(sub_parser.add_parser(
+        name='image', parents=images_parents), parents=images_parents)
 
+    volume_parents = parents + [architecture_parser, release_parser]
     from .volume import argument_parser
-    argument_parser(sub_parser.add_parser(name='volume', parents=parents), parents=parents)
+    argument_parser(sub_parser.add_parser(
+        name='volume', parents=volume_parents), parents=volume_parents)
 
+    container_parents = parents + [
+        architecture_parser, interactive_parser, ports_parser, release_parser]
     from .container import argument_parser
-    argument_parser(sub_parser.add_parser(name='container', parents=parents), parents=parents)
+    argument_parser(sub_parser.add_parser(
+        name='container', parents=container_parents), parents=container_parents)
 
     return parser
 

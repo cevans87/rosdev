@@ -1,13 +1,11 @@
-import asyncio
 from atools import memoize
 import docker
-from itertools import product
 from logging import getLogger
 import os
 from pathlib import Path
-from typing import FrozenSet, List
+from typing import FrozenSet
 
-from ..image.image import gen_docker_image
+from ..images.images import gen_docker_image
 
 
 log = getLogger(__name__)
@@ -17,8 +15,9 @@ log = getLogger(__name__)
 async def gen_docker_container(
         architecture: str,
         release: str,
-        interactive: bool,
         ports: FrozenSet[int],
+        interactive: bool,
+        command: str,
 ) -> None:
     dockerfile = await gen_docker_image(architecture, release)
 
@@ -31,7 +30,7 @@ async def gen_docker_container(
     client = docker.client.from_env()
     container = client.containers.create(
         image=dockerfile.tag,
-        command='/bin/bash',
+        command=command,
         tty=True,
         detach=True,
         stdin_open=True,
@@ -45,14 +44,3 @@ async def gen_docker_container(
     if interactive:
         log.info(f'attaching to "{container.name}"')
         os.execlpe('docker', *f'docker start -ai {container.name}'.split(), os.environ)
-
-
-async def gen_docker_containers(
-        architecture: List[str],
-        release: List[str],
-        interactive: bool,
-        ports: List[int],
-) -> None:
-    await asyncio.gather(
-        *[gen_docker_container(architecture, release, interactive, frozenset(ports))
-          for architecture, release in product(architecture, release)])
