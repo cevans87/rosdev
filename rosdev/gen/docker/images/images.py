@@ -5,6 +5,7 @@ import docker
 from itertools import product
 from logging import getLogger
 import os
+import pathlib
 import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -70,11 +71,15 @@ class Dockerfile:
             FROM {self.base_tag}
 
             # qemu static binaries
-            {f'VOLUME {self.qemu_path}' if platform.machine() != self.machine else ''}
+            {f'VOLUME {self.qemu_path}' if platform.machine() != self.machine else '# not needed'}
+
+            # make ssh easier
+            #VOLUME /etc/ssh
 
             RUN apt-get update
             RUN apt-get install -y \
                 build-essential \
+                coreutils \
                 curl \
                 gdb \
                 gdbserver \
@@ -101,6 +106,11 @@ class Dockerfile:
 
             USER {os.getlogin()}
 
+            #RUN mkdir -p {pathlib.Path.home()}/.ssh
+            #RUN touch {pathlib.Path.home()}/.ssh/authorized_keys
+            #RUN cat /id_rsa.pub >> {pathlib.Path.home()}/.ssh/authorized_keys
+            #RUN chmod 600 {pathlib.Path.home()}/.ssh/authorized_keys
+
             ENTRYPOINT ["/rosdev_entrypoint.sh"]
             CMD bash
         ''').lstrip()
@@ -114,6 +124,9 @@ class Dockerfile:
                     dockerfile_f_out.write(self.contents)
                 with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
                     entrypoint_f_out.write(self.entrypoint.contents)
+                with open(f'{pathlib.Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
+                        open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
+                    id_rsa_f_out.write(id_rsa_f_in.read())
 
                 client = docker.client.from_env()
                 client.images.build(

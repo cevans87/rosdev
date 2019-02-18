@@ -39,10 +39,10 @@ def argument_parser(
     argument_parser(sub_parser.add_parser(
         name='clion', parents=clion_parents), parents=clion_parents)
 
-    gdb_parents = parents + [architecture_parser, log_level_parser, release_parser]
-    from .gdb import argument_parser
+    gdbserver_parents = parents + [architecture_parser, log_level_parser, release_parser]
+    from .gdbserver import argument_parser
     argument_parser(sub_parser.add_parser(
-        name='gdb', parents=gdb_parents), parents=gdb_parents)
+        name='gdbserver', parents=gdbserver_parents), parents=gdbserver_parents)
 
     gen_parents = parents + [log_level_parser]
     from .gen import argument_parser
