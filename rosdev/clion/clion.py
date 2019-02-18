@@ -25,7 +25,6 @@ async def clion(
             except ValueError:
                 assert proc.stdout.at_eof()
             else:
-                print(f'key: {k}, val: {v}')
                 os.environ[k] = v
 
     proc = await create_subprocess_shell(

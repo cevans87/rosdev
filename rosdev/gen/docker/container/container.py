@@ -3,7 +3,7 @@ import docker
 from logging import getLogger
 import os
 from pathlib import Path
-from typing import FrozenSet
+from typing import FrozenSet, Optional
 
 from ..images.images import gen_docker_image
 
@@ -27,6 +27,9 @@ async def gen_docker_container(
     if not cwd.startswith(home):
         volumes[cwd] = {'bind': cwd}
 
+    environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
+    environment['ROSDEV_DIR'] = os.getcwd()
+
     client = docker.client.from_env()
     container = client.containers.create(
         image=dockerfile.tag,
@@ -38,7 +41,8 @@ async def gen_docker_container(
         volumes=volumes,
         working_dir=cwd,
         ports={port: port for port in ports},
-        environment={k: v for k, v in os.environ.items() if 'AWS' in k},
+        environment=environment,
+        security_opt=['seccomp=unconfined'],
     )
 
     if interactive:

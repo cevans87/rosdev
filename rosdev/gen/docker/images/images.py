@@ -4,13 +4,33 @@ from dataclasses import dataclass, field
 import docker
 from itertools import product
 from logging import getLogger
-from io import BytesIO
 import os
+import platform
+from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import List
 
 
 log = getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Entrypoint:
+    architecture: str
+    release: str
+
+    @property
+    def contents(self) -> str:
+        return dedent(fr'''
+            #!/bin/bash
+            set -e
+
+            # setup ros2 environment
+            source "$ROSDEV_DIR/.ros/{self.architecture}/{self.release}/setup.bash" \
+                2> /dev/null || source "/opt/ros/$ROS_DISTRO/setup.bash"
+            source "$ROSDEV_DIR/install/setup.bash" 2> /dev/null || :
+            exec "$@"
+        ''').lstrip()
 
 
 @dataclass(frozen=True)
@@ -29,28 +49,34 @@ class Dockerfile:
         return f'{self.base_tag}-dev'
 
     @property
-    def special_commands(self):
-        if self.architecture == 'amd64':
-            return ''
-
-        architecture = {
+    def machine(self) -> str:
+        return {
+            'amd64': 'x86_64',
             'arm32v7': 'arm',
             'arm64v8': 'aarch64'
         }[self.architecture]
 
-        return f'VOLUME /usr/bin/qemu-{architecture}-static'
+    @property
+    def qemu_path(self) -> str:
+        return f'/usr/bin/qemu-{self.machine}-static'
+
+    @property
+    def entrypoint(self) -> Entrypoint:
+        return Entrypoint(architecture=self.architecture, release=self.release)
 
     @property
     def contents(self) -> str:
-        return dedent(f'''
+        return dedent(fr'''
             FROM {self.base_tag}
 
-            {self.special_commands}
+            # qemu static binaries
+            {f'VOLUME {self.qemu_path}' if platform.machine() != self.machine else ''}
 
             RUN apt-get update
             RUN apt-get install -y \
                 build-essential \
                 curl \
+                gdb \
                 gdbserver \
                 openssh-server \
                 libcurl4-openssl-dev \
@@ -65,28 +91,37 @@ class Dockerfile:
                 pytest-cov \
                 vcstool
 
+            RUN rm /ros_entrypoint.sh
+            COPY rosdev_entrypoint.sh /
+            RUN chmod +x /rosdev_entrypoint.sh
+
             RUN groupadd -r -g {os.getgid()} {os.getlogin()}
             RUN useradd {os.getlogin()} -r -u {os.getuid()} -g {os.getgid()} -G sudo 1>/dev/null
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
             USER {os.getlogin()}
-        ''')
 
-    @property
-    def as_file(self):
-        return BytesIO(self.contents.encode())
+            ENTRYPOINT ["/rosdev_entrypoint.sh"]
+            CMD bash
+        ''').lstrip()
 
     @memoize
     async def build(self) -> None:
 
         def _build() -> None:
-            client = docker.client.from_env()
-            client.images.build(
-                fileobj=self.as_file,
-                rm=True,
-                tag=self.tag,
-                pull=True,
-            )
+            with TemporaryDirectory() as tempdir_path:
+                with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
+                    dockerfile_f_out.write(self.contents)
+                with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
+                    entrypoint_f_out.write(self.entrypoint.contents)
+
+                client = docker.client.from_env()
+                client.images.build(
+                    path=tempdir_path,
+                    pull=True,
+                    rm=True,
+                    tag=self.tag,
+                )
 
         log.info(f'building "{self.tag}" from "{self.base_tag}"')
         try:

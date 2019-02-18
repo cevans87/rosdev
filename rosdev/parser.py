@@ -37,7 +37,7 @@ release_parser.add_argument(
     '--release', '-r',
     default=release_default,
     choices=release_choices,
-    help=f'List of ROS releases to build. Default: {release_default}',
+    help=f'ROS release to build. Default: {release_default}',
 )
 
 releases_default = [release_default]
