@@ -16,6 +16,9 @@ def argument_parser(
     from .docker import argument_parser
     argument_parser(sub_parser.add_parser(name='docker', parents=parents), parents=parents)
 
+    from .workspace import argument_parser
+    argument_parser(sub_parser.add_parser(name='workspace', parents=parents), parents=parents)
+
     return parser
 
 

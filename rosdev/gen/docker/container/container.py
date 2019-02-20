@@ -3,23 +3,24 @@ import docker
 from logging import getLogger
 import os
 from pathlib import Path
-from typing import FrozenSet, Optional
+from typing import FrozenSet
 
-from ..images.images import gen_docker_image
+from ..images.images import image
 
 
 log = getLogger(__name__)
 
 
 @memoize
-async def gen_docker_container(
+async def container(
         architecture: str,
+        nightly: bool,
         release: str,
         ports: FrozenSet[int],
         interactive: bool,
         command: str,
 ) -> None:
-    dockerfile = await gen_docker_image(architecture, release)
+    dockerfile = await image(architecture, nightly, release)
 
     cwd = os.getcwd()
     home = str(Path.home())

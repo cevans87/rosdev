@@ -1,8 +1,7 @@
 from atools import memoize
 from logging import getLogger
-from typing import Tuple
 
-from ..gen.docker.container.container import gen_docker_container
+from ..gen.docker.container.container import container
 
 log = getLogger(__name__)
 
@@ -11,18 +10,14 @@ log = getLogger(__name__)
 async def gdbserver(
         architecture: str,
         release: str,
-        port: int,
-        binary: str,
-        remainder: Tuple[str],
+        gdbserver_port: int,
+        package: str,
+        executable: str,
 ) -> None:
-    await gen_docker_container(
+    await container(
         architecture=architecture,
         release=release,
         interactive=True,
-        ports=frozenset({port}),
-        command=(
-            f'gdbserver :{port} '
-            f'install/{binary}/lib/{binary}/{binary}'
-            f'{" --args " + " ".join(remainder) if remainder else ""}'
-        ),
+        ports=frozenset({gdbserver_port}),
+        command=f'ros2 run --prefix "gdbserver :{gdbserver_port}" {package} {executable}',
     )

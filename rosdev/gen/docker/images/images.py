@@ -9,7 +9,7 @@ import pathlib
 import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import List
+from typing import FrozenSet
 
 
 log = getLogger(__name__)
@@ -37,13 +37,19 @@ class Entrypoint:
 @dataclass(frozen=True)
 class Dockerfile:
     architecture: str
+    nightly: bool
     release: str
 
     cwd: str = field(init=False, default_factory=os.getcwd)
 
     @property
     def base_tag(self) -> str:
-        return f'{self.architecture}/ros:{self.release}-ros-core'
+        if not self.nightly:
+            return f'{self.architecture}/ros:{self.release}-ros-core'
+        elif self.release == 'crystal':
+            return  f'osrf/ros2:nightly'
+        else:
+            raise Exception(f'nightly requires crystal release, have {self.release}')
 
     @property
     def tag(self) -> str:
@@ -101,7 +107,7 @@ class Dockerfile:
             RUN chmod +x /rosdev_entrypoint.sh
 
             RUN groupadd -r -g {os.getgid()} {os.getlogin()}
-            RUN useradd {os.getlogin()} -r -u {os.getuid()} -g {os.getgid()} -G sudo 1>/dev/null
+            RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1>/dev/null
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
             USER {os.getlogin()}
@@ -146,13 +152,15 @@ class Dockerfile:
 
 
 @memoize
-async def gen_docker_image(architecture: str, release: str) -> Dockerfile:
-    dockerfile = Dockerfile(architecture, release)
+async def image(architecture: str, nightly: bool, release: str) -> Dockerfile:
+    dockerfile = Dockerfile(architecture, nightly, release)
     await dockerfile.build()
 
     return dockerfile
 
 
-async def gen_docker_images(architecture: List[str], release: List[str]) -> None:
+@memoize
+async def images(architectures: FrozenSet[str], nightly, releases: FrozenSet[str]) -> None:
     await asyncio.gather(
-        *[gen_docker_image(architecture, release) for architecture, release in product(architecture, release)])
+        *[image(architecture, nightly, release)
+          for architecture, release in product(architectures, releases)])

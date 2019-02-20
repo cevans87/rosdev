@@ -13,13 +13,12 @@ def argument_parser(
 
     parser.add_argument('package')
     parser.add_argument('executable')
-    parser.add_argument('--port', '-p', dest='gdbserver_port', type=int, default=1337)
 
     def func(**kwargs) -> int:
         import asyncio
-        from .gdbserver import gdbserver
+        from .workspace import workspace
 
-        asyncio.run(gdbserver(**kwargs))
+        asyncio.run(workspace(**kwargs))
 
         return 0
 
