@@ -38,7 +38,7 @@ architectures_flag.add_argument(
 
 build_num_flag = ArgumentParser(add_help=False)
 build_num_flag.add_argument(
-    '--build-num',
+    '--build-num', '-b',
     type=int,
     help=f'Use specified build from OSRF build farm instead of {release_default}'
 )
