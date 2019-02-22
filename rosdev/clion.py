@@ -2,19 +2,24 @@ from asyncio.subprocess import create_subprocess_shell, PIPE
 from atools import memoize
 from logging import getLogger
 import os
+from typing import Optional
 
 
-log = getLogger(__name__)
+log = getLogger(__package__)
 
 
 @memoize
 async def clion(
+        *,
         architecture: str,
+        build_num: Optional[int],
         release: str,
 ) -> None:
 
     for command in [
-        f'env -i bash -c \'source .ros/{architecture}/{release}/setup.bash && env\'',
+        f'env -i bash -c \'source '
+        f'.rosdev/{architecture}/{build_num or release}/setup.bash && env\'',
+
         f'env -i bash -c \'source install/setup.bash && env\'',
     ]:
         proc = await create_subprocess_shell(command, stdout=PIPE)

@@ -3,24 +3,24 @@ import docker
 from logging import getLogger
 import os
 from pathlib import Path
-from typing import FrozenSet
+from typing import FrozenSet, Optional
 
-from ..images.images import image
+from rosdev.gen.docker.images import image
 
 
-log = getLogger(__name__)
+log = getLogger(__package__)
 
 
 @memoize
 async def container(
         architecture: str,
-        nightly: bool,
+        build_num: Optional[int],
         release: str,
         ports: FrozenSet[int],
         interactive: bool,
         command: str,
 ) -> None:
-    dockerfile = await image(architecture, nightly, release)
+    dockerfile = await image(architecture=architecture, release=release)
 
     cwd = os.getcwd()
     home = str(Path.home())
@@ -30,6 +30,8 @@ async def container(
 
     environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
     environment['ROSDEV_DIR'] = os.getcwd()
+    environment['ROSDEV_INSTALL_DIR'] = \
+        f'{os.getcwd()}/.rosdev/{architecture}/{build_num or release}'
 
     client = docker.client.from_env()
     container = client.containers.create(

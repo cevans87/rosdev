@@ -1,23 +1,24 @@
 from atools import memoize
 from logging import getLogger
-from typing import FrozenSet
+from typing import FrozenSet, Optional
 
-from ..gen.docker.container.container import container
+from rosdev.gen.docker.container import container
 
 
-log = getLogger(__name__)
+log = getLogger(__package__)
 
 
 @memoize
 async def bash(
+        *,
         architecture: str,
-        nightly: bool,
+        build_num: Optional[int],
         release: str,
         ports: FrozenSet[int],
 ) -> None:
     await container(
         architecture=architecture,
-        nightly=nightly,
+        build_num=build_num,
         release=release,
         ports=ports,
         interactive=True,

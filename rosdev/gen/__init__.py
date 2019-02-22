@@ -24,5 +24,6 @@ def argument_parser(
 
 if __name__ == '__main__':
     import sys
-    from rosdev import main
+    import main
+
     sys.exit(main(parser=argument_parser()))

@@ -12,7 +12,7 @@ from textwrap import dedent
 from typing import FrozenSet
 
 
-log = getLogger(__name__)
+log = getLogger(__package__)
 
 
 @dataclass(frozen=True)
@@ -27,8 +27,8 @@ class Entrypoint:
             set -e
 
             # setup ros2 environment
-            source "$ROSDEV_DIR/.ros/{self.architecture}/{self.release}/setup.bash" \
-                2> /dev/null || source "/opt/ros/$ROS_DISTRO/setup.bash"
+            source "$ROSDEV_INSTALL_DIR/setup.bash" 2> /dev/null || \
+                source "/opt/ros/$ROS_DISTRO/setup.bash" || :
             source "$ROSDEV_DIR/install/setup.bash" 2> /dev/null || :
             exec "$@"
         ''').lstrip()
@@ -37,19 +37,16 @@ class Entrypoint:
 @dataclass(frozen=True)
 class Dockerfile:
     architecture: str
-    nightly: bool
     release: str
 
     cwd: str = field(init=False, default_factory=os.getcwd)
 
     @property
     def base_tag(self) -> str:
-        if not self.nightly:
-            return f'{self.architecture}/ros:{self.release}-ros-core'
-        elif self.release == 'crystal':
-            return  f'osrf/ros2:nightly'
+        if self.release == 'latest':
+            return f'osrf/ros2:nightly'
         else:
-            raise Exception(f'nightly requires crystal release, have {self.release}')
+            return f'{self.architecture}/ros:{self.release}-ros-core'
 
     @property
     def tag(self) -> str:
@@ -152,15 +149,23 @@ class Dockerfile:
 
 
 @memoize
-async def image(architecture: str, nightly: bool, release: str) -> Dockerfile:
-    dockerfile = Dockerfile(architecture, nightly, release)
+async def image(
+        *,
+        architecture: str,
+        release: str
+) -> Dockerfile:
+    dockerfile = Dockerfile(architecture=architecture, release=release)
     await dockerfile.build()
 
     return dockerfile
 
 
 @memoize
-async def images(architectures: FrozenSet[str], nightly, releases: FrozenSet[str]) -> None:
+async def images(
+        *,
+        architectures: FrozenSet[str],
+        releases: FrozenSet[str]
+) -> None:
     await asyncio.gather(
-        *[image(architecture, nightly, release)
+        *[image(architecture=architecture, release=release)
           for architecture, release in product(architectures, releases)])
