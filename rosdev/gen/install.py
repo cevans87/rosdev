@@ -4,6 +4,7 @@ from atools import memoize
 from functools import partial
 from logging import getLogger
 import os
+import pathlib
 import shutil
 from tempfile import TemporaryDirectory
 from typing import Optional
@@ -20,6 +21,13 @@ def machine(architecture: str) -> str:
     }[architecture]
 
 
+def operating_system(architecture: str) -> str:
+    return {
+        'amd64': 'linux',
+        'arm64v8': f'linux-{machine(architecture)}',
+    }[architecture]
+
+
 async def _exec(command: str) -> None:
     log.debug(command)
     proc = await create_subprocess_exec(*command.split())
@@ -33,11 +41,11 @@ async def install(
         build_num: Optional[str],
 ) -> None:
     path_base = f'.rosdev/{architecture}'
-    path = f'{path_base}/{build_num}'
-    cache_path_base = f'~/{path_base}'
-    cache_path = f'~/{path}'
-    install_path_base = f'./{path_base}'
-    install_path = f'./{path}'
+    path = f'{path_base}/{build_num or "latest"}'
+    cache_path_base = f'{pathlib.Path.home()}/{path_base}'
+    cache_path = f'{pathlib.Path.home()}/{path}'
+    install_path_base = f'{pathlib.Path.cwd()}/{path_base}'
+    install_path = f'{pathlib.Path.cwd()}/{path}'
 
     log.info(f'Installing build artifacts for architecture: {architecture}, build: {build_num}')
     os.makedirs(cache_path_base, exist_ok=True)
@@ -51,7 +59,8 @@ async def install(
 
             log.info('Downloading build artifacts')
             await _exec(
-                f'wget https://ci.ros2.org/view/packaging/job/packaging_linux/'
+                f'wget https://ci.ros2.org/view/packaging/job/'
+                f'packaging_{operating_system(architecture)}/'
                 f'{"lastSuccessfulBuild" if build_num is None else build_num}'
                 f'/artifact/ws/ros2-package-linux-{machine(architecture)}.tar.bz2 '
                 f'-O {artifacts_path}'

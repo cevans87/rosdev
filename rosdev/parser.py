@@ -63,7 +63,7 @@ log_level_flag.add_argument(
     help=f'Default: {log_level_default}',
 )
 
-release_choices = sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + [release_default],
+release_choices = sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + [release_default]
 release_flag = ArgumentParser(add_help=False)
 release_flag.add_argument(
     '--release', '-r',
