@@ -129,6 +129,6 @@ rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
 rosdev_gen_docker_images_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.docker.images').images)
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
-    'install', parents=[architecture_flag, build_num_flag, log_level_flag])
+    'install', parents=[architecture_flag, build_num_flag, log_level_flag, release_flag])
 rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').install)
