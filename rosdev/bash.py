@@ -13,14 +13,14 @@ async def bash(
         *,
         architecture: str,
         build_num: Optional[int],
-        release: str,
         ports: FrozenSet[int],
+        release: str,
 ) -> None:
     await container(
         architecture=architecture,
         build_num=build_num,
-        release=release,
-        ports=ports,
+        command='/bin/bash',
         interactive=True,
-        command='/bin/bash'
+        ports=ports,
+        release=release,
     )

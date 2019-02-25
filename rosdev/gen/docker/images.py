@@ -20,6 +20,22 @@ class Entrypoint:
     architecture: str
     release: str
 
+
+    @property
+    def source_global_setup(self) -> str:
+        return ' > /dev/null 2>&1 || '.join([
+            'source "$ROSDEV_INSTALL_DIR/setup.bash"',
+            'source "/opt/ros/$ROS_DISTRO/setup.bash"',
+            ':'
+        ])
+
+    @property
+    def source_local_setup(self) -> str:
+        return ' 2> /dev/null || '.join([
+            'source "$ROSDEV_DIR/install/setup.bash"',
+            ':'
+        ])
+
     @property
     def contents(self) -> str:
         return dedent(fr'''
@@ -27,9 +43,9 @@ class Entrypoint:
             set -e
 
             # setup ros2 environment
-            source "$ROSDEV_INSTALL_DIR/setup.bash" 2> /dev/null || \
-                source "/opt/ros/$ROS_DISTRO/setup.bash" || :
-            source "$ROSDEV_DIR/install/setup.bash" 2> /dev/null || :
+            {self.source_global_setup}
+            {self.source_local_setup}
+
             exec "$@"
         ''').lstrip()
 

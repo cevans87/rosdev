@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import FrozenSet, Optional
 
 from rosdev.gen.docker.images import image
+from rosdev.util.subprocess import exec
 
 
 log = getLogger(__package__)
@@ -14,11 +15,11 @@ log = getLogger(__package__)
 @memoize
 async def container(
         architecture: str,
-        build_num: Optional[int],
-        release: str,
-        ports: FrozenSet[int],
-        interactive: bool,
         command: str,
+        build_num: Optional[int],
+        interactive: bool,
+        ports: FrozenSet[int],
+        release: str,
 ) -> None:
     dockerfile = await image(architecture=architecture, release=release)
 
@@ -35,19 +36,21 @@ async def container(
 
     client = docker.client.from_env()
     container = client.containers.create(
-        image=dockerfile.tag,
-        command=command,
-        tty=True,
-        detach=True,
-        stdin_open=True,
         auto_remove=True,
+        command=command,
+        detach=True,
+        environment=environment,
+        image=dockerfile.tag,
+        ports={port: port for port in ports},
+        security_opt=['seccomp=unconfined'],
+        stdin_open=True,
+        tty=True,
         volumes=volumes,
         working_dir=cwd,
-        ports={port: port for port in ports},
-        environment=environment,
-        security_opt=['seccomp=unconfined'],
     )
 
+    log.debug(f'attaching to container "{container.name}"')
     if interactive:
-        log.info(f'attaching to "{container.name}"')
         os.execlpe('docker', *f'docker start -ai {container.name}'.split(), os.environ)
+    else:
+        await exec(f'docker start -a {container.name}')

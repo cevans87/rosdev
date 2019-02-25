@@ -1,8 +1,11 @@
-from asyncio.subprocess import create_subprocess_shell, PIPE
+from asyncio import create_task
 from atools import memoize
 from logging import getLogger
 import os
+import sys
 from typing import Optional
+
+from rosdev.util.subprocess import get_exec_lines, get_shell_lines
 
 
 log = getLogger(__package__)
@@ -16,22 +19,19 @@ async def clion(
         release: str,
 ) -> None:
 
+    which_clion = create_task(get_exec_lines('which clion'))
+
     for command in [
         f'env -i bash -c \'source '
         f'.rosdev/{architecture}/{build_num or release}/setup.bash && env\'',
 
         f'env -i bash -c \'source install/setup.bash && env\'',
     ]:
-        proc = await create_subprocess_shell(command, stdout=PIPE)
-        while not proc.stdout.at_eof():
-            line = await proc.stdout.readline()
-            try:
-                k, v = line.decode().strip().split('=', 1)
-            except ValueError:
-                assert proc.stdout.at_eof()
-            else:
-                os.environ[k] = v
+        lines = await get_shell_lines(command)
+        for line in lines:
+            if line:
+                os.environ.setdefault(*line.split('=', 1))
 
-    proc = await create_subprocess_shell(
-        f'nohup clion {os.getcwd()} < /dev/null > /dev/null 2>&1 &')
-    await proc.wait()
+    await get_shell_lines(
+        f'nohup {sys.executable} {(await which_clion)[0]} '
+        f'{os.getcwd()} < /dev/null > /dev/null 2>&1 &')
