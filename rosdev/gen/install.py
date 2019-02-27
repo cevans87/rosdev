@@ -22,6 +22,7 @@ log = getLogger(__package__)
 class _Install:
     architecture: str
     build_num: Optional[str]
+    fast: bool
     release: str
 
     @property
@@ -58,15 +59,6 @@ class _Install:
     def install_path(self) -> str:
         return f'{self.cwd}/{self.path}'
 
-    def __await__(self) -> Generator[_Install, None, None]:
-        async def __await___inner() -> None:
-            if self.build_num is None:
-                return await self._install_from_container()
-            else:
-                return await self._install_from_osrf_build_farm()
-
-        return __await___inner().__await__()
-
     @property
     def ros_distro(self) -> str:
         if (self.build_num is not None) or (self.release == 'latest'):
@@ -74,15 +66,26 @@ class _Install:
 
         return self.release
 
+    def __await__(self) -> Generator[_Install, None, None]:
+        return self._run().__await__()
+
+    @memoize
+    async def _run(self) -> None:
+        if self.build_num is None:
+            return await self._install_from_container()
+        else:
+            return await self._install_from_osrf_build_farm()
+
     async def _install_from_container(self) -> None:
         log.info(f'Installing from docker image {self.release} to {self.install_path}')
         await container(
             architecture=self.architecture,
             build_num=self.build_num,
-            release=self.release,
-            ports=frozenset(),
-            interactive=False,
             command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
+            fast=self.fast,
+            interactive=False,
+            ports=frozenset(),
+            release=self.release,
         )
 
     async def _install_from_osrf_build_farm(self) -> None:
@@ -121,15 +124,4 @@ class _Install:
             None, partial(shutil.copytree, self.cache_path, self.install_path))
 
 
-@memoize
-async def install(
-        *,
-        architecture: str,
-        build_num: Optional[str],
-        release: str,
-) -> None:
-    await _Install(
-        architecture=architecture,
-        build_num=build_num,
-        release=release,
-    )
+install = memoize(_Install)

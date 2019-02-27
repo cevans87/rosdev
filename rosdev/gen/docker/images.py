@@ -1,6 +1,6 @@
 import asyncio
 from atools import memoize
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import docker
 from itertools import product
 from logging import getLogger
@@ -11,51 +11,52 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import FrozenSet
 
+from rosdev.util.lookup import get_machine
+
 
 log = getLogger(__package__)
 
 
+@memoize
 @dataclass(frozen=True)
-class Entrypoint:
+class Image:
     architecture: str
+    fast: bool
     release: str
 
+    @memoize
+    async def __call__(self) -> None:
+
+        def ___call___internal() -> None:
+            with TemporaryDirectory() as tempdir_path:
+                with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
+                    dockerfile_f_out.write(self.contents)
+                with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
+                    entrypoint_f_out.write(self.entrypoint.contents)
+                with open(f'{pathlib.Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
+                        open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
+                    id_rsa_f_out.write(id_rsa_f_in.read())
+
+                client = docker.client.from_env()
+                client.images.build(
+                    path=tempdir_path,
+                    pull=not self.fast,
+                    rm=True,
+                    tag=self.tag,
+                )
+
+        log.info(f'building "{self.tag}" from "{self.base_tag}"')
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, ___call___internal)
+        except docker.errors.BuildError as e:
+            log.error(f'while building "{self.tag}", got "{e}"')
+        else:
+            log.info(f'finished "{self.tag}" from "{self.base_tag}"')
 
     @property
-    def source_global_setup(self) -> str:
-        return ' > /dev/null 2>&1 || '.join([
-            'source "$ROSDEV_INSTALL_DIR/setup.bash"',
-            'source "/opt/ros/$ROS_DISTRO/setup.bash"',
-            ':'
-        ])
-
-    @property
-    def source_local_setup(self) -> str:
-        return ' 2> /dev/null || '.join([
-            'source "$ROSDEV_DIR/install/setup.bash"',
-            ':'
-        ])
-
-    @property
-    def contents(self) -> str:
-        return dedent(fr'''
-            #!/bin/bash
-            set -e
-
-            # setup ros2 environment
-            {self.source_global_setup}
-            {self.source_local_setup}
-
-            exec "$@"
-        ''').lstrip()
-
-
-@dataclass(frozen=True)
-class Dockerfile:
-    architecture: str
-    release: str
-
-    cwd: str = field(init=False, default_factory=os.getcwd)
+    @memoize
+    def cwd(self) -> str:
+        return os.getcwd()
 
     @property
     def base_tag(self) -> str:
@@ -70,19 +71,11 @@ class Dockerfile:
 
     @property
     def machine(self) -> str:
-        return {
-            'amd64': 'x86_64',
-            'arm32v7': 'arm',
-            'arm64v8': 'aarch64'
-        }[self.architecture]
+        return get_machine(self.architecture)
 
     @property
     def qemu_path(self) -> str:
         return f'/usr/bin/qemu-{self.machine}-static'
-
-    @property
-    def entrypoint(self) -> Entrypoint:
-        return Entrypoint(architecture=self.architecture, release=self.release)
 
     @property
     def contents(self) -> str:
@@ -134,54 +127,16 @@ class Dockerfile:
             CMD bash
         ''').lstrip()
 
+
+@memoize
+@dataclass(frozen=True)
+class Images:
+    architectures: FrozenSet[str]
+    fast: bool
+    releases: FrozenSet[str]
+
     @memoize
-    async def build(self) -> None:
-
-        def _build() -> None:
-            with TemporaryDirectory() as tempdir_path:
-                with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
-                    dockerfile_f_out.write(self.contents)
-                with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
-                    entrypoint_f_out.write(self.entrypoint.contents)
-                with open(f'{pathlib.Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
-                        open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
-                    id_rsa_f_out.write(id_rsa_f_in.read())
-
-                client = docker.client.from_env()
-                client.images.build(
-                    path=tempdir_path,
-                    pull=True,
-                    rm=True,
-                    tag=self.tag,
-                )
-
-        log.info(f'building "{self.tag}" from "{self.base_tag}"')
-        try:
-            await asyncio.get_event_loop().run_in_executor(None, _build)
-        except docker.errors.BuildError as e:
-            log.error(f'while building "{self.tag}", got "{e}"')
-        else:
-            log.info(f'finished "{self.tag}" from "{self.base_tag}"')
-
-
-@memoize
-async def image(
-        *,
-        architecture: str,
-        release: str
-) -> Dockerfile:
-    dockerfile = Dockerfile(architecture=architecture, release=release)
-    await dockerfile.build()
-
-    return dockerfile
-
-
-@memoize
-async def images(
-        *,
-        architectures: FrozenSet[str],
-        releases: FrozenSet[str]
-) -> None:
-    await asyncio.gather(
-        *[image(architecture=architecture, release=release)
-          for architecture, release in product(architectures, releases)])
+    async def __call__(self) -> None:
+        await asyncio.gather(
+            *[Image(architecture=architecture, fast=self.fast, release=release)()
+              for architecture, release in product(self.architectures, self.releases)])

@@ -42,9 +42,14 @@ def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = No
         if isinstance(v, list):
             setattr(args, k, frozenset(v))
 
+    async def run_handler():
+        await handler(**args.__dict__)()
+
     import asyncio
     # FIXME add signal handler to cancel coroutines
-    return asyncio.run(handler(**args.__dict__))
+    asyncio.run(run_handler())
+
+    return 0
 
 
 if __name__ == '__main__':

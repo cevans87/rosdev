@@ -15,13 +15,14 @@ log = getLogger(__package__)
 @memoize
 async def container(
         architecture: str,
-        command: str,
         build_num: Optional[int],
+        command: str,
+        fast: bool,
         interactive: bool,
         ports: FrozenSet[int],
         release: str,
 ) -> None:
-    dockerfile = await image(architecture=architecture, release=release)
+    dockerfile = await image(architecture=architecture, fast=fast, release=release)
 
     cwd = os.getcwd()
     home = str(Path.home())

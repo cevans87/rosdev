@@ -10,6 +10,7 @@ log = getLogger(__package__)
 async def gdbserver(
         architecture: str,
         build_num: int,
+        fast: bool,
         executable: str,
         package: str,
         port: int,
@@ -19,6 +20,7 @@ async def gdbserver(
         architecture=architecture,
         build_num=build_num,
         command=f'ros2 run --prefix "gdbserver :{port}" {package} {executable}',
+        fast=fast,
         interactive=True,
         ports=frozenset({port}),
         release=release,

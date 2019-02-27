@@ -44,6 +44,7 @@ asan_flag.add_argument(
     help=f'Build with Address Sanitizer enabled'
 )
 
+# FIXME default this to use master
 bad_build_num_flag = ArgumentParser(add_help=False)
 bad_build_num_flag.add_argument(
     '--bad-build-num', '-b',
@@ -64,6 +65,13 @@ colcon_build_args_flag.add_argument(
     help=f'Additional args to pass to colcon build'
 )
 
+fast_flag = ArgumentParser(add_help=False)
+fast_flag.add_argument(
+    '--fast', '-f',
+    action='store_true',
+    help=f'Build from local docker images, even if newer ones can be pulled'
+)
+
 gdbserver_port_flag = ArgumentParser(add_help=False)
 gdbserver_port_flag.add_argument(
     '--port', '-p',
@@ -72,6 +80,7 @@ gdbserver_port_flag.add_argument(
     help=f'Default: {gdbserver_port_default}'
 )
 
+# FIXME default this to use crystal release
 good_build_num_flag = ArgumentParser(add_help=False)
 good_build_num_flag.add_argument(
     '--good-build-num', '-g',
@@ -118,15 +127,18 @@ rosdev_parents = [log_level_flag]
 rosdev_parser = ArgumentParser(parents=rosdev_parents)
 rosdev_subparsers = rosdev_parser.add_subparsers(required=True)
 rosdev_bash_parser = rosdev_subparsers.add_parser(
-    'bash', parents=[architecture_flag, build_num_flag, ports_flag, release_flag])
+    'bash', parents=[architecture_flag, build_num_flag, fast_flag, ports_flag, release_flag])
 rosdev_bash_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.bash').bash)
 rosdev_bisect_parser = rosdev_subparsers.add_parser(
     'bisect',
     parents=[
+        command_positional,
         architecture_flag,
+        asan_flag,
         bad_build_num_flag,
         colcon_build_args_flag,
+        fast_flag,
         good_build_num_flag,
         release_flag
     ]
@@ -143,6 +155,7 @@ rosdev_gdbserver_parser = rosdev_subparsers.add_parser(
         executable_positional,
         architecture_flag,
         build_num_flag,
+        fast_flag,
         gdbserver_port_flag,
         release_flag,
     ]
@@ -161,10 +174,11 @@ rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
         asan_flag,
         build_num_flag,
         colcon_build_args_flag,
+        fast_flag,
         release_flag
     ])
 rosdev_gen_colcon_build_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.colcon.build').build)
+    get_handler=lambda: import_module('rosdev.gen.colcon.build').Build)
 rosdev_gen_docker_parser = rosdev_gen_subparsers.add_parser(
     'docker', parents=[])
 rosdev_gen_docker_subparsers = rosdev_gen_docker_parser.add_subparsers(required=True)
@@ -173,6 +187,7 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
     parents=[
         command_positional,
         architecture_flag,
+        fast_flag,
         interactive_flag,
         ports_flag,
         release_flag
@@ -181,10 +196,10 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
 rosdev_gen_docker_container_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.docker.container').container)
 rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
-    'images', parents=[architectures_flag, releases_flag])
+    'images', parents=[architectures_flag, fast_flag, releases_flag])
 rosdev_gen_docker_images_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.docker.images').images)
+    get_handler=lambda: import_module('rosdev.gen.docker.images').Images)
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
-    'install', parents=[architecture_flag, build_num_flag, log_level_flag, release_flag])
+    'install', parents=[architecture_flag, build_num_flag, fast_flag, log_level_flag, release_flag])
 rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').install)
