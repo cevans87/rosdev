@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 from atools import memoize
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import FrozenSet
 
+from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine
 
 
@@ -19,20 +21,19 @@ log = getLogger(__package__)
 
 @memoize
 @dataclass(frozen=True)
-class Image:
+class Image(Handler):
     architecture: str
     fast: bool
     release: str
 
     @memoize
-    async def __call__(self) -> None:
-
-        def ___call___internal() -> None:
+    async def _run(self) -> None:
+        def _run_internal() -> None:
             with TemporaryDirectory() as tempdir_path:
                 with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
-                    dockerfile_f_out.write(self.contents)
+                    dockerfile_f_out.write(self.dockerfile_contents)
                 with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
-                    entrypoint_f_out.write(self.entrypoint.contents)
+                    entrypoint_f_out.write(self.rosdev_entrypoint_sh_contents)
                 with open(f'{pathlib.Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
                         open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
                     id_rsa_f_out.write(id_rsa_f_in.read())
@@ -47,7 +48,7 @@ class Image:
 
         log.info(f'building "{self.tag}" from "{self.base_tag}"')
         try:
-            await asyncio.get_event_loop().run_in_executor(None, ___call___internal)
+            await asyncio.get_event_loop().run_in_executor(None, _run_internal)
         except docker.errors.BuildError as e:
             log.error(f'while building "{self.tag}", got "{e}"')
         else:
@@ -78,7 +79,20 @@ class Image:
         return f'/usr/bin/qemu-{self.machine}-static'
 
     @property
-    def contents(self) -> str:
+    def rosdev_entrypoint_sh_contents(self) -> str:
+        return dedent(fr'''
+            #!/bin/bash
+            set -e
+            # setup ros2 environment
+            source "$ROSDEV_DIR/install/setup.bash" > /dev/null 2>&1 || \
+            source "$ROSDEV_INSTALL_DIR/setup.bash" > /dev/null 2>&1 || \
+            source "/opt/ros/$ROS_DISTRO/setup.bash" > /dev/null 2>&1 || \
+            :
+            exec "$@"
+        ''').lstrip()
+
+    @property
+    def dockerfile_contents(self) -> str:
         return dedent(fr'''
             FROM {self.base_tag}
 
@@ -130,13 +144,13 @@ class Image:
 
 @memoize
 @dataclass(frozen=True)
-class Images:
+class Images(Handler):
     architectures: FrozenSet[str]
     fast: bool
     releases: FrozenSet[str]
 
     @memoize
-    async def __call__(self) -> None:
+    async def _run(self) -> None:
         await asyncio.gather(
-            *[Image(architecture=architecture, fast=self.fast, release=release)()
+            *[Image(architecture=architecture, fast=self.fast, release=release)
               for architecture, release in product(self.architectures, self.releases)])

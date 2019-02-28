@@ -8,8 +8,9 @@ setup(
         'console_scripts': ['rosdev=rosdev.main:main']
     },
     install_requires=[
-        'atools>=0.4.1',
+        'atools>=0.5.0',
         'docker>=3.7.0',
+        'python-jenkins>=1.4.0'
     ],
     python_requires='>=3.7',
     url='https://github.com/cevans87/rosdev',

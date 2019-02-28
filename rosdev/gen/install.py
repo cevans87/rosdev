@@ -8,9 +8,10 @@ import os
 import pathlib
 import shutil
 from tempfile import TemporaryDirectory
-from typing import Generator, Optional
+from typing import Optional
 
-from rosdev.gen.docker.container import container
+from rosdev.gen.docker.container import Container
+from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine, get_operating_system
 from rosdev.util.subprocess import exec
 
@@ -18,8 +19,9 @@ from rosdev.util.subprocess import exec
 log = getLogger(__package__)
 
 
+@memoize
 @dataclass(frozen=True)
-class _Install:
+class Install(Handler):
     architecture: str
     build_num: Optional[str]
     fast: bool
@@ -66,19 +68,19 @@ class _Install:
 
         return self.release
 
-    def __await__(self) -> Generator[_Install, None, None]:
-        return self._run().__await__()
-
     @memoize
     async def _run(self) -> None:
+        os.makedirs(self.cache_path_base, exist_ok=True)
+        os.makedirs(self.install_path_base, exist_ok=True)
         if self.build_num is None:
-            return await self._install_from_container()
+            await self._install_from_container()
         else:
-            return await self._install_from_osrf_build_farm()
+            await self._install_from_osrf_build_farm()
 
     async def _install_from_container(self) -> None:
         log.info(f'Installing from docker image {self.release} to {self.install_path}')
-        await container(
+        await exec('mkdir -p ')
+        await Container(
             architecture=self.architecture,
             build_num=self.build_num,
             command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
@@ -119,9 +121,5 @@ class _Install:
                 None, partial(shutil.rmtree, self.install_path, ignore_errors=True))
 
         log.info(f'Installing artifacts to {self.install_path}')
-        os.makedirs(self.install_path_base, exist_ok=True)
         await get_event_loop().run_in_executor(
             None, partial(shutil.copytree, self.cache_path, self.install_path))
-
-
-install = memoize(_Install)

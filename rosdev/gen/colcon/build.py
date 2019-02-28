@@ -1,13 +1,13 @@
-from __future__ import annotations
 from atools import memoize
 from dataclasses import dataclass
 from typing import Optional
 
-from rosdev.gen.docker.container import container
+from rosdev.gen.docker.container import Container
+from rosdev.util.handler import Handler
 
 
 @dataclass(frozen=True)
-class Build:
+class Build(Handler):
     architecture: str
     asan: bool
     build_num: Optional[int]
@@ -16,8 +16,8 @@ class Build:
     release: str
 
     @memoize
-    async def __call__(self) -> None:
-        return await container(
+    async def _run(self) -> None:
+        await Container(
             architecture=self.architecture,
             build_num=self.build_num,
             command=self.command,

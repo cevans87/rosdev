@@ -14,7 +14,9 @@ package_positional.add_argument('package')
 
 architecture_default = 'amd64'
 architectures_default = [architecture_default]
+bad_build_default = 'latest'
 gdbserver_port_default = 1337
+good_build_default = 'crystal'
 log_level_default = 'INFO'
 release_default = 'latest'
 releases_default = [release_default]
@@ -44,12 +46,20 @@ asan_flag.add_argument(
     help=f'Build with Address Sanitizer enabled'
 )
 
-# FIXME default this to use master
+bad_build_choices = sorted({'bionic', 'crystal'}) + ['latest']
+bad_build_flag = ArgumentParser(add_help=False)
+bad_build_flag.add_argument(
+    '--bad-build', '-b',
+    default=bad_build_default,
+    choices=bad_build_choices,
+    help=f'Bad build to compare. Default: {bad_build_default}'
+)
+
 bad_build_num_flag = ArgumentParser(add_help=False)
 bad_build_num_flag.add_argument(
-    '--bad-build-num', '-b',
+    '--bad-build-num',
     type=int,
-    help=f'Bad build to compare'
+    help=f'Bad build number to compare. Supersedes --bad-build'
 )
 
 build_num_flag = ArgumentParser(add_help=False)
@@ -69,7 +79,7 @@ fast_flag = ArgumentParser(add_help=False)
 fast_flag.add_argument(
     '--fast', '-f',
     action='store_true',
-    help=f'Build from local docker images, even if newer ones can be pulled'
+    help=f'Build from existing local docker images, even if newer ones can be pulled'
 )
 
 gdbserver_port_flag = ArgumentParser(add_help=False)
@@ -80,18 +90,27 @@ gdbserver_port_flag.add_argument(
     help=f'Default: {gdbserver_port_default}'
 )
 
-# FIXME default this to use crystal release
+good_build_choices = sorted({'ardent', 'bionic', 'crystal'})
+good_build_flag = ArgumentParser(add_help=False)
+good_build_flag.add_argument(
+    '--good-build', '-g',
+    default=good_build_default,
+    choices=good_build_choices,
+    help=f'Good build to compare. Default: {good_build_default}'
+)
+
 good_build_num_flag = ArgumentParser(add_help=False)
 good_build_num_flag.add_argument(
-    '--good-build-num', '-g',
+    '--good-build-num',
     type=int,
-    help=f'Good build to compare'
+    help=f'Good build number to compare. Supersedes --good-build'
 )
 
 interactive_flag = ArgumentParser(add_help=False)
 interactive_flag.add_argument('--interactive', '-i', action='store_true')
 
 log_level_flag = ArgumentParser(add_help=False)
+# noinspection PyProtectedMember
 log_level_flag.add_argument(
     '--log-level',
     default=log_level_default,
@@ -127,28 +146,38 @@ rosdev_parents = [log_level_flag]
 rosdev_parser = ArgumentParser(parents=rosdev_parents)
 rosdev_subparsers = rosdev_parser.add_subparsers(required=True)
 rosdev_bash_parser = rosdev_subparsers.add_parser(
-    'bash', parents=[architecture_flag, build_num_flag, fast_flag, ports_flag, release_flag])
+    'bash', parents=[
+        architecture_flag,
+        build_num_flag,
+        fast_flag,
+        log_level_flag,
+        ports_flag,
+        release_flag,
+    ]
+)
 rosdev_bash_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.bash').bash)
+    get_handler=lambda: import_module('rosdev.bash').Bash)
 rosdev_bisect_parser = rosdev_subparsers.add_parser(
     'bisect',
     parents=[
         command_positional,
         architecture_flag,
         asan_flag,
+        bad_build_flag,
         bad_build_num_flag,
         colcon_build_args_flag,
         fast_flag,
+        good_build_flag,
         good_build_num_flag,
         release_flag
     ]
 )
 rosdev_bisect_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.bisect').bisect)
+    get_handler=lambda: import_module('rosdev.bisect').Bisect)
 rosdev_clion_parser = rosdev_subparsers.add_parser(
     'clion', parents=[architecture_flag, build_num_flag, release_flag])
 rosdev_clion_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.clion').clion)
+    get_handler=lambda: import_module('rosdev.clion').Clion)
 rosdev_gdbserver_parser = rosdev_subparsers.add_parser(
     'gdbserver', parents=[
         package_positional,
@@ -161,7 +190,7 @@ rosdev_gdbserver_parser = rosdev_subparsers.add_parser(
     ]
 )
 rosdev_gdbserver_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gdbserver').gdbserver)
+    get_handler=lambda: import_module('rosdev.gdbserver').Gdbserver)
 rosdev_gen_parser = rosdev_subparsers.add_parser(
     'gen', parents=[])
 rosdev_gen_subparsers = rosdev_gen_parser.add_subparsers(required=True)
@@ -194,7 +223,7 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
     ]
 )
 rosdev_gen_docker_container_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.docker.container').container)
+    get_handler=lambda: import_module('rosdev.gen.docker.container').Container)
 rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
     'images', parents=[architectures_flag, fast_flag, releases_flag])
 rosdev_gen_docker_images_parser.set_defaults(
@@ -202,4 +231,4 @@ rosdev_gen_docker_images_parser.set_defaults(
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
     'install', parents=[architecture_flag, build_num_flag, fast_flag, log_level_flag, release_flag])
 rosdev_gen_install_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.install').install)
+    get_handler=lambda: import_module('rosdev.gen.install').Install)

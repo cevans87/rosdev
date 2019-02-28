@@ -43,7 +43,7 @@ def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = No
             setattr(args, k, frozenset(v))
 
     async def run_handler():
-        await handler(**args.__dict__)()
+        await handler(**args.__dict__)
 
     import asyncio
     # FIXME add signal handler to cancel coroutines

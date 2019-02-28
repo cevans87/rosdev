@@ -18,9 +18,11 @@ async def _process_lines(process: Process) -> List[str]:
 
 
 @memoize
-async def exec(command: str) -> None:
+async def exec(command: str) -> int:
     process = await create_subprocess_exec(*command.split())
     await process.wait()
+
+    return process.returncode
 
 
 @memoize
@@ -31,9 +33,11 @@ async def get_exec_lines(command: str) -> List[str]:
 
 
 @memoize
-async def shell(command: str) -> None:
+async def shell(command: str) -> int:
     process = await create_subprocess_shell(command)
     await process.wait()
+
+    return process.returncode
 
 
 @memoize

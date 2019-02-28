@@ -1,14 +1,14 @@
-from __future__ import annotations
 from asyncio import get_event_loop
 from atools import memoize
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from logging import getLogger
 from jenkins import Jenkins
-from typing import FrozenSet, Generator, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-from rosdev.gen.docker.container import container
+from rosdev.gen.docker.container import Container
 from rosdev.gen.colcon.build import Build
-from rosdev.gen.install import install
+from rosdev.gen.install import Install
+from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_operating_system
 from rosdev.util.subprocess import shell
 
@@ -16,19 +16,19 @@ from rosdev.util.subprocess import shell
 log = getLogger(__package__)
 
 
+@memoize
 @dataclass(frozen=True)
-class _Bisect:
+class Bisect(Handler):
     architecture: str
     asan: bool
+    bad_build: str
     bad_build_num: Optional[int]
     colcon_build_args: Optional[str]
     command: str
     fast: bool
+    good_build: str
     good_build_num: Optional[int]
     release: str
-
-    def __await__(self) -> Generator[_Bisect, None, None]:
-        return self._run().__await__()
 
     @memoize
     async def _run(self) -> None:
@@ -49,7 +49,7 @@ class _Bisect:
 
             await shell('rm -rf build install log')
 
-            await install(
+            await Install(
                 architecture=self.architecture,
                 build_num=test_build_num,
                 fast=self.fast,
@@ -65,7 +65,7 @@ class _Bisect:
                 release=self.release,
             )
 
-            test_success = await container(
+            test_exit_code = await Container(
                 architecture=self.architecture,
                 command=self.command,
                 build_num=test_build_num,
@@ -73,9 +73,9 @@ class _Bisect:
                 interactive=False,
                 ports=frozenset(),
                 release=self.release,
-            )
+            ).exit_code()
 
-            if test_success:
+            if test_exit_code == 0:
                 log.info(f'build {test_build_num} is good')
                 build_nums = build_nums[len(build_nums) // 2:]
             else:
@@ -122,6 +122,3 @@ class _Bisect:
             return build_info['result'] == 'SUCCESS'
 
         return await get_event_loop().run_in_executor(None, _get_build_num_succeeded_inner)
-
-
-bisect = memoize(_Bisect)
