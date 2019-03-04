@@ -5,6 +5,7 @@ from asyncio.subprocess import (
     PIPE,
     Process
 )
+import os
 from typing import List
 
 
@@ -19,7 +20,7 @@ async def _process_lines(process: Process) -> List[str]:
 
 @memoize
 async def exec(command: str) -> int:
-    process = await create_subprocess_exec(*command.split())
+    process = await create_subprocess_exec(*command.split(), env=os.environ)
     await process.wait()
 
     return process.returncode
@@ -27,14 +28,14 @@ async def exec(command: str) -> int:
 
 @memoize
 async def get_exec_lines(command: str) -> List[str]:
-    process = await create_subprocess_exec(*command.split(), stdout=PIPE)
+    process = await create_subprocess_exec(*command.split(), stdout=PIPE, env=os.environ)
 
     return await _process_lines(process)
 
 
 @memoize
 async def shell(command: str) -> int:
-    process = await create_subprocess_shell(command)
+    process = await create_subprocess_shell(command, env=os.environ)
     await process.wait()
 
     return process.returncode
@@ -42,6 +43,6 @@ async def shell(command: str) -> int:
 
 @memoize
 async def get_shell_lines(command: str) -> List[str]:
-    process = await create_subprocess_shell(command, stdout=PIPE)
+    process = await create_subprocess_shell(command, stdout=PIPE, env=os.environ)
 
     return await _process_lines(process)

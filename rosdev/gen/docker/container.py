@@ -19,11 +19,15 @@ log = getLogger(__package__)
 class Container(Handler):
     architecture: str
     build_num: Optional[int]
+    clean: bool
     command: str
     fast: bool
     interactive: bool
     ports: FrozenSet[int]
     release: str
+
+    class Exception(Exception):
+        pass
 
     @property
     @memoize
@@ -34,16 +38,13 @@ class Container(Handler):
     async def exit_code(self) -> int:
         await self.image
 
-        cwd = os.getcwd()
-        home = str(Path.home())
-        volumes = {home: {'bind': home}}
-        if not cwd.startswith(home):
-            volumes[cwd] = {'bind': cwd}
-
         environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
-        environment['ROSDEV_DIR'] = os.getcwd()
-        environment['ROSDEV_INSTALL_DIR'] = \
-            f'{os.getcwd()}/.rosdev/{self.architecture}/{self.build_num or self.release}'
+        if self.clean:
+            environment['ROSDEV_CLEAN_ENVIRONMENT'] = '1'
+        else:
+            environment['ROSDEV_DIR'] = os.getcwd()
+            environment['ROSDEV_INSTALL_DIR'] = \
+                f'{os.getcwd()}/.rosdev/{self.architecture}/{self.build_num or self.release}'
 
         client = docker.client.from_env()
         container = client.containers.create(
@@ -56,8 +57,11 @@ class Container(Handler):
             security_opt=['seccomp=unconfined'],
             stdin_open=True,
             tty=True,
-            volumes=volumes,
-            working_dir=cwd,
+            volumes={
+                os.getcwd(): {'bind': os.getcwd()},
+                str(Path.home()): {'bind': str(Path.home())},
+            },
+            working_dir=os.getcwd(),
         )
 
         log.debug(f'attaching to container "{container.name}"')
@@ -65,6 +69,11 @@ class Container(Handler):
             os.execlpe('docker', *f'docker start -ai {container.name}'.split(), os.environ)
 
         return await exec(f'docker start -a {container.name}')
+
+    @memoize
+    async def must_succeed(self) -> None:
+        if await self.exit_code() != 0:
+            raise self.Exception('Build failed.')
 
     @memoize
     async def _run(self) -> None:

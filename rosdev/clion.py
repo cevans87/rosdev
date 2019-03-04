@@ -7,7 +7,7 @@ import sys
 from typing import Optional
 
 from rosdev.util.handler import Handler
-from rosdev.util.subprocess import get_exec_lines, get_shell_lines
+from rosdev.util.subprocess import get_exec_lines, get_shell_lines, shell
 
 
 log = getLogger(__package__)
@@ -24,17 +24,13 @@ class Clion(Handler):
     async def _run(self) -> None:
         which_clion = create_task(get_exec_lines('which clion'))
 
-        for command in [
-            f'env -i bash -c \'source '
-            f'.rosdev/{self.architecture}/{self.build_num or self.release}/setup.bash && env\'',
+        for line in await get_shell_lines(f'env -i bash -c \'source install/setup.bash && env\''):
+            if line:
+                k, v = line.split('=', 1)
+                os.environ[k] = v
 
-            f'env -i bash -c \'source install/setup.bash && env\'',
-        ]:
-            lines = await get_shell_lines(command)
-            for line in lines:
-                if line:
-                    os.environ.setdefault(*line.split('=', 1))
-
-        await get_shell_lines(
+        # At this point, env will point us to the ROS python executable, so we need to be explicit
+        # about the python executable we use to execute the clion script.
+        await shell(
             f'nohup {sys.executable} {(await which_clion)[0]} '
             f'{os.getcwd()} < /dev/null > /dev/null 2>&1 &')

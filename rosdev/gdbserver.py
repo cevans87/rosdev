@@ -24,6 +24,7 @@ class Gdbserver(Handler):
         return Container(
             architecture=self.architecture,
             build_num=self.build_num,
+            clean=False,
             command=f'ros2 run --prefix "gdbserver :{self.port}" {self.package} {self.executable}',
             fast=self.fast,
             interactive=True,

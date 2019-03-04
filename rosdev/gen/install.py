@@ -79,10 +79,11 @@ class Install(Handler):
 
     async def _install_from_container(self) -> None:
         log.info(f'Installing from docker image {self.release} to {self.install_path}')
-        await exec('mkdir -p ')
+        await exec(f'mkdir -p {self.install_path_base}')
         await Container(
             architecture=self.architecture,
             build_num=self.build_num,
+            clean=True,
             command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
             fast=self.fast,
             interactive=False,

@@ -6,22 +6,21 @@ import logging
 from typing import List, Optional
 from rosdev.parser import rosdev_parser
 
-try:
-    from argcomplete import autocomplete
-except ImportError:
-    def autocomplete(_parser: ArgumentParser): ...
-
-
 log = logging.getLogger(__package__)
 
 
 def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = None) -> int:
-    import sys
-
-    args = args if args is not None else sys.argv[1:]
-
     parser = parser if parser is not None else rosdev_parser
-    autocomplete(parser)
+    try:
+        # noinspection PyPackageRequirements,PyUnresolvedReferences
+        from argcomplete import autocomplete
+    except ImportError:
+        pass
+    else:
+        autocomplete(parser)
+
+    import sys
+    args = args if args is not None else sys.argv[1:]
 
     try:
         args = parser.parse_args(args)
@@ -30,6 +29,7 @@ def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = No
         return 1
 
     stream_handler = logging.StreamHandler(sys.stdout)
+    # noinspection PyProtectedMember
     stream_handler.setLevel(logging._nameToLevel[args.log_level])
     log.setLevel(logging._nameToLevel[args.log_level])
     log.addHandler(stream_handler)

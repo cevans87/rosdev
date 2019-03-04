@@ -15,6 +15,7 @@ log = getLogger(__package__)
 class Bash(Handler):
     architecture: str
     build_num: Optional[int]
+    clean: bool
     fast: bool
     ports: FrozenSet[int]
     release: str
@@ -25,6 +26,7 @@ class Bash(Handler):
         return Container(
             architecture=self.architecture,
             build_num=self.build_num,
+            clean=self.clean,
             command='/bin/bash',
             fast=self.fast,
             interactive=True,
