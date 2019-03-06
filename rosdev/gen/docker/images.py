@@ -123,41 +123,45 @@ class Image(Handler):
                 openssh-server \
                 python3-pip \
                 sudo \
-                build-essential \
-                cmake \
-                git \
-                python3-colcon-common-extensions \
-                python3-pip \
-                python-rosdep \
-                python3-vcstool \
-                wget \
-                libasio-dev \
-                libtinyxml2-dev \
                 && apt-get clean
 
+                # These are for building all of ros2
+                #build-essential \
+                #cmake \
+                #git \
+                #python3-colcon-common-extensions \
+                #python3-pip \
+                #python-rosdep \
+                #python3-vcstool \
+                #wget \
+                #libasio-dev \
+                #libtinyxml2-dev \
+
             RUN python3 -m pip install -U \
+                argcomplete \
                 colcon-core \
                 colcon-common-extensions \
                 pytest \
                 pytest-cov \
-                vcstool \
-                argcomplete \
-                flake8 \
-                flake8-blind-except \
-                flake8-builtins \
-                flake8-class-newline \
-                flake8-comprehensions \
-                flake8-deprecated \
-                flake8-docstrings \
-                flake8-import-order \
-                flake8-quotes \
-                git+https://github.com/lark-parser/lark.git@0.7d \
-                pytest-repeat \
-                pytest-rerunfailures \
-                pytest \
-                pytest-cov \
-                pytest-runner \
-                setuptools
+                vcstool
+
+                # These are for building all of ros2
+                #flake8 \
+                #flake8-blind-except \
+                #flake8-builtins \
+                #flake8-class-newline \
+                #flake8-comprehensions \
+                #flake8-deprecated \
+                #flake8-docstrings \
+                #flake8-import-order \
+                #flake8-quotes \
+                #git+https://github.com/lark-parser/lark.git@0.7d \
+                #pytest-repeat \
+                #pytest-rerunfailures \
+                #pytest \
+                #pytest-cov \
+                #pytest-runner \
+                #setuptools
 
             RUN rm /ros_entrypoint.sh
             COPY rosdev_entrypoint.sh /
