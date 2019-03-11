@@ -3,6 +3,7 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 import os
+import pyperclip
 import sys
 from typing import Optional
 
@@ -24,10 +25,16 @@ class Clion(Handler):
     async def _run(self) -> None:
         which_clion = create_task(get_exec_lines('which clion'))
 
-        for line in await get_shell_lines(f'env -i bash -c \'source install/setup.bash && env\''):
+        lines = await get_shell_lines(f'env -i bash -c \'source install/setup.bash && env\'')
+        for line in lines:
             if line:
                 k, v = line.split('=', 1)
                 os.environ[k] = v
+
+        pyperclip.copy('\n'.join(lines).strip())
+        log.info(
+            'Cmake environment copied to clipboard. Paste to Settings -> Build, Execution '
+            'Deployment -> CMake -> Environment.')
 
         # At this point, env will point us to the ROS python executable, so we need to be explicit
         # about the python executable we use to execute the clion script.

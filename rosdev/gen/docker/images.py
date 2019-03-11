@@ -93,7 +93,7 @@ class Image(Handler):
                 source "$ROSDEV_DIR/install/setup.bash" > /dev/null 2>&1 || \
                 source "$ROSDEV_INSTALL_DIR/setup.bash" > /dev/null 2>&1 || \
                 source "/opt/ros/$ROS_DISTRO/setup.bash" > /dev/null 2>&1 || \
-            :; \
+                :; \
             fi
 
             exec "$@"
@@ -168,7 +168,8 @@ class Image(Handler):
             RUN chmod +x /rosdev_entrypoint.sh
 
             RUN groupadd -r -g {os.getgid()} {os.getlogin()}
-            RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1>/dev/null
+            RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> /dev/null
+            RUN usermod {os.getlogin()} -d {pathlib.Path.home()}
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
 
             USER {os.getlogin()}
