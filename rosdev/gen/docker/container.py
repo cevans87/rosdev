@@ -76,5 +76,5 @@ class Container(Handler):
             raise self.Exception('Build failed.')
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         await self.exit_code()

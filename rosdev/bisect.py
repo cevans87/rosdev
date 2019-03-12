@@ -32,7 +32,7 @@ class Bisect(Handler):
     release: str
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         build_nums = await self._get_build_nums()
 
         i = 0

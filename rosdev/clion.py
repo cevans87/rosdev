@@ -22,7 +22,7 @@ class Clion(Handler):
     release: str
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         which_clion = create_task(get_exec_lines('which clion'))
 
         lines = await get_shell_lines(f'env -i bash -c \'source install/setup.bash && env\'')

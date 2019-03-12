@@ -4,7 +4,7 @@
 from argparse import ArgumentParser
 import logging
 from typing import List, Optional
-from rosdev.parser import rosdev_parser
+from rosdev.util.parser import rosdev_parser
 
 log = logging.getLogger(__package__)
 
@@ -31,6 +31,7 @@ def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = No
     stream_handler = logging.StreamHandler(sys.stdout)
     # noinspection PyProtectedMember
     stream_handler.setLevel(logging._nameToLevel[args.log_level])
+    # noinspection PyProtectedMember
     log.setLevel(logging._nameToLevel[args.log_level])
     log.addHandler(stream_handler)
 

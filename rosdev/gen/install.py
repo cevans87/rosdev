@@ -69,7 +69,7 @@ class Install(Handler):
         return self.release
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         os.makedirs(self.cache_path_base, exist_ok=True)
         os.makedirs(self.install_path_base, exist_ok=True)
         if self.build_num is None:

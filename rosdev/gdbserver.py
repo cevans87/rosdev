@@ -33,5 +33,5 @@ class Gdbserver(Handler):
         )
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         await self.container

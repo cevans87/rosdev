@@ -30,7 +30,7 @@ class Image(Handler):
         pass
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         def _run_internal() -> None:
             with TemporaryDirectory() as tempdir_path:
                 with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
@@ -192,7 +192,7 @@ class Images(Handler):
     releases: FrozenSet[str]
 
     @memoize
-    async def _run(self) -> None:
+    async def _main(self) -> None:
         await asyncio.gather(
             *[Image(architecture=architecture, fast=self.fast, release=release)
               for architecture, release in product(self.architectures, self.releases)])

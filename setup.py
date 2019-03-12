@@ -5,13 +5,14 @@ setup(
     version='0.1.0',
     packages=find_packages(),
     entry_points={
-        'console_scripts': ['rosdev=rosdev.main:main']
+        'console_scripts': ['rosdev=rosdev.util.main:main']
     },
     install_requires=[
         'atools>=0.5.0',
         'docker>=3.7.0',
         'pyperclip>=1.7.0',
-        'python-jenkins>=1.4.0'
+        'python-jenkins>=1.4.0',
+        'PyYAML>=3.13'
     ],
     python_requires='>=3.7',
     url='https://github.com/cevans87/rosdev',
