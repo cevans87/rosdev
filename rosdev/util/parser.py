@@ -236,14 +236,26 @@ flag.good_release.add_argument(
     help=f'Good release to compare. Currently: {defaults.good_release}'
 )
 
-#gui_group = flag.gui.add_mutually_exclusive_group()
-#gui_group.add_argument(
-#    '--gui',
-#    default=defaults.gui,
-#    action='store_true'
-#    choices=choices.ug,
-#    help=f'Good release to compare. Currently: {defaults.good_release}'
-#)
+gui_group = flag.gui.add_mutually_exclusive_group()
+gui_group.add_argument(
+    '--gui',
+    default=defaults.gui,
+    action='store_true',
+    help=(
+        SUPPRESS if defaults.gui else
+        f'Allow container to use host X11 server.'
+    )
+)
+gui_group.add_argument(
+    '--no-gui',
+    dest='gui',
+    default=not defaults.gui,
+    action='store_false',
+    help=(
+        SUPPRESS if not defaults.gui else
+        f'Do not allow container to use host X11 server.'
+    )
+)
 
 interactive_group = flag.interactive.add_mutually_exclusive_group()
 interactive_group.add_argument(
@@ -295,6 +307,8 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
         flag.build_num,
         flag.clean,
         flag.fast,
+        flag.flavor,
+        flag.gui,
         flag.log_level,
         flag.ports,
         flag.release,
