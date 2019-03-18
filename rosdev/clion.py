@@ -1,11 +1,9 @@
 from asyncio import create_task
 from atools import memoize
-from dataclasses import dataclass
 from logging import getLogger
 import os
 import pyperclip
 import sys
-from typing import Optional
 
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import get_exec_lines, get_shell_lines, shell
@@ -15,11 +13,7 @@ log = getLogger(__package__)
 
 
 @memoize
-@dataclass(frozen=True)
 class Clion(Handler):
-    architecture: str
-    build_num: Optional[int]
-    release: str
 
     @memoize
     async def _main(self) -> None:

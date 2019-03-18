@@ -8,6 +8,7 @@ setup(
         'console_scripts': ['rosdev=rosdev.util.main:main']
     },
     install_requires=[
+        'argcomplete>=1.9.4',
         'atools>=0.5.0',
         'docker>=3.7.0',
         'pyperclip>=1.7.0',

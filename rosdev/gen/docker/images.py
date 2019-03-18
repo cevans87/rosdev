@@ -1,7 +1,6 @@
 from __future__ import annotations
 import asyncio
 from atools import memoize
-from dataclasses import dataclass
 import docker
 from itertools import product
 from logging import getLogger
@@ -10,7 +9,6 @@ import pathlib
 import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import FrozenSet
 
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine
@@ -20,11 +18,7 @@ log = getLogger(__package__)
 
 
 @memoize
-@dataclass(frozen=True)
 class Image(Handler):
-    architecture: str
-    fast: bool
-    release: str
 
     class Exception(Exception):
         pass
@@ -44,7 +38,7 @@ class Image(Handler):
                 client = docker.client.from_env()
                 client.images.build(
                     path=tempdir_path,
-                    pull=not self.fast,
+                    pull=not self.options.fast,
                     rm=True,
                     tag=self.tag,
                 )
@@ -58,16 +52,22 @@ class Image(Handler):
             log.info(f'Finished "{self.tag}" from "{self.base_tag}"')
 
     @property
-    @memoize
     def cwd(self) -> str:
         return os.getcwd()
 
     @property
+    def profile(self) -> str:
+        if self.options.flavor in {'desktop', 'desktop-full'}:
+            return 'osrf'
+        else:
+            return self.options.architecture
+
+    @property
     def base_tag(self) -> str:
-        if self.release != 'latest':
-            return f'{self.architecture}/ros:{self.release}-ros-core'
-        elif self.architecture != 'amd64':
-            return f'{self.architecture}/ros:crystal-ros-core'
+        if self.options.release != 'latest':
+            return f'{self.profile}/ros:{self.options.release}-{self.options.flavor}'
+        elif self.profile != 'amd64':
+            return f'{self.profile}/ros:crystal-{self.options.flavor}'
         else:
             return f'osrf/ros2:nightly'
 
@@ -77,7 +77,7 @@ class Image(Handler):
 
     @property
     def machine(self) -> str:
-        return get_machine(self.architecture)
+        return get_machine(self.options.architecture)
 
     @property
     def qemu_path(self) -> str:
@@ -185,14 +185,14 @@ class Image(Handler):
 
 
 @memoize
-@dataclass(frozen=True)
 class Images(Handler):
-    architectures: FrozenSet[str]
-    fast: bool
-    releases: FrozenSet[str]
 
     @memoize
     async def _main(self) -> None:
         await asyncio.gather(
-            *[Image(architecture=architecture, fast=self.fast, release=release)
-              for architecture, release in product(self.architectures, self.releases)])
+            *[
+                Image(self.settings(architecture=architecture, release=release))
+                for architecture, release
+                in product(self.options.architectures, self.options.releases)
+            ]
+        )

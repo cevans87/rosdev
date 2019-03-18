@@ -1,14 +1,12 @@
 from __future__ import annotations
 from asyncio import get_event_loop
 from atools import memoize
-from dataclasses import dataclass
 from functools import partial
 from logging import getLogger
 import os
 import pathlib
 import shutil
 from tempfile import TemporaryDirectory
-from typing import Optional
 
 from rosdev.gen.docker.container import Container
 from rosdev.util.handler import Handler
@@ -20,12 +18,7 @@ log = getLogger(__package__)
 
 
 @memoize
-@dataclass(frozen=True)
 class Install(Handler):
-    architecture: str
-    build_num: Optional[str]
-    fast: bool
-    release: str
 
     @property
     @memoize

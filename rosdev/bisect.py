@@ -1,9 +1,8 @@
 from asyncio import get_event_loop
 from atools import memoize
-from dataclasses import dataclass
 from logging import getLogger
 from jenkins import Jenkins
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from rosdev.gen.docker.container import Container
 from rosdev.gen.colcon.build import Build
@@ -17,19 +16,7 @@ log = getLogger(__package__)
 
 
 @memoize
-@dataclass(frozen=True)
 class Bisect(Handler):
-    architecture: str
-    asan: bool
-    bad_build_num: Optional[int]
-    bad_release: str
-    colcon_build_args: Optional[str]
-    command: str
-    debug: bool
-    fast: bool
-    good_build_num: Optional[int]
-    good_release: str
-    release: str
 
     @memoize
     async def _main(self) -> None:
@@ -50,32 +37,13 @@ class Bisect(Handler):
 
             await shell('rm -rf build install log')
 
-            await Install(
-                architecture=self.architecture,
-                build_num=test_build_num,
-                fast=self.fast,
-                release=self.release,
-            )
+            await Install(self.options(build_num=test_build_num))
 
-            await Build(
-                architecture=self.architecture,
-                asan=self.asan,
-                build_num=test_build_num,
-                colcon_build_args=self.colcon_build_args,
-                debug=self.debug,
-                fast=self.fast,
-                release=self.release,
-            ).must_succeed()
+            await Build(self.options(build_num=test_build_num)).must_succeed()
 
             try:
                 await Container(
-                    architecture=self.architecture,
-                    command=self.command,
-                    build_num=test_build_num,
-                    fast=self.fast,
-                    interactive=False,
-                    ports=frozenset(),
-                    release=self.release,
+                    self.options(build_num=test_build_num, interactive=False)
                 ).must_succeed()
             except Container.Exception:
                 log.info(f'build {test_build_num} is bad')
@@ -111,19 +79,19 @@ class Bisect(Handler):
 
     @memoize
     async def _get_bad_build_num(self) -> int:
-        if self.bad_build_num is not None:
-            return self.bad_build_num
-        elif self.bad_release != 'latest':
-            return get_build_num(self.architecture, self.bad_release)
+        if self.options.bad_build_num is not None:
+            return self.options.bad_build_num
+        elif self.options.bad_release != 'latest':
+            return get_build_num(self.options.architecture, self.options.bad_release)
         else:
             return (await self._get_job_info())['lastSuccessfulBuild']['number']
 
     @memoize
     async def _get_good_build_num(self) -> int:
-        if self.good_build_num is not None:
+        if self.options.good_build_num is not None:
             return self.good_build_num
-        elif self.good_release != 'latest':
-            return get_build_num(self.architecture, self.good_release)
+        elif self.options.good_release != 'latest':
+            return get_build_num(self.options.architecture, self.options.good_release)
         else:
             return (await self._get_job_info())['lastSuccessfulBuild']['number']
 

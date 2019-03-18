@@ -1,5 +1,4 @@
 from atools import memoize
-from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.docker.container import Container
@@ -9,27 +8,18 @@ log = getLogger(__package__)
 
 
 @memoize
-@dataclass(frozen=True)
 class Gdbserver(Handler):
-    architecture: str
-    build_num: int
-    fast: bool
-    executable: str
-    package: str
-    port: int
-    release: str
 
     @property
     def container(self) -> Container:
         return Container(
-            architecture=self.architecture,
-            build_num=self.build_num,
             clean=False,
-            command=f'ros2 run --prefix "gdbserver :{self.port}" {self.package} {self.executable}',
-            fast=self.fast,
+            command=(
+                f'ros2 run --prefix "gdbserver :{self.gdbserver_port}" '
+                f'{self.package} {self.executable}'
+            ),
             interactive=True,
-            ports=frozenset({self.port}),
-            release=self.release,
+            ports=frozenset({self.gdbserver_port}),
         )
 
     @memoize

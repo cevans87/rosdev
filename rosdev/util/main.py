@@ -1,50 +1,27 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from argparse import ArgumentParser
 import logging
 from typing import List, Optional
-from rosdev.util.parser import rosdev_parser
+from rosdev.util.parser import get_handler
 
 log = logging.getLogger(__package__)
 
 
-def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = None) -> int:
-    parser = parser if parser is not None else rosdev_parser
-    try:
-        # noinspection PyPackageRequirements,PyUnresolvedReferences
-        from argcomplete import autocomplete
-    except ImportError:
-        pass
-    else:
-        autocomplete(parser)
+def main(args: Optional[List[str]] = None) -> int:
+    handler = get_handler(args)
 
+    from rosdev.util.parser import defaults
     import sys
-    args = args if args is not None else sys.argv[1:]
-
-    try:
-        args = parser.parse_args(args)
-    except Exception:
-        parser.print_usage()
-        return 1
-
     stream_handler = logging.StreamHandler(sys.stdout)
     # noinspection PyProtectedMember
-    stream_handler.setLevel(logging._nameToLevel[args.log_level])
+    stream_handler.setLevel(logging._nameToLevel[defaults.log_level])
     # noinspection PyProtectedMember
-    log.setLevel(logging._nameToLevel[args.log_level])
+    log.setLevel(logging._nameToLevel[defaults.log_level])
     log.addHandler(stream_handler)
 
-    handler = args.get_handler()
-    del args.__dict__['get_handler']
-    del args.__dict__['log_level']
-
-    for k, v in args.__dict__.items():
-        if isinstance(v, list):
-            setattr(args, k, frozenset(v))
-
     async def run_handler():
-        await handler(**args.__dict__)
+        await handler
 
     import asyncio
     # FIXME add signal handler to cancel coroutines
@@ -55,4 +32,4 @@ def main(args: Optional[List[str]] = None, parser: Optional[ArgumentParser] = No
 
 if __name__ == '__main__':
     import sys
-    sys.exit(main(parser=rosdev_parser))
+    sys.exit(main(sys.argv[1:]))
