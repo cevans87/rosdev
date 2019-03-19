@@ -11,13 +11,12 @@ log = logging.getLogger(__package__)
 def main(args: Optional[List[str]] = None) -> int:
     handler = get_handler(args)
 
-    from rosdev.util.parser import defaults
     import sys
     stream_handler = logging.StreamHandler(sys.stdout)
     # noinspection PyProtectedMember
-    stream_handler.setLevel(logging._nameToLevel[defaults.log_level])
+    stream_handler.setLevel(logging._nameToLevel[handler.options.log_level])
     # noinspection PyProtectedMember
-    log.setLevel(logging._nameToLevel[defaults.log_level])
+    log.setLevel(logging._nameToLevel[handler.options.log_level])
     log.addHandler(stream_handler)
 
     async def run_handler():

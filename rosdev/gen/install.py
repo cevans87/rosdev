@@ -14,7 +14,7 @@ from rosdev.util.lookup import get_machine, get_operating_system
 from rosdev.util.subprocess import exec
 
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize

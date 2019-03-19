@@ -2,7 +2,7 @@ from __future__ import annotations
 from argcomplete import autocomplete
 from argparse import ArgumentParser, SUPPRESS
 import ast
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import import_module
 import logging
 import os
@@ -48,11 +48,15 @@ class Defaults:
 defaults = Defaults.from_workspace()
 
 
+def gen_flag_parser() -> ArgumentParser:
+    return ArgumentParser(add_help=False)
+
+
 @dataclass(frozen=True)
 class Positional:
-    command = ArgumentParser(add_help=False)
-    executable = ArgumentParser(add_help=False)
-    package = ArgumentParser(add_help=False)
+    command: ArgumentParser = field(default_factory=gen_flag_parser)
+    executable: ArgumentParser = field(default_factory=gen_flag_parser)
+    package: ArgumentParser = field(default_factory=gen_flag_parser)
 
 
 positional = Positional()
@@ -63,27 +67,27 @@ positional.package.add_argument('package')
 
 @dataclass(frozen=True)
 class Flag:
-    architecture = ArgumentParser(add_help=False)
-    architectures = ArgumentParser(add_help=False)
-    asan = ArgumentParser(add_help=False)
-    bad_build_num = ArgumentParser(add_help=False)
-    bad_release = ArgumentParser(add_help=False)
-    build_num = ArgumentParser(add_help=False)
-    clean = ArgumentParser(add_help=False)
-    colcon_build_args = ArgumentParser(add_help=False)
-    debug = ArgumentParser(add_help=False)
-    fast = ArgumentParser(add_help=False)
-    flavor = ArgumentParser(add_help=False)
-    gdbserver_port = ArgumentParser(add_help=False)
-    good_build_num = ArgumentParser(add_help=False)
-    good_release = ArgumentParser(add_help=False)
-    gui = ArgumentParser(add_help=False)
-    interactive = ArgumentParser(add_help=False)
-    log_level = ArgumentParser(add_help=False)
-    port = ArgumentParser(add_help=False)
-    ports = ArgumentParser(add_help=False)
-    release = ArgumentParser(add_help=False)
-    releases = ArgumentParser(add_help=False)
+    architecture: ArgumentParser = field(default_factory=gen_flag_parser)
+    architectures: ArgumentParser = field(default_factory=gen_flag_parser)
+    asan: ArgumentParser = field(default_factory=gen_flag_parser)
+    bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    bad_release: ArgumentParser = field(default_factory=gen_flag_parser)
+    build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    clean: ArgumentParser = field(default_factory=gen_flag_parser)
+    colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
+    debug: ArgumentParser = field(default_factory=gen_flag_parser)
+    fast: ArgumentParser = field(default_factory=gen_flag_parser)
+    flavor: ArgumentParser = field(default_factory=gen_flag_parser)
+    gdbserver_port: ArgumentParser = field(default_factory=gen_flag_parser)
+    good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    good_release: ArgumentParser = field(default_factory=gen_flag_parser)
+    gui: ArgumentParser = field(default_factory=gen_flag_parser)
+    interactive: ArgumentParser = field(default_factory=gen_flag_parser)
+    log_level: ArgumentParser = field(default_factory=gen_flag_parser)
+    port: ArgumentParser = field(default_factory=gen_flag_parser)
+    ports: ArgumentParser = field(default_factory=gen_flag_parser)
+    release: ArgumentParser = field(default_factory=gen_flag_parser)
+    releases: ArgumentParser = field(default_factory=gen_flag_parser)
 
 
 flag = Flag()
@@ -120,13 +124,19 @@ asan_group = flag.asan.add_mutually_exclusive_group()
 asan_group.add_argument(
     '--asan',
     action='store_true',
-    help=f'Build with Address Sanitizer enabled. Currently: {defaults.asan}'
+    help=(
+        SUPPRESS if defaults.asan else
+        f'Build with Address Sanitizer enabled. Currently: {defaults.asan}'
+    )
 )
 asan_group.add_argument(
     '--no-asan',
     action='store_false',
     dest='asan',
-    help=f'Build with Address Sanitizer disabled, Currently: {not defaults.asan}'
+    help=(
+        SUPPRESS if not defaults.asan else
+        f'Build with Address Sanitizer disabled, Currently: {not defaults.asan}'
+    )
 )
 
 flag.bad_release.add_argument(
@@ -158,14 +168,20 @@ clean_group.add_argument(
     '--clean',
     action='store_true',
     default=defaults.clean,
-    help=f'Start bash environment without sourcing a ROS setup.bash. Currently: {defaults.clean}'
+    help=(
+        SUPPRESS if defaults.clean else
+        f'Start bash environment without sourcing a ROS setup.bash. Currently: {defaults.clean}'
+    )
 )
 clean_group.add_argument(
     '--no-clean',
     action='store_false',
     dest='clean',
     default=not defaults.clean,
-    help=f'Start bash environment with sourcing a ROS setup.bash. Currently: {not defaults.clean}'
+    help=(
+        SUPPRESS if not defaults.clean else
+        f'Start bash environment with sourcing a ROS setup.bash. Currently: {not defaults.clean}'
+    )
 )
 
 flag.colcon_build_args.add_argument(
@@ -179,14 +195,20 @@ debug_group.add_argument(
     '--debug',
     action='store_true',
     default=defaults.debug,
-    help=SUPPRESS if defaults.debug else 'Build with debug enabled.'
+    help=(
+        SUPPRESS if defaults.debug else
+        f'Build with debug enabled. Currrently: {defaults.debug}'
+    )
 )
 debug_group.add_argument(
     '--no-debug',
     action='store_false',
     dest='debug',
     default=not defaults.debug,
-    help=SUPPRESS if not defaults.debug else 'Build with debug disabled.'
+    help=(
+        SUPPRESS if not defaults.debug else
+        f'Build with debug disabled. Currently: {defaults.debug}'
+    )
 )
 
 fast_group = flag.fast.add_mutually_exclusive_group()
@@ -196,7 +218,7 @@ fast_group.add_argument(
     default=defaults.fast,
     help=(
         SUPPRESS if defaults.fast else
-        f'Build from local docker images when newer ones can be pulled.'
+        f'Build from local docker images if able. Currently: {defaults.fast}'
     )
 )
 fast_group.add_argument(
@@ -206,7 +228,7 @@ fast_group.add_argument(
     default=not defaults.fast,
     help=(
         SUPPRESS if not defaults.fast else
-        f'Do not build from local docker images when newer ones can be pulled.'
+        f'Do not build from local docker images if able. Currently: {defaults.fast}'
     )
 )
 
@@ -243,7 +265,7 @@ gui_group.add_argument(
     action='store_true',
     help=(
         SUPPRESS if defaults.gui else
-        f'Allow container to use host X11 server.'
+        f'Allow container to use host X11 server. Currently: {defaults.gui}'
     )
 )
 gui_group.add_argument(
@@ -253,20 +275,28 @@ gui_group.add_argument(
     action='store_false',
     help=(
         SUPPRESS if not defaults.gui else
-        f'Do not allow container to use host X11 server.'
+        f'Do not allow container to use host X11 server. Currently: {defaults.gui}'
     )
 )
 
 interactive_group = flag.interactive.add_mutually_exclusive_group()
 interactive_group.add_argument(
     '--interactive',
-    action='store_true'
+    action='store_true',
+    help=(
+        SUPPRESS if defaults.interactive else
+        f'Make derived docker container interactive. Currently: {defaults.interactive}'
+    )
 )
 interactive_group.add_argument(
     '--no-interactive',
     dest='interactive',
     action='store_false',
-    default=not defaults.interactive
+    default=not defaults.interactive,
+    help=(
+        SUPPRESS if not defaults.interactive else
+        f'Do not make derived docker container interactive. Currently: {defaults.interactive}'
+    )
 )
 
 flag.log_level.add_argument(
@@ -415,27 +445,7 @@ rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').Install)
 rosdev_gen_workspace_parser = rosdev_gen_subparsers.add_parser(
     'workspace',
-    parents=[
-        flag.architecture,
-        flag.architectures,
-        flag.asan,
-        flag.bad_build_num,
-        flag.bad_release,
-        flag.build_num,
-        flag.clean,
-        flag.colcon_build_args,
-        flag.debug,
-        flag.fast,
-        flag.flavor,
-        flag.gdbserver_port,
-        flag.good_build_num,
-        flag.good_release,
-        flag.interactive,
-        flag.log_level,
-        flag.ports,
-        flag.release,
-        flag.releases
-    ]
+    parents=flag.__dict__.values()
 )
 rosdev_gen_workspace_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.workspace').Workspace)

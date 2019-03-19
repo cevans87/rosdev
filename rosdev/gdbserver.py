@@ -4,7 +4,7 @@ from logging import getLogger
 from rosdev.gen.docker.container import Container
 from rosdev.util.handler import Handler
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize

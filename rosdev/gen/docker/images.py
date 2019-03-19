@@ -14,7 +14,7 @@ from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine
 
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize

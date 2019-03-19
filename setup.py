@@ -5,7 +5,7 @@ setup(
     version='0.1.0',
     packages=find_packages(),
     entry_points={
-        'console_scripts': ['rosdev=rosdev.util.main:main']
+        'console_scripts': ['rosdev=rosdev.__main__:main']
     },
     install_requires=[
         'argcomplete>=1.9.4',

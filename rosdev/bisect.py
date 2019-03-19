@@ -12,7 +12,7 @@ from rosdev.util.lookup import get_build_num, get_operating_system
 from rosdev.util.subprocess import shell
 
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize

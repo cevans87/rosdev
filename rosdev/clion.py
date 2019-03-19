@@ -9,7 +9,7 @@ from rosdev.util.handler import Handler
 from rosdev.util.subprocess import get_exec_lines, get_shell_lines, shell
 
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize

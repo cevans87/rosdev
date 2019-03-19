@@ -9,7 +9,7 @@ from rosdev.util.handler import Handler
 from rosdev.util.subprocess import exec
 
 
-log = getLogger(__package__)
+log = getLogger(__name__)
 
 
 @memoize
@@ -41,7 +41,6 @@ class Container(Handler):
             volumes['/tmp/.X11-unix'] = {'bind': '/tmp/.X11-unix'}
 
         client = docker.client.from_env()
-        # XXX might need to set ipc_mode='host' when gui is enabled.
         container = client.containers.create(
             auto_remove=True,
             command=self.options.command or '/bin/bash',
