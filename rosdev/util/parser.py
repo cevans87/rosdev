@@ -38,24 +38,24 @@ class Defaults:
     releases: FrozenSet[str] = frozenset({release})
 
     @staticmethod
-    def from_workspace() -> Defaults:
+    def from_overrides() -> Defaults:
         # noinspection PyBroadException
         try:
-            with open(f'{Path.home()}/.rosdev/workspace', 'r') as workspace_f_in:
-                global_overrides = ast.literal_eval(workspace_f_in.read())
+            with open(f'{Path.home()}/.rosdev/overrides', 'r') as overrides_f_in:
+                global_overrides = ast.literal_eval(overrides_f_in.read())
         except Exception:
             global_overrides = {}
         # noinspection PyBroadException
         try:
-            with open(f'{os.getcwd()}/.rosdev/workspace', 'r') as workspace_f_in:
-                local_overrides = ast.literal_eval(workspace_f_in.read())
+            with open(f'{os.getcwd()}/.rosdev/overrides', 'r') as overrides_f_in:
+                local_overrides = ast.literal_eval(overrides_f_in.read())
         except Exception:
             local_overrides = {}
 
         return Defaults(**ChainMap(local_overrides, global_overrides))
 
 
-defaults = Defaults.from_workspace()
+defaults = Defaults.from_overrides()
 
 
 def gen_flag_parser() -> ArgumentParser:
@@ -450,12 +450,12 @@ rosdev_gen_global_parser = rosdev_gen_subparsers.add_parser(
     'global', parents=[]
 )
 rosdev_gen_global_subparsers = rosdev_gen_global_parser.add_subparsers(required=True)
-rosdev_gen_global_workspace_parser = rosdev_gen_global_subparsers.add_parser(
-    'workspace',
+rosdev_gen_global_overrides_parser = rosdev_gen_global_subparsers.add_parser(
+    'overrides',
     parents=flag.__dict__.values()
 )
-rosdev_gen_global_workspace_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.global.workspace').Workspace)
+rosdev_gen_global_overrides_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.global.overrides').Overrides)
 rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
     'images', parents=[flag.architectures, flag.fast, flag.log_level, flag.releases])
 rosdev_gen_docker_images_parser.set_defaults(
@@ -468,12 +468,12 @@ rosdev_gen_local_parser = rosdev_gen_subparsers.add_parser(
     'local', parents=[]
 )
 rosdev_gen_local_subparsers = rosdev_gen_local_parser.add_subparsers(required=True)
-rosdev_gen_local_workspace_parser = rosdev_gen_local_subparsers.add_parser(
-    'workspace',
+rosdev_gen_local_overrides_parser = rosdev_gen_local_subparsers.add_parser(
+    'overrides',
     parents=flag.__dict__.values()
 )
-rosdev_gen_local_workspace_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.global.workspace').Workspace)
+rosdev_gen_local_overrides_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.global.overrides').Overrides)
 
 
 def get_handler(args: Optional[List[str]]) -> Awaitable:

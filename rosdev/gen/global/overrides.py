@@ -9,7 +9,7 @@ from rosdev.util.subprocess import exec
 
 
 @memoize
-class Workspace(Handler):
+class Overrides(Handler):
 
     @memoize
     async def _main(self) -> None:
@@ -23,5 +23,5 @@ class Workspace(Handler):
 
         if commit:
             await exec(f'mkdir -p {Path.home()}/.rosdev')
-            with open(f'{Path.home()}/.rosdev/workspace', 'w') as workspace_f_out:
-                workspace_f_out.write(f'{pformat(commit)}\n')
+            with open(f'{Path.home()}/.rosdev/overrides', 'w') as overrides_f_out:
+                overrides_f_out.write(f'{pformat(commit)}\n')

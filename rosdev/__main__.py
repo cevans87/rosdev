@@ -13,9 +13,9 @@ def main(args: Optional[List[str]] = None) -> int:
 
     import sys
     stream_handler = logging.StreamHandler(sys.stdout)
-    # noinspection PyProtectedMember
+    # noinspection PyProtectedMember,PyUnresolvedReferences
     stream_handler.setLevel(logging._nameToLevel[handler.options.log_level])
-    # noinspection PyProtectedMember
+    # noinspection PyProtectedMember,PyUnresolvedReferences
     log.setLevel(logging._nameToLevel[handler.options.log_level])
     log.addHandler(stream_handler)
 

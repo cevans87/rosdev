@@ -38,6 +38,7 @@ class Container(Handler):
         }
         if self.options.gui:
             environment['DISPLAY'] = os.environ['DISPLAY']
+            environment['QT_X11_NO_MITSHM'] = '1'
             volumes['/tmp/.X11-unix'] = {'bind': '/tmp/.X11-unix'}
 
         client = docker.client.from_env()
