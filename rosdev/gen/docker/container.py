@@ -1,4 +1,5 @@
 from atools import memoize
+from dataclasses import dataclass
 import docker
 from logging import getLogger
 import os
@@ -13,6 +14,7 @@ log = getLogger(__name__)
 
 
 @memoize
+@dataclass(frozen=True)
 class Container(Handler):
 
     class Exception(Exception):
@@ -38,10 +40,18 @@ class Container(Handler):
         }
         if self.options.gui:
             environment['DISPLAY'] = os.environ['DISPLAY']
-            environment['QT_X11_NO_MITSHM'] = '1'
             volumes['/tmp/.X11-unix'] = {'bind': '/tmp/.X11-unix'}
 
         client = docker.client.from_env()
+        if self.options.name is not None:
+            try:
+                container = client.containers.get(self.options.name)
+            except docker.errors.NotFound:
+                pass
+            else:
+                log.info(f'Removing existing docker container "{self.options.name}"')
+                container.remove(force=True)
+
         container = client.containers.create(
             auto_remove=True,
             command=self.options.command or '/bin/bash',
@@ -49,7 +59,9 @@ class Container(Handler):
             environment=environment,
             image=Image(self.options).tag,
             ipc_mode='host',
+            name=self.options.name,
             ports={port: port for port in self.options.ports},
+            privileged=True,
             security_opt=['seccomp=unconfined'],
             stdin_open=True,
             tty=True,
@@ -57,11 +69,12 @@ class Container(Handler):
             working_dir=os.getcwd(),
         )
 
-        log.debug(f'attaching to container "{container.name}"')
         if self.options.interactive:
+            log.debug(f'Attaching container "{container.name}"')
             os.execlpe('docker', *f'docker start -ai {container.name}'.split(), os.environ)
 
-        return await exec(f'docker start -a {container.name}')
+        log.info(f'Starting container "{container.name}"')
+        return await exec(f'docker start {container.name}')
 
     @memoize
     async def must_succeed(self) -> None:

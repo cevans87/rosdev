@@ -34,7 +34,13 @@ class Build(Handler):
                     f'-DCMAKE_CXX_FLAGS_DEBUG="-fno-omit-frame-pointer -fsanitize=address"')
 
         command = ' '.join(parts)
-        return await Container(self.settings(command=command)).exit_code()
+        return await Container(
+            self.options(
+                command=command,
+                # FIXME interactive makes us exec the docker process, so this doesn't return.
+                interactive=True,
+            )
+        ).exit_code()
 
     @memoize
     async def must_succeed(self) -> None:

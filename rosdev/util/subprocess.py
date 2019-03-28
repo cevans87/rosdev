@@ -6,16 +6,16 @@ from asyncio.subprocess import (
     Process
 )
 import os
-from typing import List
+from typing import Tuple
 
 
-async def _process_lines(process: Process) -> List[str]:
+async def _process_lines(process: Process) -> Tuple[str]:
     await process.wait()
 
     stdout = await process.stdout.read()
 
     # FIXME return an async iterator that decodes lines as they come in
-    return stdout.decode().strip().split('\n')
+    return tuple(stdout.decode().strip().split('\n'))
 
 
 @memoize
@@ -27,7 +27,7 @@ async def exec(command: str) -> int:
 
 
 @memoize
-async def get_exec_lines(command: str) -> List[str]:
+async def get_exec_lines(command: str) -> Tuple[str]:
     process = await create_subprocess_exec(*command.split(), stdout=PIPE, env=os.environ)
 
     return await _process_lines(process)
@@ -42,7 +42,7 @@ async def shell(command: str) -> int:
 
 
 @memoize
-async def get_shell_lines(command: str) -> List[str]:
+async def get_shell_lines(command: str) -> Tuple[str]:
     process = await create_subprocess_shell(command, stdout=PIPE, env=os.environ)
 
     return await _process_lines(process)

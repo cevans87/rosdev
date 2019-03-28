@@ -3,12 +3,12 @@ from argcomplete import autocomplete
 from argparse import ArgumentParser, SUPPRESS
 import ast
 from collections import ChainMap
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from importlib import import_module
 import logging
 import os
 from pathlib import Path
-from typing import Awaitable, FrozenSet, List, Optional
+from typing import Awaitable, Dict, FrozenSet, List, Optional
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,6 @@ class Defaults:
     command: str = ''
     debug: bool = False
     executable: str = ''
-    fast: bool = False
     flavor: str = 'ros-core'
     gdbserver_port: int = 1337
     good_build_num: Optional[int] = None
@@ -32,30 +31,50 @@ class Defaults:
     gui: bool = False
     interactive: bool = False
     log_level: str = 'INFO'
+    name: Optional[str] = None
     package: str = ''
     ports: FrozenSet[int] = frozenset()
+    pull: bool = False
     release: str = 'latest'
     releases: FrozenSet[str] = frozenset({release})
 
     @staticmethod
-    def from_overrides() -> Defaults:
+    def _get_local_overrides() -> Dict:
         # noinspection PyBroadException
         try:
-            with open(f'{Path.home()}/.rosdev/overrides', 'r') as overrides_f_in:
-                global_overrides = ast.literal_eval(overrides_f_in.read())
+            with open(f'{os.getcwd()}/.rosdev/defaults', 'r') as overrides_f_in:
+                return ast.literal_eval(overrides_f_in.read())
         except Exception:
-            global_overrides = {}
+            return {}
+
+    @staticmethod
+    def _get_global_overrides() -> Dict:
         # noinspection PyBroadException
         try:
-            with open(f'{os.getcwd()}/.rosdev/overrides', 'r') as overrides_f_in:
-                local_overrides = ast.literal_eval(overrides_f_in.read())
+            with open(f'{Path.home()}/.rosdev/defaults', 'r') as overrides_f_in:
+                return ast.literal_eval(overrides_f_in.read())
         except Exception:
-            local_overrides = {}
+            return {}
 
-        return Defaults(**ChainMap(local_overrides, global_overrides))
+    @staticmethod
+    def with_local_overrides() -> Defaults:
+        return Defaults(**Defaults._get_local_overrides())
+
+    @staticmethod
+    def with_global_overrides() -> Defaults:
+        return Defaults(**Defaults._get_global_overrides())
+
+    @staticmethod
+    def with_overrides() -> Defaults:
+        return Defaults(
+            **ChainMap(
+                Defaults._get_local_overrides(),
+                Defaults._get_global_overrides()
+            )
+        )
 
 
-defaults = Defaults.from_overrides()
+defaults = Defaults.with_overrides()
 
 
 def gen_flag_parser() -> ArgumentParser:
@@ -86,7 +105,6 @@ class Flag:
     clean: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     debug: ArgumentParser = field(default_factory=gen_flag_parser)
-    fast: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     gdbserver_port: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -94,8 +112,10 @@ class Flag:
     gui: ArgumentParser = field(default_factory=gen_flag_parser)
     interactive: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
+    name: ArgumentParser = field(default_factory=gen_flag_parser)
     port: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
+    pull: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     releases: ArgumentParser = field(default_factory=gen_flag_parser)
 
@@ -221,27 +241,6 @@ debug_group.add_argument(
     )
 )
 
-fast_group = flag.fast.add_mutually_exclusive_group()
-fast_group.add_argument(
-    '--fast', '-f',
-    action='store_true',
-    default=defaults.fast,
-    help=(
-        SUPPRESS if defaults.fast else
-        f'Build from local docker images if able. Currently: {defaults.fast}'
-    )
-)
-fast_group.add_argument(
-    '--no-fast',
-    action='store_false',
-    dest='fast',
-    default=not defaults.fast,
-    help=(
-        SUPPRESS if not defaults.fast else
-        f'Do not build from local docker images if able. Currently: {defaults.fast}'
-    )
-)
-
 flag.flavor.add_argument(
     '--flavor',
     default=defaults.flavor,
@@ -317,6 +316,15 @@ flag.log_level.add_argument(
     help=f'Currently: {defaults.log_level}',
 )
 
+flag.name.add_argument(
+    '--name',
+    default=defaults.name,
+    help=(
+        f'Name to assign to docker container. Existing container with name will be removed. '
+        f'Currently: {defaults.name}'
+    ),
+)
+
 flag.release.add_argument(
     '--release', '-r',
     default=defaults.release,
@@ -339,6 +347,27 @@ flag.ports.add_argument(
     default=sorted(defaults.ports),
     help=f'List of ports to expose in docker container. Currently: {defaults.ports}'
 )
+pull_group = flag.pull.add_mutually_exclusive_group()
+pull_group.add_argument(
+    '--pull',
+    action='store_true',
+    default=defaults.pull,
+    help=(
+        SUPPRESS if defaults.pull else
+        f'Pull newer docker image. Currently: {defaults.pull}'
+    )
+)
+pull_group.add_argument(
+    '--no-pull',
+    action='store_false',
+    dest='pull',
+    default=not defaults.pull,
+    help=(
+        SUPPRESS if not defaults.pull else
+        f'Do not pull newer docker image. Currently: {defaults.pull}'
+    )
+)
+
 
 rosdev_parser = ArgumentParser(parents=[flag.log_level])
 rosdev_subparsers = rosdev_parser.add_subparsers(required=True)
@@ -347,11 +376,11 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
         flag.architecture,
         flag.build_num,
         flag.clean,
-        flag.fast,
         flag.flavor,
         flag.gui,
         flag.log_level,
         flag.ports,
+        flag.pull,
         flag.release,
     ]
 )
@@ -367,9 +396,9 @@ rosdev_bisect_parser = rosdev_subparsers.add_parser(
         flag.bad_build_num,
         flag.colcon_build_args,
         flag.debug,
-        flag.fast,
         flag.good_build_num,
         flag.good_release,
+        flag.pull,
         flag.release
     ]
 )
@@ -389,8 +418,8 @@ rosdev_clion_parser.set_defaults(
 rosdev_gazebo_parser = rosdev_subparsers.add_parser(
     'gazebo',
     parents=[
-        flag.fast,
         flag.log_level,
+        flag.pull,
         flag.release,
     ]
 )
@@ -403,8 +432,8 @@ rosdev_gdbserver_parser = rosdev_subparsers.add_parser(
         positional.executable,
         flag.architecture,
         flag.build_num,
-        flag.fast,
         flag.gdbserver_port,
+        flag.pull,
         flag.release,
     ]
 )
@@ -424,11 +453,30 @@ rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
         flag.clean,
         flag.colcon_build_args,
         flag.debug,
-        flag.fast,
+        flag.pull,
         flag.release
     ])
 rosdev_gen_colcon_build_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.colcon.build').Build)
+rosdev_gen_clion_parser = rosdev_gen_subparsers.add_parser(
+    'clion', parents=[])
+rosdev_gen_clion_subparsers = rosdev_gen_clion_parser.add_subparsers(required=True)
+rosdev_gen_clion_environment_parser = rosdev_gen_clion_subparsers.add_parser(
+    'environment', parents=[]
+)
+rosdev_gen_clion_environment_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.environment').Environment)
+rosdev_gen_clion_sshd_parser = rosdev_gen_clion_subparsers.add_parser(
+    'sshd',
+    parents=[
+        flag.architecture,
+        flag.ports,
+        flag.pull,
+        flag.release
+    ]
+)
+rosdev_gen_clion_sshd_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.sshd').Sshd)
 rosdev_gen_docker_parser = rosdev_gen_subparsers.add_parser(
     'docker', parents=[])
 rosdev_gen_docker_subparsers = rosdev_gen_docker_parser.add_subparsers(required=True)
@@ -438,9 +486,9 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
         positional.command,
         flag.architecture,
         flag.clean,
-        flag.fast,
         flag.interactive,
         flag.ports,
+        flag.pull,
         flag.release
     ]
 )
@@ -450,30 +498,30 @@ rosdev_gen_global_parser = rosdev_gen_subparsers.add_parser(
     'global', parents=[]
 )
 rosdev_gen_global_subparsers = rosdev_gen_global_parser.add_subparsers(required=True)
-rosdev_gen_global_overrides_parser = rosdev_gen_global_subparsers.add_parser(
-    'overrides',
-    parents=flag.__dict__.values()
+rosdev_gen_global_defaults_parser = rosdev_gen_global_subparsers.add_parser(
+    'defaults',
+    parents=asdict(flag).values()
 )
-rosdev_gen_global_overrides_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.global.overrides').Overrides)
+rosdev_gen_global_defaults_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.global.defaults').Defaults)
 rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
-    'images', parents=[flag.architectures, flag.fast, flag.log_level, flag.releases])
+    'images', parents=[flag.architectures, flag.log_level, flag.pull, flag.releases])
 rosdev_gen_docker_images_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.docker.images').Images)
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
-    'install', parents=[flag.architecture, flag.build_num, flag.fast, flag.log_level, flag.release])
+    'install', parents=[flag.architecture, flag.build_num, flag.log_level, flag.pull, flag.release])
 rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').Install)
 rosdev_gen_local_parser = rosdev_gen_subparsers.add_parser(
     'local', parents=[]
 )
 rosdev_gen_local_subparsers = rosdev_gen_local_parser.add_subparsers(required=True)
-rosdev_gen_local_overrides_parser = rosdev_gen_local_subparsers.add_parser(
-    'overrides',
-    parents=flag.__dict__.values()
+rosdev_gen_local_defaults_parser = rosdev_gen_local_subparsers.add_parser(
+    'defaults',
+    parents=asdict(flag).values()
 )
-rosdev_gen_local_overrides_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.global.overrides').Overrides)
+rosdev_gen_local_defaults_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.local.defaults').Defaults)
 
 
 def get_handler(args: Optional[List[str]]) -> Awaitable:
@@ -496,4 +544,4 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
 
     from collections import ChainMap
     from rosdev.util.options import Options
-    return handler(Options(**ChainMap(args.__dict__, defaults.__dict__)))
+    return handler(Options(**ChainMap(args.__dict__, asdict(defaults))))

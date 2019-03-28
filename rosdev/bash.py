@@ -1,4 +1,5 @@
 from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.docker.container import Container
@@ -9,6 +10,7 @@ log = getLogger(__name__)
 
 
 @memoize
+@dataclass(frozen=True)
 class Bash(Handler):
 
     @memoize

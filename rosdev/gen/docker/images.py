@@ -25,7 +25,7 @@ class Image(Handler):
 
     @memoize
     async def _main(self) -> None:
-        def _run_internal() -> None:
+        def _main_internal() -> None:
             with TemporaryDirectory() as tempdir_path:
                 with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
                     dockerfile_f_out.write(self.dockerfile_contents)
@@ -38,14 +38,14 @@ class Image(Handler):
                 client = docker.client.from_env()
                 client.images.build(
                     path=tempdir_path,
-                    pull=not self.options.fast,
+                    pull=self.options.pull,
                     rm=True,
                     tag=self.tag,
                 )
 
         log.info(f'building "{self.tag}" from "{self.base_tag}"')
         try:
-            await asyncio.get_event_loop().run_in_executor(None, _run_internal)
+            await asyncio.get_event_loop().run_in_executor(None, _main_internal)
         except docker.errors.BuildError as e:
             raise self.Exception(f'While building "{self.tag}", got "{e}"') from e
         else:
@@ -90,10 +90,10 @@ class Image(Handler):
             set -e
             # setup ros2 environment
             if [ -z ${{ROSDEV_CLEAN_ENVIRONMENT+x}} ]; then \
-                source "$ROSDEV_DIR/install/setup.bash" > /dev/null 2>&1 || \
                 source "$ROSDEV_INSTALL_DIR/setup.bash" > /dev/null 2>&1 || \
                 source "/opt/ros/$ROS_DISTRO/setup.bash" > /dev/null 2>&1 || \
-                :; \
+                :;
+                source "$ROSDEV_DIR/install/setup.bash" > /dev/null 2>&1 ||  :; \
             fi
 
             exec "$@"
@@ -191,7 +191,7 @@ class Images(Handler):
     async def _main(self) -> None:
         await asyncio.gather(
             *[
-                Image(self.settings(architecture=architecture, release=release))
+                Image(self.options(architecture=architecture, release=release))
                 for architecture, release
                 in product(self.options.architectures, self.options.releases)
             ]

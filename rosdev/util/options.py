@@ -22,7 +22,6 @@ class Options:
     command: str
     debug: bool
     executable: str
-    fast: bool
     flavor: str
     gdbserver_port: int
     good_build_num: Optional[int]
@@ -30,8 +29,10 @@ class Options:
     gui: bool
     interactive: bool
     log_level: str
+    name: Optional[str]
     package: str
     ports: FrozenSet[int]
+    pull: bool
     release: str
     releases: FrozenSet[str]
 
@@ -48,7 +49,6 @@ class Options:
             command: str = _TakeFromSelf,
             debug: bool = _TakeFromSelf,
             executable: str = _TakeFromSelf,
-            fast: bool = _TakeFromSelf,
             flavor: str = _TakeFromSelf,
             gdbserver_port: int = _TakeFromSelf,
             good_build_num: Optional[int] = _TakeFromSelf,
@@ -56,8 +56,10 @@ class Options:
             gui: bool = _TakeFromSelf,
             interactive: bool = _TakeFromSelf,
             log_level: str = _TakeFromSelf,
+            name: Optional[str] = _TakeFromSelf,
             package: str = _TakeFromSelf,
             ports: FrozenSet[int] = _TakeFromSelf,
+            pull: bool = _TakeFromSelf,
             release: str = _TakeFromSelf,
             releases: FrozenSet[str] = _TakeFromSelf,
     ) -> Options:
@@ -81,7 +83,6 @@ class Options:
             command=command,
             debug=debug,
             executable=executable,
-            fast=fast,
             flavor=flavor,
             gdbserver_port=gdbserver_port,
             good_build_num=good_build_num,
@@ -89,8 +90,10 @@ class Options:
             gui=gui,
             interactive=interactive,
             log_level=log_level,
+            name=name,
             package=package,
             ports=ports,
+            pull=pull,
             release=release,
             releases=releases,
         )

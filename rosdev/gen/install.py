@@ -1,6 +1,7 @@
 from __future__ import annotations
 from asyncio import get_event_loop
 from atools import memoize
+from dataclasses import dataclass
 from functools import partial
 from logging import getLogger
 import os
@@ -18,6 +19,7 @@ log = getLogger(__name__)
 
 
 @memoize
+@dataclass(frozen=True)
 class Install(Handler):
 
     @property
@@ -32,11 +34,11 @@ class Install(Handler):
 
     @property
     def path_base(self) -> str:
-        return f'.rosdev/{self.architecture}'
+        return f'.rosdev/{self.options.architecture}'
 
     @property
     def path(self) -> str:
-        return f'{self.path_base}/{self.build_num or self.release}'
+        return f'{self.path_base}/{self.options.build_num or self.options.release}'
 
     @property
     def cache_path_base(self) -> str:
@@ -56,32 +58,29 @@ class Install(Handler):
 
     @property
     def ros_distro(self) -> str:
-        if (self.build_num is not None) or (self.release == 'latest'):
+        if (self.options.build_num is not None) or (self.options.release == 'latest'):
             return 'crystal'
 
-        return self.release
+        return self.options.release
 
     @memoize
     async def _main(self) -> None:
         os.makedirs(self.cache_path_base, exist_ok=True)
         os.makedirs(self.install_path_base, exist_ok=True)
-        if self.build_num is None:
+        if self.options.build_num is None:
             await self._install_from_container()
         else:
             await self._install_from_osrf_build_farm()
 
     async def _install_from_container(self) -> None:
-        log.info(f'Installing from docker image {self.release} to {self.install_path}')
+        log.info(f'Installing from docker image {self.options.release} to {self.install_path}')
         await exec(f'mkdir -p {self.install_path_base}')
         await Container(
-            architecture=self.architecture,
-            build_num=self.build_num,
-            clean=True,
-            command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
-            fast=self.fast,
-            interactive=False,
-            ports=frozenset(),
-            release=self.release,
+            self.options(
+                clean=True,
+                command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
+                interactive=False,
+            )
         )
 
     async def _install_from_osrf_build_farm(self) -> None:
