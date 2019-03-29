@@ -12,10 +12,8 @@ setup(
         'atools>=0.5.1',
         'docker>=3.7.0',
         'frozendict>=1.2',
-        'lxml>=4.3.3',
         'pyperclip>=1.7.0',
         'python-jenkins>=1.4.0',
-        'PyYAML>=3.13'
     ],
     test_suite='tests',
     python_requires='>=3.7',

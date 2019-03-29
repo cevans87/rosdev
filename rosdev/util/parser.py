@@ -87,11 +87,27 @@ class Positional:
     executable: ArgumentParser = field(default_factory=gen_flag_parser)
     package: ArgumentParser = field(default_factory=gen_flag_parser)
 
+    def __post_init__(self) -> None:
+        self.command.add_argument('command')
+        self.executable.add_argument('executable')
+        self.package.add_argument('package')
+
 
 positional = Positional()
-positional.command.add_argument('command')
-positional.executable.add_argument('executable')
-positional.package.add_argument('package')
+
+
+@dataclass(frozen=True)
+class Choices:
+    architecture = sorted({'amd64', 'arm32v7', 'arm64v8'})
+    bad_release = sorted({'bionic', 'crystal'}) + ['latest']
+    flavor = sorted({'desktop', 'desktop-full', 'robot', 'perception', 'ros-core', 'ros-base'})
+    good_release = sorted({'ardent', 'bionic', 'crystal'})
+    # noinspection PyProtectedMember
+    log_level = [name for _, name in sorted(logging._levelToName.items())]
+    release = sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + ['latest']
+
+
+choices = Choices()
 
 
 @dataclass(frozen=True)
@@ -119,254 +135,266 @@ class Flag:
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     releases: ArgumentParser = field(default_factory=gen_flag_parser)
 
+    def __post_init__(self) -> None:
+        self.architecture.add_argument(
+            '--architecture', '-a',
+            default=defaults.architecture,
+            choices=choices.architecture,
+            help=f'Architecture to build. Currently: {defaults.architecture}',
+        )
+        self.architectures.add_argument(
+            '--architectures',
+            default=defaults.architectures,
+            nargs='+',
+            choices=choices.architecture,
+            help=f'List of architectures to build. Currently: {defaults.architectures}',
+        )
+
+        asan_group = self.asan.add_mutually_exclusive_group()
+        asan_group.add_argument(
+            '--asan',
+            action='store_true',
+            help=(
+                SUPPRESS if defaults.asan else
+                f'Build with Address Sanitizer enabled. Currently: {defaults.asan}'
+            )
+        )
+        asan_group.add_argument(
+            '--no-asan',
+            action='store_false',
+            dest='asan',
+            help=(
+                SUPPRESS if not defaults.asan else
+                f'Build with Address Sanitizer disabled, Currently: {not defaults.asan}'
+            )
+        )
+
+        self.bad_release.add_argument(
+            '--bad-release',
+            default=defaults.bad_release,
+            choices=choices.bad_release,
+            help=f'Bad release to compare. Currently: {defaults.bad_release}'
+        )
+
+        self.bad_build_num.add_argument(
+            '--bad-build-num',
+            type=int,
+            default=defaults.bad_build_num,
+            help=f'Bad build number to compare. Supersedes --bad-build'
+        )
+
+        self.build_num.add_argument(
+            '--build-num',
+            type=int,
+            default=defaults.build_num,
+            help=(
+                f'Use specified build from OSRF build farm instead of {defaults.release}. '
+                f'Currently: {defaults.build_num}'
+            ),
+        )
+
+        clean_group = self.clean.add_mutually_exclusive_group()
+        clean_group.add_argument(
+            '--clean',
+            action='store_true',
+            default=defaults.clean,
+            help=(
+                SUPPRESS if defaults.clean else
+                f'Start bash environment without sourcing a ROS setup.bash. Currently: {defaults.clean}'
+            )
+        )
+        clean_group.add_argument(
+            '--no-clean',
+            action='store_false',
+            dest='clean',
+            default=not defaults.clean,
+            help=(
+                SUPPRESS if not defaults.clean else
+                f'Start bash environment with sourcing a ROS setup.bash. Currently: {not defaults.clean}'
+            )
+        )
+
+        self.colcon_build_args.add_argument(
+            '--colcon-build-args',
+            default=defaults.colcon_build_args,
+            help=f'Additional args to pass to colcon build'
+        )
+
+        debug_group = self.debug.add_mutually_exclusive_group()
+        debug_group.add_argument(
+            '--debug',
+            action='store_true',
+            default=defaults.debug,
+            help=(
+                SUPPRESS if defaults.debug else
+                f'Build with debug enabled. Currrently: {defaults.debug}'
+            )
+        )
+        debug_group.add_argument(
+            '--no-debug',
+            action='store_false',
+            dest='debug',
+            default=not defaults.debug,
+            help=(
+                SUPPRESS if not defaults.debug else
+                f'Build with debug disabled. Currently: {defaults.debug}'
+            )
+        )
+
+        self.flavor.add_argument(
+            '--flavor',
+            default=defaults.flavor,
+            choices=choices.flavor,
+            help=f'Linux flavor. Currently: {defaults.flavor}'
+        )
+
+        self.gdbserver_port.add_argument(
+            '--gdbserver-port',
+            type=int,
+            default=defaults.gdbserver_port,
+            help=f'Currently: {defaults.gdbserver_port}'
+        )
+        self.good_build_num.add_argument(
+            '--good-build-num',
+            type=int,
+            default=defaults.good_build_num,
+            help=f'Good build number to compare. Supersedes --good-build'
+        )
+
+        self.good_release.add_argument(
+            '--good-release',
+            default=defaults.good_release,
+            choices=choices.good_release,
+            help=f'Good release to compare. Currently: {defaults.good_release}'
+        )
+
+        gui_group = self.gui.add_mutually_exclusive_group()
+        gui_group.add_argument(
+            '--gui',
+            default=defaults.gui,
+            action='store_true',
+            help=(
+                SUPPRESS if defaults.gui else
+                f'Allow container to use host X11 server. Currently: {defaults.gui}'
+            )
+        )
+        gui_group.add_argument(
+            '--no-gui',
+            dest='gui',
+            default=not defaults.gui,
+            action='store_false',
+            help=(
+                SUPPRESS if not defaults.gui else
+                f'Do not allow container to use host X11 server. Currently: {defaults.gui}'
+            )
+        )
+
+        interactive_group = self.interactive.add_mutually_exclusive_group()
+        interactive_group.add_argument(
+            '--interactive',
+            action='store_true',
+            help=(
+                SUPPRESS if defaults.interactive else
+                f'Make derived docker container interactive. Currently: {defaults.interactive}'
+            )
+        )
+        interactive_group.add_argument(
+            '--no-interactive',
+            dest='interactive',
+            action='store_false',
+            default=not defaults.interactive,
+            help=(
+                SUPPRESS if not defaults.interactive else
+                f'Do not make derived docker container interactive. Currently: {defaults.interactive}'
+            )
+        )
+
+        self.log_level.add_argument(
+            '--log-level',
+            default=defaults.log_level,
+            choices=choices.log_level,
+            help=f'Currently: {defaults.log_level}',
+        )
+
+        self.name.add_argument(
+            '--name',
+            default=defaults.name,
+            help=(
+                f'Name to assign to docker container. Existing container with name will be removed. '
+                f'Currently: {defaults.name}'
+            ),
+        )
+
+        self.release.add_argument(
+            '--release', '-r',
+            default=defaults.release,
+            choices=choices.release,
+            help=f'ROS release to build. Currently: {defaults.release}',
+        )
+
+        self.releases.add_argument(
+            '--releases',
+            default=defaults.releases,
+            nargs='+',
+            choices=choices.release,
+            help=f'List of ROS releases to build. Currently: {defaults.releases}',
+        )
+
+        self.ports.add_argument(
+            '--ports', '-p',
+            nargs='*',
+            type=int,
+            default=sorted(defaults.ports),
+            help=f'List of ports to expose in docker container. Currently: {defaults.ports}'
+        )
+        pull_group = self.pull.add_mutually_exclusive_group()
+        pull_group.add_argument(
+            '--pull',
+            action='store_true',
+            default=defaults.pull,
+            help=(
+                SUPPRESS if defaults.pull else
+                f'Pull newer docker image. Currently: {defaults.pull}'
+            )
+        )
+        pull_group.add_argument(
+            '--no-pull',
+            action='store_false',
+            dest='pull',
+            default=not defaults.pull,
+            help=(
+                SUPPRESS if not defaults.pull else
+                f'Do not pull newer docker image. Currently: {defaults.pull}'
+            )
+        )
+
 
 flag = Flag()
 
 
-@dataclass(frozen=True)
-class Choices:
-    architecture = sorted({'amd64', 'arm32v7', 'arm64v8'})
-    bad_release = sorted({'bionic', 'crystal'}) + ['latest']
-    flavor = sorted({'desktop', 'desktop-full', 'robot', 'perception', 'ros-core', 'ros-base'})
-    good_release = sorted({'ardent', 'bionic', 'crystal'})
-    # noinspection PyProtectedMember
-    log_level = [name for _, name in sorted(logging._levelToName.items())]
-    release = sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + ['latest']
-
-
-choices = Choices()
-
-flag.architecture.add_argument(
-    '--architecture', '-a',
-    default=defaults.architecture,
-    choices=choices.architecture,
-    help=f'Architecture to build. Currently: {defaults.architecture}',
-)
-flag.architectures.add_argument(
-    '--architectures',
-    default=defaults.architectures,
-    nargs='+',
-    choices=choices.architecture,
-    help=f'List of architectures to build. Currently: {defaults.architectures}',
-)
-
-asan_group = flag.asan.add_mutually_exclusive_group()
-asan_group.add_argument(
-    '--asan',
-    action='store_true',
-    help=(
-        SUPPRESS if defaults.asan else
-        f'Build with Address Sanitizer enabled. Currently: {defaults.asan}'
-    )
-)
-asan_group.add_argument(
-    '--no-asan',
-    action='store_false',
-    dest='asan',
-    help=(
-        SUPPRESS if not defaults.asan else
-        f'Build with Address Sanitizer disabled, Currently: {not defaults.asan}'
-    )
-)
-
-flag.bad_release.add_argument(
-    '--bad-release',
-    default=defaults.bad_release,
-    choices=choices.bad_release,
-    help=f'Bad release to compare. Currently: {defaults.bad_release}'
-)
-
-flag.bad_build_num.add_argument(
-    '--bad-build-num',
-    type=int,
-    default=defaults.bad_build_num,
-    help=f'Bad build number to compare. Supersedes --bad-build'
-)
-
-flag.build_num.add_argument(
-    '--build-num',
-    type=int,
-    default=defaults.build_num,
-    help=(
-        f'Use specified build from OSRF build farm instead of {defaults.release}. '
-        f'Currently: {defaults.build_num}'
-    ),
-)
-
-clean_group = flag.clean.add_mutually_exclusive_group()
-clean_group.add_argument(
-    '--clean',
-    action='store_true',
-    default=defaults.clean,
-    help=(
-        SUPPRESS if defaults.clean else
-        f'Start bash environment without sourcing a ROS setup.bash. Currently: {defaults.clean}'
-    )
-)
-clean_group.add_argument(
-    '--no-clean',
-    action='store_false',
-    dest='clean',
-    default=not defaults.clean,
-    help=(
-        SUPPRESS if not defaults.clean else
-        f'Start bash environment with sourcing a ROS setup.bash. Currently: {not defaults.clean}'
-    )
-)
-
-flag.colcon_build_args.add_argument(
-    '--colcon-build-args',
-    default=defaults.colcon_build_args,
-    help=f'Additional args to pass to colcon build'
-)
-
-debug_group = flag.debug.add_mutually_exclusive_group()
-debug_group.add_argument(
-    '--debug',
-    action='store_true',
-    default=defaults.debug,
-    help=(
-        SUPPRESS if defaults.debug else
-        f'Build with debug enabled. Currrently: {defaults.debug}'
-    )
-)
-debug_group.add_argument(
-    '--no-debug',
-    action='store_false',
-    dest='debug',
-    default=not defaults.debug,
-    help=(
-        SUPPRESS if not defaults.debug else
-        f'Build with debug disabled. Currently: {defaults.debug}'
-    )
-)
-
-flag.flavor.add_argument(
-    '--flavor',
-    default=defaults.flavor,
-    choices=choices.flavor,
-    help=f'Linux flavor. Currently: {defaults.flavor}'
-)
-
-flag.gdbserver_port.add_argument(
-    '--gdbserver-port',
-    type=int,
-    default=defaults.gdbserver_port,
-    help=f'Currently: {defaults.gdbserver_port}'
-)
-flag.good_build_num.add_argument(
-    '--good-build-num',
-    type=int,
-    default=defaults.good_build_num,
-    help=f'Good build number to compare. Supersedes --good-build'
-)
-
-flag.good_release.add_argument(
-    '--good-release',
-    default=defaults.good_release,
-    choices=choices.good_release,
-    help=f'Good release to compare. Currently: {defaults.good_release}'
-)
-
-gui_group = flag.gui.add_mutually_exclusive_group()
-gui_group.add_argument(
-    '--gui',
-    default=defaults.gui,
-    action='store_true',
-    help=(
-        SUPPRESS if defaults.gui else
-        f'Allow container to use host X11 server. Currently: {defaults.gui}'
-    )
-)
-gui_group.add_argument(
-    '--no-gui',
-    dest='gui',
-    default=not defaults.gui,
-    action='store_false',
-    help=(
-        SUPPRESS if not defaults.gui else
-        f'Do not allow container to use host X11 server. Currently: {defaults.gui}'
-    )
-)
-
-interactive_group = flag.interactive.add_mutually_exclusive_group()
-interactive_group.add_argument(
-    '--interactive',
-    action='store_true',
-    help=(
-        SUPPRESS if defaults.interactive else
-        f'Make derived docker container interactive. Currently: {defaults.interactive}'
-    )
-)
-interactive_group.add_argument(
-    '--no-interactive',
-    dest='interactive',
-    action='store_false',
-    default=not defaults.interactive,
-    help=(
-        SUPPRESS if not defaults.interactive else
-        f'Do not make derived docker container interactive. Currently: {defaults.interactive}'
-    )
-)
-
-flag.log_level.add_argument(
-    '--log-level',
-    default=defaults.log_level,
-    choices=choices.log_level,
-    help=f'Currently: {defaults.log_level}',
-)
-
-flag.name.add_argument(
-    '--name',
-    default=defaults.name,
-    help=(
-        f'Name to assign to docker container. Existing container with name will be removed. '
-        f'Currently: {defaults.name}'
-    ),
-)
-
-flag.release.add_argument(
-    '--release', '-r',
-    default=defaults.release,
-    choices=choices.release,
-    help=f'ROS release to build. Currently: {defaults.release}',
-)
-
-flag.releases.add_argument(
-    '--releases',
-    default=defaults.releases,
-    nargs='+',
-    choices=choices.release,
-    help=f'List of ROS releases to build. Currently: {defaults.releases}',
-)
-
-flag.ports.add_argument(
-    '--ports', '-p',
-    nargs='*',
-    type=int,
-    default=sorted(defaults.ports),
-    help=f'List of ports to expose in docker container. Currently: {defaults.ports}'
-)
-pull_group = flag.pull.add_mutually_exclusive_group()
-pull_group.add_argument(
-    '--pull',
-    action='store_true',
-    default=defaults.pull,
-    help=(
-        SUPPRESS if defaults.pull else
-        f'Pull newer docker image. Currently: {defaults.pull}'
-    )
-)
-pull_group.add_argument(
-    '--no-pull',
-    action='store_false',
-    dest='pull',
-    default=not defaults.pull,
-    help=(
-        SUPPRESS if not defaults.pull else
-        f'Do not pull newer docker image. Currently: {defaults.pull}'
-    )
-)
+#@dataclass(frozen=True)
+#class SubParsers:
+#    _parsers: Dict[str, ArgumentParser] = field(default_factory=dict)
+#    _sub_parsers: Dict[str, ArgumentParser] = field(default_factory=dict)
+#
+#    def add_parser(self, name: str, parents: List[ArgumentParser]) -> None:
+#        name_parts = name.split()
+#        parent_name = ' '.join(name_parts[:-1])
+#        sub_parser = self._sub_parsers.setdefault(
+#            parent_name,
+#            self._parsers[parent_name].add_subparsers(required=True)
+#        )
+#
+#
+#sub_parsers = SubParsers()
+#
+#
+#@dataclass(frozen=True)
+#class Parser:
+#    rosdev: ArgumentParser = field(default_factory=lambda: SubParser(
+#        'rosdev', [
+#        ]
+#    ))
 
 
 rosdev_parser = ArgumentParser(parents=[flag.log_level])
@@ -446,7 +474,8 @@ rosdev_gen_colcon_parser = rosdev_gen_subparsers.add_parser(
     'colcon', parents=[])
 rosdev_gen_colcon_subparsers = rosdev_gen_colcon_parser.add_subparsers(required=True)
 rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
-    'build', parents=[
+    'build',
+    parents=[
         flag.architecture,
         flag.asan,
         flag.build_num,
@@ -459,15 +488,21 @@ rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
 rosdev_gen_colcon_build_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.colcon.build').Build)
 rosdev_gen_clion_parser = rosdev_gen_subparsers.add_parser(
-    'clion', parents=[])
-rosdev_gen_clion_subparsers = rosdev_gen_clion_parser.add_subparsers(required=True)
-rosdev_gen_clion_environment_parser = rosdev_gen_clion_subparsers.add_parser(
-    'environment', parents=[]
+    'clion', parents=[]
 )
-rosdev_gen_clion_environment_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.environment').Environment)
-rosdev_gen_clion_sshd_parser = rosdev_gen_clion_subparsers.add_parser(
-    'sshd',
+rosdev_gen_clion_subparsers = rosdev_gen_clion_parser.add_subparsers(required=True)
+rosdev_gen_clion_cmake_parser = rosdev_gen_clion_subparsers.add_parser(
+    'cmake', parents=[]
+)
+rosdev_gen_clion_cmake_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.cmake').Cmake)
+rosdev_gen_clion_ide_parser = rosdev_gen_clion_subparsers.add_parser(
+    'ide', parents=[]
+)
+rosdev_gen_clion_ide_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.ide').Ide)
+rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
+    'toolchain',
     parents=[
         flag.architecture,
         flag.ports,
@@ -475,8 +510,8 @@ rosdev_gen_clion_sshd_parser = rosdev_gen_clion_subparsers.add_parser(
         flag.release
     ]
 )
-rosdev_gen_clion_sshd_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.sshd').Sshd)
+rosdev_gen_clion_toolchain_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.toolchain').Toolchain)
 rosdev_gen_docker_parser = rosdev_gen_subparsers.add_parser(
     'docker', parents=[])
 rosdev_gen_docker_subparsers = rosdev_gen_docker_parser.add_subparsers(required=True)
