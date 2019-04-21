@@ -14,6 +14,7 @@ setup(
         'frozendict>=1.2',
         'pyperclip>=1.7.0',
         'python-jenkins>=1.4.0',
+        'vcstool>=0.1.38'
     ],
     test_suite='tests',
     python_requires='>=3.7',

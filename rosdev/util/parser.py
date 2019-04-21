@@ -1,9 +1,10 @@
 from __future__ import annotations
 from argcomplete import autocomplete
-from argparse import ArgumentParser, SUPPRESS
+from argparse import Action, ArgumentParser, Namespace, SUPPRESS
 import ast
 from collections import ChainMap
 from dataclasses import asdict, dataclass, field
+from frozendict import frozendict
 from importlib import import_module
 import logging
 import os
@@ -14,18 +15,16 @@ from typing import Awaitable, Dict, FrozenSet, List, Optional
 @dataclass(frozen=True)
 class Defaults:
     architecture: str = 'amd64'
-    architectures: FrozenSet[str] = frozenset({architecture})
     asan: bool = False
     bad_build_num: Optional[int] = None
     bad_release: str = 'latest'
     build_num: Optional[int] = None
     clean: bool = False
     colcon_build_args: Optional[str] = None
-    command: str = ''
+    command: Optional[str] = None
     debug: bool = False
     executable: str = ''
     flavor: str = 'ros-core'
-    gdbserver_port: int = 1337
     good_build_num: Optional[int] = None
     good_release: str = 'crystal'
     gui: bool = False
@@ -36,7 +35,7 @@ class Defaults:
     ports: FrozenSet[int] = frozenset()
     pull: bool = False
     release: str = 'latest'
-    releases: FrozenSet[str] = frozenset({release})
+    volumes: frozendict = frozendict()
 
     @staticmethod
     def _get_local_overrides() -> Dict:
@@ -113,7 +112,6 @@ choices = Choices()
 @dataclass(frozen=True)
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
-    architectures: ArgumentParser = field(default_factory=gen_flag_parser)
     asan: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_release: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -122,7 +120,6 @@ class Flag:
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     debug: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
-    gdbserver_port: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     good_release: ArgumentParser = field(default_factory=gen_flag_parser)
     gui: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -133,7 +130,7 @@ class Flag:
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
-    releases: ArgumentParser = field(default_factory=gen_flag_parser)
+    volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
         self.architecture.add_argument(
@@ -141,13 +138,6 @@ class Flag:
             default=defaults.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {defaults.architecture}',
-        )
-        self.architectures.add_argument(
-            '--architectures',
-            default=defaults.architectures,
-            nargs='+',
-            choices=choices.architecture,
-            help=f'List of architectures to build. Currently: {defaults.architectures}',
         )
 
         asan_group = self.asan.add_mutually_exclusive_group()
@@ -248,12 +238,6 @@ class Flag:
             help=f'Linux flavor. Currently: {defaults.flavor}'
         )
 
-        self.gdbserver_port.add_argument(
-            '--gdbserver-port',
-            type=int,
-            default=defaults.gdbserver_port,
-            help=f'Currently: {defaults.gdbserver_port}'
-        )
         self.good_build_num.add_argument(
             '--good-build-num',
             type=int,
@@ -325,21 +309,7 @@ class Flag:
             ),
         )
 
-        self.release.add_argument(
-            '--release', '-r',
-            default=defaults.release,
-            choices=choices.release,
-            help=f'ROS release to build. Currently: {defaults.release}',
-        )
-
-        self.releases.add_argument(
-            '--releases',
-            default=defaults.releases,
-            nargs='+',
-            choices=choices.release,
-            help=f'List of ROS releases to build. Currently: {defaults.releases}',
-        )
-
+        # TODO add PortsAction to allow <host>:<container> mapping. See VolumesAction for reference.
         self.ports.add_argument(
             '--ports', '-p',
             nargs='*',
@@ -368,33 +338,44 @@ class Flag:
             )
         )
 
+        self.release.add_argument(
+            '--release', '-r',
+            default=defaults.release,
+            choices=choices.release,
+            help=f'ROS release to build. Currently: {defaults.release}',
+        )
+
+        class VolumesAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                volumes = {}
+                for value in values:
+                    try:
+                        host_path, container_path = value.split(':')
+                    except ValueError:
+                        host_path, container_path = value, value
+
+                    host_path = os.path.realpath(os.path.expanduser(host_path))
+                    container_path = os.path.realpath(os.path.expanduser(container_path))
+                    volumes[host_path] = container_path
+
+                setattr(namespace, self.dest, frozendict(volumes))
+
+        self.volumes.add_argument(
+            '--volumes', '-v',
+            nargs='+',
+            default=defaults.volumes,
+            action=VolumesAction,
+            help=f'Additional volumes to mount in docker container. Currently: {defaults.volumes}',
+        )
+
 
 flag = Flag()
-
-
-#@dataclass(frozen=True)
-#class SubParsers:
-#    _parsers: Dict[str, ArgumentParser] = field(default_factory=dict)
-#    _sub_parsers: Dict[str, ArgumentParser] = field(default_factory=dict)
-#
-#    def add_parser(self, name: str, parents: List[ArgumentParser]) -> None:
-#        name_parts = name.split()
-#        parent_name = ' '.join(name_parts[:-1])
-#        sub_parser = self._sub_parsers.setdefault(
-#            parent_name,
-#            self._parsers[parent_name].add_subparsers(required=True)
-#        )
-#
-#
-#sub_parsers = SubParsers()
-#
-#
-#@dataclass(frozen=True)
-#class Parser:
-#    rosdev: ArgumentParser = field(default_factory=lambda: SubParser(
-#        'rosdev', [
-#        ]
-#    ))
 
 
 rosdev_parser = ArgumentParser(parents=[flag.log_level])
@@ -410,6 +391,7 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
         flag.ports,
         flag.pull,
         flag.release,
+        flag.volumes,
     ]
 )
 rosdev_bash_parser.set_defaults(
@@ -427,7 +409,7 @@ rosdev_bisect_parser = rosdev_subparsers.add_parser(
         flag.good_build_num,
         flag.good_release,
         flag.pull,
-        flag.release
+        flag.release,
     ]
 )
 rosdev_bisect_parser.set_defaults(
@@ -437,36 +419,13 @@ rosdev_clion_parser = rosdev_subparsers.add_parser(
     parents=[
         flag.architecture,
         flag.build_num,
+        flag.pull,
         flag.release
     ]
 )
 rosdev_clion_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.clion').Clion)
 
-rosdev_gazebo_parser = rosdev_subparsers.add_parser(
-    'gazebo',
-    parents=[
-        flag.log_level,
-        flag.pull,
-        flag.release,
-    ]
-)
-rosdev_gazebo_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gazebo').Gazebo)
-
-rosdev_gdbserver_parser = rosdev_subparsers.add_parser(
-    'gdbserver', parents=[
-        positional.package,
-        positional.executable,
-        flag.architecture,
-        flag.build_num,
-        flag.gdbserver_port,
-        flag.pull,
-        flag.release,
-    ]
-)
-rosdev_gdbserver_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gdbserver').Gdbserver)
 rosdev_gen_parser = rosdev_subparsers.add_parser(
     'gen', parents=[])
 rosdev_gen_subparsers = rosdev_gen_parser.add_subparsers(required=True)
@@ -505,6 +464,7 @@ rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
     'toolchain',
     parents=[
         flag.architecture,
+        flag.build_num,
         flag.ports,
         flag.pull,
         flag.release
@@ -524,7 +484,8 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
         flag.interactive,
         flag.ports,
         flag.pull,
-        flag.release
+        flag.release,
+        flag.volumes
     ]
 )
 rosdev_gen_docker_container_parser.set_defaults(
@@ -539,10 +500,10 @@ rosdev_gen_global_defaults_parser = rosdev_gen_global_subparsers.add_parser(
 )
 rosdev_gen_global_defaults_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.global.defaults').Defaults)
-rosdev_gen_docker_images_parser = rosdev_gen_docker_subparsers.add_parser(
-    'images', parents=[flag.architectures, flag.log_level, flag.pull, flag.releases])
-rosdev_gen_docker_images_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.docker.images').Images)
+rosdev_gen_docker_image_parser = rosdev_gen_docker_subparsers.add_parser(
+    'image', parents=[flag.architecture, flag.log_level, flag.pull, flag.release])
+rosdev_gen_docker_image_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.docker.image').Image)
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
     'install', parents=[flag.architecture, flag.build_num, flag.log_level, flag.pull, flag.release])
 rosdev_gen_install_parser.set_defaults(
@@ -557,6 +518,17 @@ rosdev_gen_local_defaults_parser = rosdev_gen_local_subparsers.add_parser(
 )
 rosdev_gen_local_defaults_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.local.defaults').Defaults)
+rosdev_gen_src_parser = rosdev_gen_subparsers.add_parser(
+    'src',
+    parents=[
+        flag.build_num,
+        flag.log_level,
+        flag.pull,
+        flag.release
+    ]
+)
+rosdev_gen_src_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.src').Src)
 
 
 def get_handler(args: Optional[List[str]]) -> Awaitable:

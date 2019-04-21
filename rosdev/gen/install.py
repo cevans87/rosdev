@@ -1,17 +1,14 @@
 from __future__ import annotations
-from asyncio import get_event_loop
 from atools import memoize
 from dataclasses import dataclass
-from functools import partial
+from frozendict import frozendict
 from logging import getLogger
 import os
-import pathlib
-import shutil
 from tempfile import TemporaryDirectory
 
 from rosdev.gen.docker.container import Container
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_machine, get_operating_system
+from rosdev.util.lookup import get_build_num, get_machine, get_operating_system
 from rosdev.util.subprocess import exec
 
 
@@ -23,38 +20,25 @@ log = getLogger(__name__)
 class Install(Handler):
 
     @property
-    @memoize
-    def cwd(self) -> str:
-        return f'{pathlib.Path.cwd()}'
+    def global_install_path_base(self) -> str:
+        return f'{Container(self.options).global_rosdev_path}/install'
 
     @property
-    @memoize
-    def home(self) -> str:
-        return f'{pathlib.Path.home()}'
+    def global_install_path(self) -> str:
+        return f'{self.global_install_path_base}/' \
+            f'{self.options.architecture}_{self.options.build_num or self.options.release}'
 
     @property
-    def path_base(self) -> str:
-        return f'.rosdev/{self.options.architecture}'
+    def global_install_ro_mnt_path(self) -> str:
+        return f'{self.global_install_path}_ro_mnt'
 
     @property
-    def path(self) -> str:
-        return f'{self.path_base}/{self.options.build_num or self.options.release}'
+    def local_install_symlink_path_base(self) -> str:
+        return Container(self.options).local_rosdev_path
 
     @property
-    def cache_path_base(self) -> str:
-        return f'{self.home}/{self.path_base}'
-
-    @property
-    def cache_path(self) -> str:
-        return f'{self.home}/{self.path}'
-
-    @property
-    def install_path_base(self) -> str:
-        return f'{self.cwd}/{self.path_base}'
-
-    @property
-    def install_path(self) -> str:
-        return f'{self.cwd}/{self.path}'
+    def local_install_symlink_path(self) -> str:
+        return f'{self.local_install_symlink_path_base}/install'
 
     @property
     def ros_distro(self) -> str:
@@ -65,54 +49,79 @@ class Install(Handler):
 
     @memoize
     async def _main(self) -> None:
-        os.makedirs(self.cache_path_base, exist_ok=True)
-        os.makedirs(self.install_path_base, exist_ok=True)
-        if self.options.build_num is None:
-            await self._install_from_container()
-        else:
-            await self._install_from_osrf_build_farm()
+        await self._create_global_install()
+        await self._create_global_install_ro_mnt()
+        await self._create_local_install_symlink()
 
-    async def _install_from_container(self) -> None:
-        log.info(f'Installing from docker image {self.options.release} to {self.install_path}')
-        await exec(f'mkdir -p {self.install_path_base}')
+    async def _create_global_install(self):
+        if os.path.exists(self.global_install_path):
+            log.info(f'Found install cached at {self.global_install_path}')
+            return
+
+        if self.options.build_num is not None or self.options.release != 'latest':
+            await self._create_global_install_from_osrf_build_farm()
+        else:
+            await self._create_global_install_from_container()
+
+        log.info(f'Install cached at {self.global_install_path}')
+
+    async def _create_global_install_from_container(self) -> None:
+        log.info(
+            f'Installing from docker image {self.options.release} to {self.global_install_path}')
+        await exec(f'mkdir -p {Container(self.options).global_install_path}')
         await Container(
             self.options(
                 clean=True,
-                command=f'cp -r /opt/ros/{self.ros_distro} {self.install_path}',
+                command=f'cp -r /opt/ros/{self.ros_distro} {self.global_install_path}',
                 interactive=False,
             )
         )
 
-    async def _install_from_osrf_build_farm(self) -> None:
+    async def _create_global_install_from_osrf_build_farm(self) -> None:
         log.info("Installing from OSRF build farm")
-        if os.path.exists(self.cache_path):
-            log.info(f'Found cached artifacts at {self.cache_path}')
+        if self.options.build_num is not None:
+            build_num = self.options.build_num
         else:
-            with TemporaryDirectory() as temp_dir:
-                artifacts_path = f'{temp_dir}/artifacts.tar.bz2'
-                temp_path = f'{temp_dir}/{self.path}'
+            build_num = get_build_num(self.options.architecture, self.options.release)
 
-                log.info('Downloading build artifacts')
-                await exec(
-                    f'wget https://ci.ros2.org/view/packaging/job/'
-                    f'packaging_{get_operating_system(self.architecture)}/{self.build_num}'
-                    f'/artifact/ws/ros2-package-linux-{get_machine(self.architecture)}.tar.bz2 '
-                    f'-O {artifacts_path}'
-                )
+        with TemporaryDirectory() as temp_dir:
+            staging_path = f'{temp_dir}/install'
+            artifacts_path = f'{temp_dir}/artifacts.tar.bz2'
 
-                log.info(f'Extracting build artifacts')
-                os.makedirs(temp_path, exist_ok=True)
-                await exec(f'tar -xf {artifacts_path} -C {temp_path} --strip-components 1')
+            log.info(f'Downloading install artifacts at {artifacts_path}')
+            await exec(
+                f'wget https://ci.ros2.org/view/packaging/job/'
+                f'packaging_{get_operating_system(self.options.architecture)}/{build_num}/artifact/'
+                f'ws/ros2-package-linux-{get_machine(self.options.architecture)}.tar.bz2 '
+                f'-O {artifacts_path}'
+            )
 
-                log.info(f'Caching artifacts to {self.cache_path}')
-                await get_event_loop().run_in_executor(
-                    None, partial(shutil.move, temp_path, self.cache_path))
+            log.info(f'Staging install at {staging_path}')
+            await exec(f'mkdir -p {staging_path}')
+            await exec(f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1')
 
-        if os.path.exists(self.install_path):
-            log.info(f'Removing previous install at {self.install_path}')
-            await get_event_loop().run_in_executor(
-                None, partial(shutil.rmtree, self.install_path, ignore_errors=True))
+            log.info(f'Caching install at {self.global_install_path}')
+            await exec(f'mkdir -p {self.global_install_path_base}')
+            await exec(f'mv {staging_path} {self.global_install_path}')
 
-        log.info(f'Installing artifacts to {self.install_path}')
-        await get_event_loop().run_in_executor(
-            None, partial(shutil.copytree, self.cache_path, self.install_path))
+    async def _create_global_install_ro_mnt(self) -> None:
+        log.info(f'Binding read-only install cache at {self.global_install_ro_mnt_path}')
+        if os.path.exists(self.global_install_ro_mnt_path):
+            await exec(f'fusermount -u -q {self.global_install_ro_mnt_path}', err_ok=True)
+
+        await exec(f'mkdir -p {self.global_install_ro_mnt_path}', err_ok=True)
+        await exec(
+            f'bindfs --no-allow-other --perms=a-w '
+            f'{self.global_install_path} {self.global_install_ro_mnt_path}'
+        )
+
+        log.info(f'Bound read-only install cache at {self.global_install_ro_mnt_path}')
+
+    async def _create_local_install_symlink(self) -> None:
+        log.info(f'Linking install at {self.local_install_symlink_path}')
+
+        await exec(f'mkdir -p {self.local_install_symlink_path_base}', err_ok=True)
+        await exec(f'rm {self.local_install_symlink_path}', err_ok=True)
+        await exec(f'ln -s {self.global_install_ro_mnt_path} {self.local_install_symlink_path}')
+
+        log.info(f'Linked install at {self.local_install_symlink_path}')

@@ -2,7 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
-from rosdev.gen.clion.cmake import Cmake
 from rosdev.gen.clion.ide import Ide
 from rosdev.gen.clion.toolchain import Toolchain
 from rosdev.util.handler import Handler
@@ -17,6 +16,5 @@ class Clion(Handler):
 
     @memoize
     async def _main(self) -> None:
-        await Cmake(self.options)
         await Toolchain(self.options)
         await Ide(self.options)

@@ -2,10 +2,9 @@ from __future__ import annotations
 import asyncio
 from atools import memoize
 import docker
-from itertools import product
 from logging import getLogger
 import os
-import pathlib
+from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -31,7 +30,7 @@ class Image(Handler):
                     dockerfile_f_out.write(self.dockerfile_contents)
                 with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
                     entrypoint_f_out.write(self.rosdev_entrypoint_sh_contents)
-                with open(f'{pathlib.Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
+                with open(f'{Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
                         open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
                     id_rsa_f_out.write(id_rsa_f_in.read())
 
@@ -169,30 +168,15 @@ class Image(Handler):
 
             RUN groupadd -r -g {os.getgid()} {os.getlogin()}
             RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> /dev/null
-            RUN usermod {os.getlogin()} -d {pathlib.Path.home()}
+            RUN usermod {os.getlogin()} -d {Path.home()}
+            RUN mkdir -p {Path.home()}
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+            
+            # TODO specify user_envfile to load a different .pam_environment
+            run sed -i "s/readenv=1 envfile/readenv=1 user_readenv=1 envfile/g" /etc/pam.d/login
 
             USER {os.getlogin()}
-
-            #RUN mkdir -p {pathlib.Path.home()}/.ssh
-            #RUN touch {pathlib.Path.home()}/.ssh/authorized_keys
-            #RUN cat /id_rsa.pub >> {pathlib.Path.home()}/.ssh/authorized_keys
-            #RUN chmod 600 {pathlib.Path.home()}/.ssh/authorized_keys
 
             ENTRYPOINT ["/rosdev_entrypoint.sh"]
             CMD bash
         ''').lstrip()
-
-
-@memoize
-class Images(Handler):
-
-    @memoize
-    async def _main(self) -> None:
-        await asyncio.gather(
-            *[
-                Image(self.options(architecture=architecture, release=release))
-                for architecture, release
-                in product(self.options.architectures, self.options.releases)
-            ]
-        )
