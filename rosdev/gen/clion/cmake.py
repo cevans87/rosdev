@@ -37,18 +37,6 @@ class Cmake(Handler):
         })
 
     @memoize
-    async def _main(self) -> None:
-        await Install(self.options)
-
-        await exec(f'mkdir -p {self.local_pam_environment_path_base}')
-        with open(self.local_pam_environment_path, 'w') as pam_environment_f_out:
-            pam_environment_f_out.write(
-                '\n'.join(f'{k}={v}' for k, v in (await self.get_environ()).items())
-            )
-
-        log.info(f'PAM environment written to {self.local_pam_environment_path}')
-
-    @memoize
     async def get_environ(self) -> frozendict:
         await Install(self.options)
 
@@ -74,3 +62,15 @@ class Cmake(Handler):
                     environ[k] = v
 
         return frozendict(environ)
+
+    @memoize
+    async def _main(self) -> None:
+        await Install(self.options)
+
+        await exec(f'mkdir -p {self.local_pam_environment_path_base}')
+        with open(self.local_pam_environment_path, 'w') as pam_environment_f_out:
+            pam_environment_f_out.write(
+                '\n'.join(f'{k}={v}' for k, v in (await self.get_environ()).items())
+            )
+
+        log.info(f'PAM environment written to {self.local_pam_environment_path}')

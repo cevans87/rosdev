@@ -1,7 +1,6 @@
 from __future__ import annotations
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger
 import os
 from tempfile import TemporaryDirectory

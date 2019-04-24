@@ -1,17 +1,13 @@
 from __future__ import annotations
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
-from jenkins import Jenkins
 from logging import getLogger
 import os
-import re
 from tempfile import TemporaryDirectory
-from typing import List
 
 from rosdev.gen.docker.container import Container
+from rosdev.util.build_farm import get_ros2_repos
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_build_num, get_operating_system
 from rosdev.util.subprocess import exec
 
 
@@ -49,7 +45,7 @@ class Src(Handler):
             return 'crystal'
 
         return self.options.release
-    
+
     @memoize
     async def _main(self) -> None:
         await self._create_global_src()
@@ -61,39 +57,17 @@ class Src(Handler):
             log.info(f'Found src cached at {self.global_src_path}')
             return
 
-        if self.options.build_num is not None:
-            build_num = self.options.build_num
-        else:
-            build_num = get_build_num(self.options.architecture, self.options.release)
-
         log.info("Finding src from OSRF build farm")
-        # FIXME blocking call in async context
-        lines = [
-            line.rstrip() for line in
-            Jenkins('https://ci.ros2.org').get_build_console_output(
-                f'packaging_{get_operating_system(self.options.architecture)}', build_num
-            ).split('\n')
-        ]
-
-        remaining_lines = iter(lines)
-        for line in remaining_lines:
-            if re.match(r'^# BEGIN SUBSECTION: vcs export --exact$', line) is not None:
-                break
-        for line in remaining_lines:
-            if re.match(r'^repositories:$', line) is not None:
-                break
-        ros2_repos_lines: List[str] = ['repositories:']
-        for line in remaining_lines:
-            if re.match(r'^# END SUBSECTION$', line) is not None:
-                break
-            elif re.match(r'\s+\S+:.*$', line) is not None:
-                ros2_repos_lines.append(line)
-
+        ros2_repos = await get_ros2_repos(
+            architecture=self.options.architecture,
+            build_num=self.options.build_num,
+            release=self.options.release,
+        )
         with TemporaryDirectory() as temp_dir:
             staging_path = f'{temp_dir}/src'
             ros2_repos_path = f'{temp_dir}/ros2.repos'
             with open(ros2_repos_path, 'w') as ros2_repos_f_out:
-                ros2_repos_f_out.write('\n'.join(ros2_repos_lines))
+                ros2_repos_f_out.write(ros2_repos)
 
             log.info(f'Staging src at {staging_path}')
             await exec(f'mkdir -p {staging_path}')
