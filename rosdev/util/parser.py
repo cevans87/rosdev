@@ -460,6 +460,21 @@ rosdev_gen_clion_ide_parser = rosdev_gen_clion_subparsers.add_parser(
 )
 rosdev_gen_clion_ide_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.clion.ide').Ide)
+rosdev_gen_clion_keepass_parser = rosdev_gen_clion_subparsers.add_parser(
+    'keepass', parents=[]
+)
+rosdev_gen_clion_keepass_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.keepass').Keepass)
+rosdev_gen_clion_overlay_parser = rosdev_gen_clion_subparsers.add_parser(
+    'overlay', parents=[]
+)
+rosdev_gen_clion_overlay_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.overlay').Overlay)
+rosdev_gen_clion_settings_parser = rosdev_gen_clion_subparsers.add_parser(
+    'settings', parents=[]
+)
+rosdev_gen_clion_settings_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.clion.settings').Settings)
 rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
     'toolchain',
     parents=[

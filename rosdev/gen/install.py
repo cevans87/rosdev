@@ -1,4 +1,3 @@
-from __future__ import annotations
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
@@ -28,10 +27,6 @@ class Install(Handler):
             f'{self.options.architecture}_{self.options.build_num or self.options.release}'
 
     @property
-    def global_install_ro_mnt_path(self) -> str:
-        return f'{self.global_install_path}_ro_mnt'
-
-    @property
     def local_install_symlink_path_base(self) -> str:
         return Container(self.options).local_rosdev_path
 
@@ -48,8 +43,8 @@ class Install(Handler):
 
     @memoize
     async def _main(self) -> None:
+        # TODO split this module into rosdev.gen.global.install and rosdev.gen.local.install
         await self._create_global_install()
-        await self._create_global_install_ro_mnt()
         await self._create_local_install_symlink()
 
     async def _create_global_install(self):
@@ -62,12 +57,14 @@ class Install(Handler):
         else:
             await self._create_global_install_from_container()
 
-        log.info(f'Install cached at {self.global_install_path}')
+        await exec(f'chmod -R -w {self.global_install_path}')
+
+        log.info(f'Global nstall at {self.global_install_path}')
 
     async def _create_global_install_from_container(self) -> None:
         log.info(
             f'Installing from docker image {self.options.release} to {self.global_install_path}')
-        await exec(f'mkdir -p {Container(self.options).global_install_path}')
+        await exec(f'mkdir -p {self.global_install_path}')
         await Container(
             self.options(
                 clean=True,
@@ -103,24 +100,11 @@ class Install(Handler):
             await exec(f'mkdir -p {self.global_install_path_base}')
             await exec(f'mv {staging_path} {self.global_install_path}')
 
-    async def _create_global_install_ro_mnt(self) -> None:
-        log.info(f'Binding read-only install cache at {self.global_install_ro_mnt_path}')
-        if os.path.exists(self.global_install_ro_mnt_path):
-            await exec(f'fusermount -u -q {self.global_install_ro_mnt_path}', err_ok=True)
-
-        await exec(f'mkdir -p {self.global_install_ro_mnt_path}', err_ok=True)
-        await exec(
-            f'bindfs --no-allow-other --perms=a-w '
-            f'{self.global_install_path} {self.global_install_ro_mnt_path}'
-        )
-
-        log.info(f'Bound read-only install cache at {self.global_install_ro_mnt_path}')
-
     async def _create_local_install_symlink(self) -> None:
         log.info(f'Linking install at {self.local_install_symlink_path}')
 
         await exec(f'mkdir -p {self.local_install_symlink_path_base}', err_ok=True)
         await exec(f'rm {self.local_install_symlink_path}', err_ok=True)
-        await exec(f'ln -s {self.global_install_ro_mnt_path} {self.local_install_symlink_path}')
+        await exec(f'ln -s {self.global_install_path} {self.local_install_symlink_path}')
 
         log.info(f'Linked install at {self.local_install_symlink_path}')

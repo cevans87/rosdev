@@ -43,11 +43,18 @@ class Gdb(Handler):
 
         await exec(f'mkdir -p {self.local_gdbinit_path_base}')
         with open(self.local_gdbinit_path, 'w') as gdbinit_f_out:
+            # FIXME these are two common paths from ci.ro2.org builds. Find a way to
+            #  programmatically find the paths, probably through jenkins.
             gdbinit_f_out.write(
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
                 f'packaging_{get_operating_system(self.options.architecture)}/ws/src/ '
-                f'{Src(self.options).local_src_symlink_path}'
+                f'{Src(self.options).local_src_symlink_path}\n'
+            )
+            gdbinit_f_out.write(
+                f'set substitute-path '
+                f'/home/rosbuild/ci_scripts/ws/src/ '
+                f'{Src(self.options).local_src_symlink_path}\n'
             )
 
         log.info(f'Gdbinit written to {self.local_gdbinit_path}')

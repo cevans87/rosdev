@@ -3,6 +3,7 @@ from atools import memoize
 from dataclasses import dataclass
 from frozendict import frozendict
 from typing import FrozenSet, Optional
+from uuid import UUID, uuid4
 
 
 class _TakeFromSelf:
@@ -34,6 +35,11 @@ class Options:
     pull: bool
     release: str
     volumes: frozendict
+
+    @property
+    @memoize
+    def uuid(self) -> UUID:
+        return uuid4()
 
     def __call__(
             self,

@@ -29,13 +29,13 @@ class Container(Handler):
     def local_rosdev_path(self) -> str:
         return f'{os.getcwd()}/.rosdev'
 
-    # FIXME remove this. It's duplicated in Install.local_install_path
+    # FIXME remove this. It's duplicated in Install.local_install_path. Can't import Install here
+    #  due to circular import.
     @property
     def local_install_path(self) -> str:
         return f'{self.local_rosdev_path}/install'
 
     @property
-    @memoize
     def environment(self) -> frozendict:
         environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
         # FIXME there are better ways to stop the container from sourcing the ros setup.bash
@@ -53,7 +53,6 @@ class Container(Handler):
         return environment
 
     @property
-    @memoize
     def volumes(self) -> frozendict:
         assert os.getcwd().startswith(f'{Path.home()}') and (os.getcwd() != f'{Path.home()}'), \
             f'rosdev must be run from a child directory of {Path.home()}'

@@ -1,9 +1,12 @@
+from asyncio import gather
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 import os
 import sys
 
+from rosdev.gen.clion.keepass import Keepass
+from rosdev.gen.clion.settings import Settings
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import get_exec_lines, shell
 
@@ -17,6 +20,10 @@ class Ide(Handler):
 
     @memoize
     async def _main(self) -> None:
+        await gather(
+            Keepass(self.options),
+            Settings(self.options),
+        )
         await shell(
             f'nohup {sys.executable} {(await get_exec_lines("which clion"))[0]} '
             f'{os.getcwd()} < /dev/null > /dev/null 2>&1 &')

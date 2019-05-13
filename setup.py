@@ -12,7 +12,9 @@ setup(
         'atools>=0.5.1',
         'docker>=3.7.0',
         'frozendict>=1.2',
-        'pyperclip>=1.7.0',
+        'lxml>=4.3.3',
+        'pycryptodome>=3.8.1',
+        'pykeepass>=2.19',
         'pytest>=4.4.1',
         'python-jenkins>=1.4.0',
         'vcstool>=0.1.38'

@@ -22,34 +22,6 @@ class Image(Handler):
     class Exception(Exception):
         pass
 
-    @memoize
-    async def _main(self) -> None:
-        def _main_internal() -> None:
-            with TemporaryDirectory() as tempdir_path:
-                with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
-                    dockerfile_f_out.write(self.dockerfile_contents)
-                with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
-                    entrypoint_f_out.write(self.rosdev_entrypoint_sh_contents)
-                with open(f'{Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
-                        open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
-                    id_rsa_f_out.write(id_rsa_f_in.read())
-
-                client = docker.client.from_env()
-                client.images.build(
-                    path=tempdir_path,
-                    pull=self.options.pull,
-                    rm=True,
-                    tag=self.tag,
-                )
-
-        log.info(f'building "{self.tag}" from "{self.base_tag}"')
-        try:
-            await asyncio.get_event_loop().run_in_executor(None, _main_internal)
-        except docker.errors.BuildError as e:
-            raise self.Exception(f'While building "{self.tag}", got "{e}"') from e
-        else:
-            log.info(f'Finished "{self.tag}" from "{self.base_tag}"')
-
     @property
     def cwd(self) -> str:
         return os.getcwd()
@@ -84,6 +56,8 @@ class Image(Handler):
 
     @property
     def rosdev_entrypoint_sh_contents(self) -> str:
+        # TODO improve the way we're executing this entrypoint. Make this global entrypoint
+        # execute a local entrypoint, which we will volume mount from the local rosdev workspace
         return dedent(fr'''
             #!/bin/bash
             set -e
@@ -144,6 +118,7 @@ class Image(Handler):
                 pytest-cov \
                 vcstool
 
+                # FIXME allow user to specify additional apt and pip3 packages
                 # These are for building all of ros2
                 #flake8 \
                 #flake8-blind-except \
@@ -172,6 +147,27 @@ class Image(Handler):
             RUN mkdir -p {Path.home()}
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
             
+            # Allow anonymous ssh login
+            RUN sed -i -re 's/^{os.getlogin()}:[^:]+:/{os.getlogin()}::/' /etc/passwd /etc/shadow
+            #RUN echo 'PermitRootLogin Yes' >> /etc/ssh/sshd_config
+            #RUN echo 'PasswordAuthentication Yes' >> /etc/ssh/sshd_config
+            #RUN echo 'PermitEmptyPasswords Yes' >> /etc/ssh/sshd_config
+            #RUN echo 'ChallengeResponseAuthentication No' >> /etc/ssh/sshd_config
+            #RUN echo 'UsePAM Yes' >> /etc/ssh/sshd_config
+            #RUN echo 'auth [success=1 default=ignore] pam_unix.so nullok' >>  /etc/pam.d/common-auth
+            
+            #RUN sed -i -re 's/^#PasswordAuthentication yes/PasswordAuthentication yes' \
+            #    /etc/ssh/sshd_config
+            #RUN sed -i -re 's/^#PermitEmptyPasswords no/PasswordAuthentication yes' \
+            #    /etc/ssh/sshd_config
+            #RUN sed -i -re 's/^@include common-auth$/replace_me/' /etc/pam.d/sshd
+            #RUN sed -i -re \
+            #    's/^replace_me$/auth [success=1 default=ignore] pam_unix.so nullok\nreplace_me/' \
+            #    /etc/pam.d/sshd
+            #RUN sed -i -re 's/^replace_me$/auth requisite pam_deny.so\nreplace_me/' /etc/pam.d/sshd
+            #RUN sed -i -re 's/^replace_me$/auth required pam_permit.so/' /etc/pam.d/sshd
+            RUN echo 'sshd : ALL : allow' >> /etc/hosts.allow
+            
             # TODO specify user_envfile to load a different .pam_environment
             run sed -i "s/readenv=1 envfile/readenv=1 user_readenv=1 envfile/g" /etc/pam.d/login
 
@@ -180,3 +176,27 @@ class Image(Handler):
             ENTRYPOINT ["/rosdev_entrypoint.sh"]
             CMD bash
         ''').lstrip()
+
+    @memoize
+    async def _main(self) -> None:
+        def _main_internal() -> None:
+            with TemporaryDirectory() as tempdir_path:
+                with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
+                    dockerfile_f_out.write(self.dockerfile_contents)
+                with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
+                    entrypoint_f_out.write(self.rosdev_entrypoint_sh_contents)
+                with open(f'{Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
+                        open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
+                    id_rsa_f_out.write(id_rsa_f_in.read())
+
+                client = docker.client.from_env()
+                client.images.build(
+                    path=tempdir_path,
+                    pull=self.options.pull,
+                    rm=True,
+                    tag=self.tag,
+                )
+
+        log.info(f'Creating docker image {self.tag} from {self.base_tag}')
+        await asyncio.get_event_loop().run_in_executor(None, _main_internal)
+        log.info(f'Created docker mage {self.tag} from {self.base_tag}')
