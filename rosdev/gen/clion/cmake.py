@@ -4,7 +4,7 @@ from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
 
-from rosdev.gen.docker.container import Container
+from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import exec, get_shell_lines
@@ -23,7 +23,7 @@ class Cmake(Handler):
 
     @property
     def local_pam_environment_path_base(self) -> str:
-        return Container(self.options).local_rosdev_path
+        return RosdevConfig(self.options).local_path
 
     @property
     def local_pam_environment_path(self) -> str:
@@ -40,10 +40,17 @@ class Cmake(Handler):
     async def get_environ(self) -> frozendict:
         await Install(self.options)
 
-        lines = await get_shell_lines(
-            f'bash -c \'source '
-            f'{Install(self.options).local_install_symlink_path}/setup.bash && env\''
-        )
+        if self.options.clean and self.options.local_setup_path is None:
+            command = 'bash -c \'env\''
+        else:
+            command = f'bash -c \''
+            if not self.options.clean:
+                command += f'source {Install(self.options).container_path}/setup.bash && '
+            if self.options.local_setup_path is not None:
+                command += f'source {self.options.local_setup_path} && '
+            command += 'env\''
+
+        lines = await get_shell_lines(command)
         environ = {}
         for line in lines:
             if line:
@@ -67,10 +74,28 @@ class Cmake(Handler):
     async def _main(self) -> None:
         await Install(self.options)
 
+        pam_environment_lines = []
+        for k, v in (await self.get_environ()).items():
+            i = 0
+            # TODO unset these temp environment variables in rosdev_entrypoint.sh
+            while len(v) > 512:
+                pam_environment_lines.append(f'{k}_{i} DEFAULT="{v[:512]}"')
+                i += 1
+                v = v[512:]
+
+            if i > 0 and v:
+                pam_environment_lines.append(f'{k}_{i} DEFAULT="{v}"')
+                i += 1
+
+            if i == 0:
+                pam_environment_lines.append(f'{k} DEFAULT="{v}"')
+            else:
+                pam_environment_lines.append(
+                    f'{k} DEFAULT="{"".join([f"${{{k}_{j}}}" for j in range(i)])}"'
+                )
+
         await exec(f'mkdir -p {self.local_pam_environment_path_base}')
         with open(self.local_pam_environment_path, 'w') as pam_environment_f_out:
-            pam_environment_f_out.write(
-                '\n'.join(f'{k}={v}' for k, v in (await self.get_environ()).items())
-            )
+            pam_environment_f_out.write('\n'.join(pam_environment_lines))
 
         log.info(f'PAM environment written to {self.local_pam_environment_path}')

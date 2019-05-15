@@ -6,7 +6,9 @@ from logging import getLogger
 import os
 from pathlib import Path
 
+from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.docker.image import Image
+from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import exec
 
@@ -22,20 +24,6 @@ class Container(Handler):
         pass
 
     @property
-    def global_rosdev_path(self) -> str:
-        return f'{Path.home()}/.rosdev'
-
-    @property
-    def local_rosdev_path(self) -> str:
-        return f'{os.getcwd()}/.rosdev'
-
-    # FIXME remove this. It's duplicated in Install.local_install_path. Can't import Install here
-    #  due to circular import.
-    @property
-    def local_install_path(self) -> str:
-        return f'{self.local_rosdev_path}/install'
-
-    @property
     def environment(self) -> frozendict:
         environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
         # FIXME there are better ways to stop the container from sourcing the ros setup.bash
@@ -43,10 +31,17 @@ class Container(Handler):
             environment['ROSDEV_CLEAN_ENVIRONMENT'] = '1'
         else:
             environment['ROSDEV_DIR'] = os.getcwd()
-            environment['ROSDEV_INSTALL_DIR'] = self.local_install_path
+            environment['ROSDEV_INSTALL_DIR'] = Install(self.options).local_path
+
+        if self.options.local_setup_path is not None:
+            environment['ROSDEV_LOCAL_SETUP_PATH'] = self.options.local_setup_path
 
         if self.options.gui:
             environment['DISPLAY'] = os.environ['DISPLAY']
+
+        if self.options.ccache:
+            environment['CC'] = '/usr/lib/ccache/gcc'
+            environment['CXX'] = '/usr/lib/ccache/g++'
 
         environment = frozendict(environment)
 
@@ -59,8 +54,8 @@ class Container(Handler):
 
         volumes = {
             **self.options.volumes,
-            self.global_rosdev_path: self.global_rosdev_path,
-            os.getcwd(): os.getcwd(),
+            **RosdevConfig(self.options).volumes,
+            f'{Path.cwd()}': f'{Path.cwd()}',
         }
 
         if self.options.gui:
@@ -86,6 +81,8 @@ class Container(Handler):
             else:
                 log.info(f'Removing existing docker container "{self.options.name}"')
                 container.remove(force=True)
+
+        log.debug(f'mounting volumes {self.options.volumes}')
 
         container = client.containers.create(
             auto_remove=True,

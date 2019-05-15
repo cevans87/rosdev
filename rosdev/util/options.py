@@ -1,9 +1,8 @@
 from __future__ import annotations
 from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from frozendict import frozendict
-from typing import FrozenSet, Optional
-from uuid import UUID, uuid4
+from typing import Dict, FrozenSet, Mapping, Optional
 
 
 class _TakeFromSelf:
@@ -18,6 +17,7 @@ class Options:
     bad_build_num: Optional[int]
     bad_release: str
     build_num: Optional[int]
+    ccache: bool
     clean: bool
     colcon_build_args: Optional[str]
     command: Optional[str]
@@ -28,18 +28,15 @@ class Options:
     good_release: str
     gui: bool
     interactive: bool
+    local_setup_path: Optional[str]
     log_level: str
     name: Optional[str]
-    package: str
+    package: Optional[str]
     ports: FrozenSet[int]
     pull: bool
     release: str
+    uuid: Optional[str]
     volumes: frozendict
-
-    @property
-    @memoize
-    def uuid(self) -> UUID:
-        return uuid4()
 
     def __call__(
             self,
@@ -48,6 +45,7 @@ class Options:
             bad_build_num: Optional[int] = _TakeFromSelf,
             bad_release: str = _TakeFromSelf,
             build_num: Optional[int] = _TakeFromSelf,
+            ccache: bool = _TakeFromSelf,
             clean: bool = _TakeFromSelf,
             colcon_build_args: Optional[str] = _TakeFromSelf,
             command: Optional[str] = _TakeFromSelf,
@@ -58,12 +56,14 @@ class Options:
             good_release: str = _TakeFromSelf,
             gui: bool = _TakeFromSelf,
             interactive: bool = _TakeFromSelf,
+            local_setup_path: Optional[str] = _TakeFromSelf,
             log_level: str = _TakeFromSelf,
             name: Optional[str] = _TakeFromSelf,
-            package: str = _TakeFromSelf,
+            package: Optional[str] = _TakeFromSelf,
             ports: FrozenSet[int] = _TakeFromSelf,
             pull: bool = _TakeFromSelf,
             release: str = _TakeFromSelf,
+            uuid: Optional[str] = _TakeFromSelf,
             volumes: frozendict = _TakeFromSelf,
     ) -> Options:
 
@@ -80,6 +80,7 @@ class Options:
             bad_build_num=bad_build_num,
             bad_release=bad_release,
             build_num=build_num,
+            ccache=ccache,
             clean=clean,
             colcon_build_args=colcon_build_args,
             command=command,
@@ -90,11 +91,13 @@ class Options:
             good_release=good_release,
             gui=gui,
             interactive=interactive,
+            local_setup_path=local_setup_path,
             log_level=log_level,
             name=name,
             package=package,
             ports=ports,
             pull=pull,
             release=release,
+            uuid=uuid,
             volumes=volumes,
         )

@@ -9,6 +9,7 @@ import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 
+from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine
 
@@ -24,7 +25,7 @@ class Image(Handler):
 
     @property
     def cwd(self) -> str:
-        return os.getcwd()
+        return f'{Path.cwd()}'
 
     @property
     def profile(self) -> str:
@@ -63,18 +64,20 @@ class Image(Handler):
             set -e
             # setup ros2 environment
             if [ -z ${{ROSDEV_CLEAN_ENVIRONMENT+x}} ]; then \
-                source "$ROSDEV_INSTALL_DIR/setup.bash" > /dev/null 2>&1 || \
-                source "/opt/ros/$ROS_DISTRO/setup.bash" > /dev/null 2>&1 || \
-                :;
-                source "$ROSDEV_DIR/install/setup.bash" > /dev/null 2>&1 ||  :; \
+                source "{Install(self.options).container_path}/setup.bash" 
             fi
-
+            
+            if [ ! -z ${{ROSDEV_LOCAL_SETUP_PATH+x}} ]; then \
+               source "$ROSDEV_LOCAL_SETUP_PATH"
+            fi
+            
             exec "$@"
         ''').lstrip()
 
     @property
     def dockerfile_contents(self) -> str:
         # FIXME see how hard it is to host this image on Dockerhub. It takes a while to build.
+        # FIXME allow user to specify additional apt and pip3 packages
         return dedent(fr'''
             FROM {self.base_tag}
 
@@ -89,54 +92,56 @@ class Image(Handler):
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
             RUN apt-get update && apt-get update && apt-get install -y \
                 build-essential \
+                ccache \
+                cmake \
                 coreutils \
                 curl \
                 gdb \
                 gdbserver \
+                git \
+                liblog4cxx-dev \
                 openssh-server \
                 python3-pip \
+                python3-colcon-common-extensions \
+                python3-pip \
+                python-rosdep \
+                python3-vcstool \
                 sudo \
+                wget
+                
+            RUN apt-get install --no-install-recommends -y \
+                libasio-dev \
+                libtinyxml2-dev \
                 && apt-get clean
-
-                # These are for building all of ros2
-                #build-essential \
-                #cmake \
-                #git \
-                #python3-colcon-common-extensions \
-                #python3-pip \
-                #python-rosdep \
-                #python3-vcstool \
-                #wget \
-                #libasio-dev \
-                #libtinyxml2-dev \
 
             RUN python3 -m pip install -U \
                 argcomplete \
                 colcon-core \
                 colcon-common-extensions \
+                colcon-mixin \
+                flake8 \
+                flake8-blind-except \
+                flake8-builtins \
+                flake8-class-newline \
+                flake8-comprehensions \
+                flake8-deprecated \
+                flake8-docstrings \
+                flake8-import-order \
+                flake8-quotes \
+                git+https://github.com/lark-parser/lark.git@0.7d \
+                numpy \
                 pytest \
                 pytest-cov \
+                pytest-repeat \
+                pytest-rerunfailures \
+                pytest-runner \
+                setuptools \
                 vcstool
-
-                # FIXME allow user to specify additional apt and pip3 packages
-                # These are for building all of ros2
-                #flake8 \
-                #flake8-blind-except \
-                #flake8-builtins \
-                #flake8-class-newline \
-                #flake8-comprehensions \
-                #flake8-deprecated \
-                #flake8-docstrings \
-                #flake8-import-order \
-                #flake8-quotes \
-                #git+https://github.com/lark-parser/lark.git@0.7d \
-                #pytest-repeat \
-                #pytest-rerunfailures \
-                #pytest \
-                #pytest-cov \
-                #pytest-runner \
-                #setuptools
-
+                
+            RUN colcon mixin add default \
+                https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
+            RUN colcon mixin update default
+                   
             RUN rm /ros_entrypoint.sh
             COPY rosdev_entrypoint.sh /
             RUN chmod +x /rosdev_entrypoint.sh
@@ -145,27 +150,12 @@ class Image(Handler):
             RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> /dev/null
             RUN usermod {os.getlogin()} -d {Path.home()}
             RUN mkdir -p {Path.home()}
+            RUN chown {os.getlogin()}:{os.getlogin()} {Path.home()}
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+            RUN touch {Path.home()}/.sudo_as_admin_successful
             
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{os.getlogin()}:[^:]+:/{os.getlogin()}::/' /etc/passwd /etc/shadow
-            #RUN echo 'PermitRootLogin Yes' >> /etc/ssh/sshd_config
-            #RUN echo 'PasswordAuthentication Yes' >> /etc/ssh/sshd_config
-            #RUN echo 'PermitEmptyPasswords Yes' >> /etc/ssh/sshd_config
-            #RUN echo 'ChallengeResponseAuthentication No' >> /etc/ssh/sshd_config
-            #RUN echo 'UsePAM Yes' >> /etc/ssh/sshd_config
-            #RUN echo 'auth [success=1 default=ignore] pam_unix.so nullok' >>  /etc/pam.d/common-auth
-            
-            #RUN sed -i -re 's/^#PasswordAuthentication yes/PasswordAuthentication yes' \
-            #    /etc/ssh/sshd_config
-            #RUN sed -i -re 's/^#PermitEmptyPasswords no/PasswordAuthentication yes' \
-            #    /etc/ssh/sshd_config
-            #RUN sed -i -re 's/^@include common-auth$/replace_me/' /etc/pam.d/sshd
-            #RUN sed -i -re \
-            #    's/^replace_me$/auth [success=1 default=ignore] pam_unix.so nullok\nreplace_me/' \
-            #    /etc/pam.d/sshd
-            #RUN sed -i -re 's/^replace_me$/auth requisite pam_deny.so\nreplace_me/' /etc/pam.d/sshd
-            #RUN sed -i -re 's/^replace_me$/auth required pam_permit.so/' /etc/pam.d/sshd
             RUN echo 'sshd : ALL : allow' >> /etc/hosts.allow
             
             # TODO specify user_envfile to load a different .pam_environment
@@ -199,4 +189,4 @@ class Image(Handler):
 
         log.info(f'Creating docker image {self.tag} from {self.base_tag}')
         await asyncio.get_event_loop().run_in_executor(None, _main_internal)
-        log.info(f'Created docker mage {self.tag} from {self.base_tag}')
+        log.info(f'Created docker image {self.tag} from {self.base_tag}')

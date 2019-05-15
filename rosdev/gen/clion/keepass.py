@@ -1,4 +1,3 @@
-from __future__ import annotations
 from atools import memoize
 from base64 import b64decode, b64encode
 # noinspection PyPackageRequirements
@@ -12,7 +11,9 @@ import os
 from pathlib import Path
 from pykeepass import PyKeePass
 from textwrap import dedent
+from uuid import UUID, uuid4
 
+from rosdev.gen.clion.settings import Settings
 from rosdev.gen.clion.underlay import Underlay
 from rosdev.util.handler import Handler
 
@@ -48,14 +49,12 @@ class Keepass(Handler):
             ''').strip().encode()
 
     @property
-    def encoded(self) -> bytes:
-        return self.c_pwd_contents.split()[-1]
-
-    @property
+    @memoize
     def data(self) -> bytes:
-        return b64decode(self.encoded)
+        return b64decode(self.c_pwd_contents.split()[-1])
 
     @property
+    @memoize
     def iv_len(self) -> int:
         return (
                 (self.data[0] << 24) +
@@ -65,7 +64,6 @@ class Keepass(Handler):
         )
 
     @property
-    @memoize
     def iv(self) -> bytes:
         return self.data[4:self.iv_len + 4]
 
@@ -95,7 +93,7 @@ class Keepass(Handler):
 
             db.add_entry(
                 destination_group=group,
-                title=f'IntelliJ Platform Deployment — {self.uuid}',
+                title=f'IntelliJ Platform Deployment — {Settings(self.options).uuid}',
                 username=os.getlogin(),
                 password=self.password,
             )
@@ -111,4 +109,3 @@ class Keepass(Handler):
             *iv,
             *cipher.encrypt(Padding.pad(b'rosdev', block_size=16))
         ])
-

@@ -13,6 +13,7 @@ import re
 import sys
 from textwrap import dedent
 from typing import Dict, Mapping, Optional
+from uuid import UUID, uuid4
 
 from rosdev.gen.clion.underlay import Underlay
 from rosdev.util.handler import Handler
@@ -57,8 +58,12 @@ class Settings(Handler):
         return f'{Path.home()}/.CLion2019.1/config/options'
 
     @property
-    def deployment_xml_path_base(self) -> str:
+    def local_path(self) -> str:
         return f'{os.getcwd()}/.idea'
+
+    @property
+    def deployment_xml_path_base(self) -> str:
+        return self.local_path
 
     @property
     def deployment_xml_path(self) -> str:
@@ -120,6 +125,28 @@ class Settings(Handler):
         )
 
     @property
+    def security_xml_path_base(self) -> str:
+        return self.global_path
+
+    @property
+    def security_xml_path(self) -> str:
+        return f'{self.security_xml_path_base}/security.xml'
+
+    @property
+    def security_xml_element(self) -> _Element:
+        return etree.fromstring(
+            parser=self._xml_parser,
+            text=dedent(f'''
+                <application>
+                  <component name="PasswordSafe">
+                    <option name="PROVIDER" value="KEEPASS" />
+                    <option name="rememberPasswordByDefault" value="false" />
+                  </component>
+                </application>
+            ''').lstrip()
+        )
+
+    @property
     def webservers_xml_path_base(self) -> str:
         return self.global_path
 
@@ -155,6 +182,11 @@ class Settings(Handler):
         )
 
     @property
+    @memoize
+    def uuid(self) -> UUID:
+        return self.options.uuid if self.options.uuid is not None else uuid4()
+
+    @property
     def _xml_parser(self) -> etree.XMLParser:
         return etree.XMLParser(remove_blank_text=True)
 
@@ -168,6 +200,7 @@ class Settings(Handler):
         await gather(
             self._create_cpp_toolchain_xml(),
             self._create_deployment_xml(),
+            self._create_security_xml(),
             self._create_webservers_xml()
         )
 
@@ -197,6 +230,18 @@ class Settings(Handler):
                 )
             )
 
+    async def _create_security_xml(self) -> None:
+        root_element = _merge_elements(
+            from_element=self.security_xml_element,
+            into_element=_get_root_element_from_path(self.security_xml_path)
+        )
+
+        await exec(f'mkdir -p {self.security_xml_path_base}')
+        with open(self.security_xml_path, 'w') as security_xml_f_out:
+            security_xml_f_out.write(
+                etree.tostring(root_element, pretty_print=True, encoding=str)
+            )
+
     async def _create_webservers_xml(self) -> None:
         root_element = _merge_elements(
             from_element=self.webservers_xml_element,
@@ -213,9 +258,9 @@ class Settings(Handler):
 def _get_root_element_from_path(path: str) -> Optional[_Element]:
     parser = etree.XMLParser(remove_blank_text=True)
     try:
-        root_element: _Element = etree.parse(path, parser).getroot()
+        root_element: Optional[_Element] = etree.parse(path, parser).getroot()
     except OSError:
-        return None
+        root_element: Optional[_Element] = None
 
     return root_element
 

@@ -10,6 +10,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Awaitable, Dict, FrozenSet, List, Optional
+from uuid import UUID
 
 
 @dataclass(frozen=True)
@@ -19,22 +20,25 @@ class Defaults:
     bad_build_num: Optional[int] = None
     bad_release: str = 'latest'
     build_num: Optional[int] = None
+    ccache: bool = True
     clean: bool = False
     colcon_build_args: Optional[str] = None
     command: Optional[str] = None
     debug: bool = False
-    executable: str = ''
+    executable: Optional[str] = None
     flavor: str = 'ros-core'
     good_build_num: Optional[int] = None
     good_release: str = 'crystal'
     gui: bool = False
     interactive: bool = False
+    local_setup_path: Optional[str] = None
     log_level: str = 'INFO'
     name: Optional[str] = None
-    package: str = ''
+    package: Optional[str] = None
     ports: FrozenSet[int] = frozenset()
     pull: bool = False
     release: str = 'latest'
+    uuid: Optional[str] = None
     volumes: frozendict = frozendict()
 
     @staticmethod
@@ -116,6 +120,7 @@ class Flag:
     bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_release: ArgumentParser = field(default_factory=gen_flag_parser)
     build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     clean: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     debug: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -129,7 +134,9 @@ class Flag:
     port: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull: ArgumentParser = field(default_factory=gen_flag_parser)
+    local_setup_path: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
+    uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
@@ -183,6 +190,27 @@ class Flag:
             ),
         )
 
+        ccache_group = self.ccache.add_mutually_exclusive_group()
+        ccache_group.add_argument(
+            '--ccache',
+            action='store_true',
+            default=defaults.ccache,
+            help=(
+                SUPPRESS if defaults.ccache else
+                f'Enable ccache. Currently: {defaults.ccache}'
+            )
+        )
+        ccache_group.add_argument(
+            '--no-ccache',
+            action='store_false',
+            dest='ccache',
+            default=defaults.ccache,
+            help=(
+                SUPPRESS if not defaults.ccache else
+                f'Disable ccache. Currently: {defaults.ccache}'
+            )
+        )
+
         clean_group = self.clean.add_mutually_exclusive_group()
         clean_group.add_argument(
             '--clean',
@@ -190,24 +218,40 @@ class Flag:
             default=defaults.clean,
             help=(
                 SUPPRESS if defaults.clean else
-                f'Start bash environment without sourcing a ROS setup.bash. Currently: {defaults.clean}'
+                f'Start bash environment without sourcing a ROS setup.bash. '
+                f'Currently: {defaults.clean}'
             )
         )
         clean_group.add_argument(
             '--no-clean',
             action='store_false',
             dest='clean',
-            default=not defaults.clean,
+            default=defaults.clean,
             help=(
                 SUPPRESS if not defaults.clean else
-                f'Start bash environment with sourcing a ROS setup.bash. Currently: {not defaults.clean}'
+                f'Start bash environment with sourcing a ROS setup.bash. '
+                f'Currently: {not defaults.clean}'
             )
         )
 
-        self.colcon_build_args.add_argument(
+        colcon_build_args_group = self.colcon_build_args.add_mutually_exclusive_group()
+        colcon_build_args_group.add_argument(
             '--colcon-build-args',
             default=defaults.colcon_build_args,
-            help=f'Additional args to pass to colcon build'
+            help=f'Additional args to pass to colcon build. '
+            f'Currently: {defaults.colcon_build_args}'
+        )
+        colcon_build_args_group.add_argument(
+            '--no-colcon-build-args',
+            action='store_const',
+            const=None,
+            dest='colcon_build_args',
+            default=defaults.colcon_build_args,
+            help=(
+                SUPPRESS if defaults.colcon_build_args is None else
+                f'Do not pass additional args to colcon build. '
+                f'Currently: {defaults.colcon_build_args}'
+            )
         )
 
         debug_group = self.debug.add_mutually_exclusive_group()
@@ -224,7 +268,7 @@ class Flag:
             '--no-debug',
             action='store_false',
             dest='debug',
-            default=not defaults.debug,
+            default=defaults.debug,
             help=(
                 SUPPRESS if not defaults.debug else
                 f'Build with debug disabled. Currently: {defaults.debug}'
@@ -265,7 +309,7 @@ class Flag:
         gui_group.add_argument(
             '--no-gui',
             dest='gui',
-            default=not defaults.gui,
+            default=defaults.gui,
             action='store_false',
             help=(
                 SUPPRESS if not defaults.gui else
@@ -277,6 +321,7 @@ class Flag:
         interactive_group.add_argument(
             '--interactive',
             action='store_true',
+            default=defaults.interactive,
             help=(
                 SUPPRESS if defaults.interactive else
                 f'Make derived docker container interactive. Currently: {defaults.interactive}'
@@ -286,10 +331,33 @@ class Flag:
             '--no-interactive',
             dest='interactive',
             action='store_false',
-            default=not defaults.interactive,
+            default=defaults.interactive,
             help=(
                 SUPPRESS if not defaults.interactive else
-                f'Do not make derived docker container interactive. Currently: {defaults.interactive}'
+                f'Do not make derived docker container interactive. '
+                f'Currently: {defaults.interactive}'
+            )
+        )
+
+        local_setup_path_group = self.local_setup_path.add_mutually_exclusive_group()
+        local_setup_path_group.add_argument(
+            '--local-setup-path',
+            default=defaults.local_setup_path,
+            help=(
+                f'Path to local setup.bash file to source. '
+                f'Currently: {defaults.local_setup_path}'
+            )
+        )
+        local_setup_path_group.add_argument(
+            '--no-local-setup-path',
+            action='store_const',
+            const=None,
+            dest='local_setup_path',
+            default=defaults.local_setup_path,
+            help=(
+                SUPPRESS if not defaults.local_setup_path else
+                f'Do not source a setup.bash. '
+                f'Currently: {defaults.local_setup_path}'
             )
         )
 
@@ -304,7 +372,8 @@ class Flag:
             '--name',
             default=defaults.name,
             help=(
-                f'Name to assign to docker container. Existing container with name will be removed. '
+                f'Name to assign to docker container. '
+                f'Existing container with name will be removed. '
                 f'Currently: {defaults.name}'
             ),
         )
@@ -315,7 +384,8 @@ class Flag:
             nargs='*',
             type=int,
             default=sorted(defaults.ports),
-            help=f'List of ports to expose in docker container. Currently: {defaults.ports}'
+            help=f'List of ports to expose in docker container. '
+            f'Currently: {defaults.ports}'
         )
         pull_group = self.pull.add_mutually_exclusive_group()
         pull_group.add_argument(
@@ -324,17 +394,19 @@ class Flag:
             default=defaults.pull,
             help=(
                 SUPPRESS if defaults.pull else
-                f'Pull newer docker image. Currently: {defaults.pull}'
+                f'Pull newer docker image. '
+                f'Currently: {defaults.pull}'
             )
         )
         pull_group.add_argument(
             '--no-pull',
             action='store_false',
             dest='pull',
-            default=not defaults.pull,
+            default=defaults.pull,
             help=(
                 SUPPRESS if not defaults.pull else
-                f'Do not pull newer docker image. Currently: {defaults.pull}'
+                f'Do not pull newer docker image. '
+                f'Currently: {defaults.pull}'
             )
         )
 
@@ -342,7 +414,31 @@ class Flag:
             '--release', '-r',
             default=defaults.release,
             choices=choices.release,
-            help=f'ROS release to build. Currently: {defaults.release}',
+            help=(
+                f'ROS release to build. '
+                f'Currently: {defaults.release}'
+            )
+        )
+
+        class UuidAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                setattr(namespace, self.dest, f'{UUID(values[0])}')
+
+        self.uuid.add_argument(
+            '--uuid',
+            default=defaults.uuid,
+            action=UuidAction,
+            type=str,
+            help=(
+                f'UUID to use for generated settings. '
+                f' Currently: {defaults.uuid}'
+            )
         )
 
         class VolumesAction(Action):
@@ -384,9 +480,11 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
     'bash', parents=[
         flag.architecture,
         flag.build_num,
+        flag.ccache,
         flag.clean,
         flag.flavor,
         flag.gui,
+        flag.local_setup_path,
         flag.log_level,
         flag.ports,
         flag.pull,
@@ -419,6 +517,8 @@ rosdev_clion_parser = rosdev_subparsers.add_parser(
     parents=[
         flag.architecture,
         flag.build_num,
+        flag.clean,
+        flag.local_setup_path,
         flag.pull,
         flag.release
     ]
@@ -455,6 +555,11 @@ rosdev_gen_clion_cmake_parser = rosdev_gen_clion_subparsers.add_parser(
 )
 rosdev_gen_clion_cmake_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.clion.cmake').Cmake)
+rosdev_gen_colcon_config_parser = rosdev_gen_colcon_subparsers.add_parser(
+    'config',
+    parents=[])
+rosdev_gen_colcon_config_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.colcon.config').Config)
 rosdev_gen_clion_ide_parser = rosdev_gen_clion_subparsers.add_parser(
     'ide', parents=[]
 )
@@ -480,6 +585,8 @@ rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
     parents=[
         flag.architecture,
         flag.build_num,
+        flag.clean,
+        flag.local_setup_path,
         flag.ports,
         flag.pull,
         flag.release
@@ -487,6 +594,12 @@ rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
 )
 rosdev_gen_clion_toolchain_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.clion.toolchain').Toolchain)
+rosdev_gen_defaults_parser = rosdev_gen_subparsers.add_parser(
+    'defaults',
+    parents=asdict(flag).values()
+)
+rosdev_gen_defaults_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.defaults').Defaults)
 rosdev_gen_docker_parser = rosdev_gen_subparsers.add_parser(
     'docker', parents=[])
 rosdev_gen_docker_subparsers = rosdev_gen_docker_parser.add_subparsers(required=True)
@@ -505,16 +618,6 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
 )
 rosdev_gen_docker_container_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.docker.container').Container)
-rosdev_gen_global_parser = rosdev_gen_subparsers.add_parser(
-    'global', parents=[]
-)
-rosdev_gen_global_subparsers = rosdev_gen_global_parser.add_subparsers(required=True)
-rosdev_gen_global_defaults_parser = rosdev_gen_global_subparsers.add_parser(
-    'defaults',
-    parents=asdict(flag).values()
-)
-rosdev_gen_global_defaults_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.global.defaults').Defaults)
 rosdev_gen_docker_image_parser = rosdev_gen_docker_subparsers.add_parser(
     'image', parents=[flag.architecture, flag.log_level, flag.pull, flag.release])
 rosdev_gen_docker_image_parser.set_defaults(
@@ -523,16 +626,14 @@ rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
     'install', parents=[flag.architecture, flag.build_num, flag.log_level, flag.pull, flag.release])
 rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').Install)
-rosdev_gen_local_parser = rosdev_gen_subparsers.add_parser(
-    'local', parents=[]
-)
-rosdev_gen_local_subparsers = rosdev_gen_local_parser.add_subparsers(required=True)
-rosdev_gen_local_defaults_parser = rosdev_gen_local_subparsers.add_parser(
-    'defaults',
-    parents=asdict(flag).values()
-)
-rosdev_gen_local_defaults_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.local.defaults').Defaults)
+rosdev_gen_rosdev_parser = rosdev_gen_subparsers.add_parser(
+    'rosdev', parents=[])
+rosdev_gen_rosdev_subparsers = rosdev_gen_rosdev_parser.add_subparsers(required=True)
+rosdev_gen_rosdev_config_parser = rosdev_gen_rosdev_subparsers.add_parser(
+    'config',
+    parents=[])
+rosdev_gen_rosdev_config_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.rosdev.config').Config)
 rosdev_gen_src_parser = rosdev_gen_subparsers.add_parser(
     'src',
     parents=[
