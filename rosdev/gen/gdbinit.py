@@ -16,7 +16,7 @@ log = getLogger(__name__)
 
 @memoize
 @dataclass(frozen=True)
-class Gdb(Handler):
+class Gdbinit(Handler):
 
     @property
     def container_path(self) -> str:

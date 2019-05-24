@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
+from typing import Mapping
 
-from rosdev.gen.config import Config
+from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import exec
 
@@ -14,18 +15,18 @@ log = getLogger(__name__)
 
 @memoize
 @dataclass(frozen=True)
-class Rosdep(Handler):
+class Config(Handler):
 
     @property
     def local_path(self) -> str:
-        return f'{Config(self.options).local_path}/ros'
+        return f'{RosdevConfig(self.options).local_path}/ros'
 
     @property
     def container_path(self) -> str:
         return f'{Path.home()}/.ros'
 
     @property
-    def volumes(self) -> frozendict:
+    def volumes(self) -> Mapping[str, str]:
         return frozendict({
             **self.options.volumes,
             self.local_path: self.container_path,

@@ -4,6 +4,7 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from tempfile import TemporaryDirectory
+from typing import Mapping
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 # from rosdev.gen.docker.container import Container
@@ -53,8 +54,8 @@ class Install(Handler):
         return self.options.release
 
     @property
-    def volumes(self) -> frozendict:
-        if self.options.clean:
+    def volumes(self) -> Mapping[str, str]:
+        if self.options.global_setup is None:
             return self.options.volumes
 
         return frozendict({
@@ -64,7 +65,7 @@ class Install(Handler):
 
     @memoize
     async def _main(self) -> None:
-        if self.options.clean:
+        if self.options.global_setup is None:
             return
 
         await self._create_global_install()
@@ -91,7 +92,7 @@ class Install(Handler):
     #     await exec(f'mkdir -p {self.global_install_path}')
     #     await Container(
     #         self.options(
-    #             clean=True,
+    #             global_setup=None,
     #             command=f'cp -r /opt/ros/{self.ros_distro} {self.global_install_path}',
     #             interactive=False,
     #         )

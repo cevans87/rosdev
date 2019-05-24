@@ -7,10 +7,14 @@ from pathlib import Path
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
+from rosdev.util.lookup import get_machine
 from rosdev.util.subprocess import exec, get_shell_lines
 
 
 log = getLogger(__name__)
+
+
+# FIXME move this to rosdev/gen/pam_environment.py
 
 
 @memoize
@@ -40,15 +44,12 @@ class Cmake(Handler):
     async def get_environ(self) -> frozendict:
         await Install(self.options)
 
-        if self.options.clean and self.options.local_setup_path is None:
-            command = 'bash -c \'env\''
-        else:
-            command = f'bash -c \''
-            if not self.options.clean:
-                command += f'source {Install(self.options).container_path}/setup.bash && '
-            if self.options.local_setup_path is not None:
-                command += f'source {self.options.local_setup_path} && '
-            command += 'env\''
+        command = f'bash -c \''
+        if self.options.global_setup is not None:
+            command += f'source {Path(self.options.global_setup).expanduser().absolute()} && '
+        if self.options.local_setup is not None:
+            command += f'source {Path(self.options.local_setup).expanduser().absolute()} && '
+        command += 'env\''
 
         lines = await get_shell_lines(command)
         environ = {}
@@ -66,7 +67,10 @@ class Cmake(Handler):
                     'ROS_PYTHON_VERSION',
                     'ROS_VERSION',
                 }:
+                    log.debug(f'Writing env to .pam_environment "{k}"')
                     environ[k] = v
+                else:
+                    log.debug(f'Omitting env in .pam_environment "{k}"')
 
         return frozendict(environ)
 
@@ -77,7 +81,6 @@ class Cmake(Handler):
         pam_environment_lines = []
         for k, v in (await self.get_environ()).items():
             i = 0
-            # TODO unset these temp environment variables in rosdev_entrypoint.sh
             while len(v) > 512:
                 pam_environment_lines.append(f'{k}_{i} DEFAULT="{v[:512]}"')
                 i += 1
@@ -93,6 +96,21 @@ class Cmake(Handler):
                 pam_environment_lines.append(
                     f'{k} DEFAULT="{"".join([f"${{{k}_{j}}}" for j in range(i)])}"'
                 )
+
+        # FIXME LD_PRELOAD should happen at runtime, not compile time
+        #if self.options.sanitizer is not None:
+        #    if self.options.sanitizer == 'asan':
+        #        pam_environment_lines.append(
+        #            f'LD_PRELOAD DEFAULT='
+        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
+        #            f'libasan.so.4'
+        #        )
+        #    else:
+        #        pam_environment_lines.append(
+        #            f'LD_PRELOAD DEFAULT='
+        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
+        #            f'lib{self.options.sanitizer}.so.0'
+        #        )
 
         await exec(f'mkdir -p {self.local_pam_environment_path_base}')
         with open(self.local_pam_environment_path, 'w') as pam_environment_f_out:

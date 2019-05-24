@@ -11,10 +11,9 @@ import os
 from pathlib import Path
 from pykeepass import PyKeePass
 from textwrap import dedent
-from uuid import UUID, uuid4
 
-from rosdev.gen.clion.settings import Settings
 from rosdev.gen.clion.underlay import Underlay
+from rosdev.gen.clion.uuid import Uuid
 from rosdev.util.handler import Handler
 
 
@@ -93,7 +92,7 @@ class Keepass(Handler):
 
             db.add_entry(
                 destination_group=group,
-                title=f'IntelliJ Platform Deployment — {Settings(self.options).uuid}',
+                title=f'IntelliJ Platform Deployment — {Uuid(self.options).uuid}',
                 username=os.getlogin(),
                 password=self.password,
             )

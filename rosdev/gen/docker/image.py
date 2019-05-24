@@ -62,13 +62,13 @@ class Image(Handler):
         return dedent(fr'''
             #!/bin/bash
             set -e
-            # setup ros2 environment
-            if [ -z ${{ROSDEV_CLEAN_ENVIRONMENT+x}} ]; then \
-                source "{Install(self.options).container_path}/setup.bash" 
+            
+            if [ ! -z ${{ROSDEV_GLOBAL_SETUP+x}} ]; then \
+               source "$ROSDEV_GLOBAL_SETUP"
             fi
             
-            if [ ! -z ${{ROSDEV_LOCAL_SETUP_PATH+x}} ]; then \
-               source "$ROSDEV_LOCAL_SETUP_PATH"
+            if [ ! -z ${{ROSDEV_LOCAL_SETUP+x}} ]; then \
+               source "$ROSDEV_LOCAL_SETUP"
             fi
             
             exec "$@"

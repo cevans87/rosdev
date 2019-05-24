@@ -5,6 +5,7 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from tempfile import TemporaryDirectory
+from typing import Mapping
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.util.build_farm import get_ros2_repos
@@ -53,8 +54,8 @@ class Src(Handler):
         return self.options.release
 
     @property
-    def volumes(self) -> frozendict:
-        if self.options.clean:
+    def volumes(self) -> Mapping[str, str]:
+        if self.options.global_setup is None:
             return self.options.volumes
 
         return frozendict({
@@ -64,7 +65,7 @@ class Src(Handler):
 
     @memoize
     async def _main(self) -> None:
-        if self.options.clean:
+        if self.options.global_setup is None:
             return
 
         await self._create_global_src()

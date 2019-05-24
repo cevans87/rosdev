@@ -1,4 +1,3 @@
-from __future__ import annotations
 from atools import memoize
 from pprint import pformat
 

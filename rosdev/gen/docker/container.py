@@ -5,11 +5,12 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
+from typing import Mapping
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.docker.image import Image
-from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
+from rosdev.util.lookup import get_machine
 from rosdev.util.subprocess import exec
 
 
@@ -26,15 +27,14 @@ class Container(Handler):
     @property
     def environment(self) -> frozendict:
         environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
-        # FIXME there are better ways to stop the container from sourcing the ros setup.bash
-        if self.options.clean:
-            environment['ROSDEV_CLEAN_ENVIRONMENT'] = '1'
-        else:
-            environment['ROSDEV_DIR'] = os.getcwd()
-            environment['ROSDEV_INSTALL_DIR'] = Install(self.options).local_path
-
-        if self.options.local_setup_path is not None:
-            environment['ROSDEV_LOCAL_SETUP_PATH'] = self.options.local_setup_path
+        if self.options.global_setup is not None:
+            environment['ROSDEV_GLOBAL_SETUP'] = (
+                f'{Path(self.options.global_setup).expanduser().absolute()}'
+            )
+        if self.options.local_setup is not None:
+            environment['ROSDEV_LOCAL_SETUP'] = (
+                f'{Path(self.options.local_setup).expanduser().absolute()}'
+            )
 
         if self.options.gui:
             environment['DISPLAY'] = os.environ['DISPLAY']
@@ -43,15 +43,24 @@ class Container(Handler):
             environment['CC'] = '/usr/lib/ccache/gcc'
             environment['CXX'] = '/usr/lib/ccache/g++'
 
+        #if self.options.sanitizer is not None:
+        #    if self.options.sanitizer == 'asan':
+        #        environment['LD_PRELOAD'] = (
+        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
+        #            f'libasan.so.4'
+        #        )
+        #    else:
+        #        environment['LD_PRELOAD'] = (
+        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
+        #            f'lib{self.options.sanitizer}.so.0'
+        #        )
+
         environment = frozendict(environment)
 
         return environment
 
     @property
-    def volumes(self) -> frozendict:
-        assert os.getcwd().startswith(f'{Path.home()}') and (os.getcwd() != f'{Path.home()}'), \
-            f'rosdev must be run from a child directory of {Path.home()}'
-
+    def volumes(self) -> Mapping[str, str]:
         volumes = {
             **self.options.volumes,
             **RosdevConfig(self.options).volumes,
@@ -65,9 +74,9 @@ class Container(Handler):
 
     @memoize
     async def _main(self) -> None:
-        await Image(self.options)
+        assert Path.home() in Path.cwd().parents
 
-        assert os.getcwd().startswith(f'{Path.home()}') and os.getcwd() != f'{Path.home()}'
+        await Image(self.options)
 
         client = docker.client.from_env()
 
@@ -82,7 +91,8 @@ class Container(Handler):
                 log.info(f'Removing existing docker container "{self.options.name}"')
                 container.remove(force=True)
 
-        log.debug(f'mounting volumes {self.options.volumes}')
+        log.debug(f'container volumes {self.options.volumes}')
+        log.debug(f'container command {self.options.command}')
 
         container = client.containers.create(
             auto_remove=True,
@@ -97,8 +107,12 @@ class Container(Handler):
             security_opt=['seccomp=unconfined'],  # for GDB
             stdin_open=True,
             tty=True,
-            volumes={k: {'bind': v} for k, v in self.volumes.items()},
-            working_dir=os.getcwd(),
+            volumes={
+                f'{Path(k).expanduser().absolute()}': {
+                    'bind': f'{Path(v).expanduser().absolute()}'
+                } for k, v in self.volumes.items()
+            },
+            working_dir=f'{Path.cwd()}',
         )
 
         if self.options.interactive:

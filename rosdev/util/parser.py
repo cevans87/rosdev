@@ -7,7 +7,6 @@ from dataclasses import asdict, dataclass, field
 from frozendict import frozendict
 from importlib import import_module
 import logging
-import os
 from pathlib import Path
 from typing import Awaitable, Dict, FrozenSet, List, Optional
 from uuid import UUID
@@ -16,28 +15,29 @@ from uuid import UUID
 @dataclass(frozen=True)
 class Defaults:
     architecture: str = 'amd64'
-    asan: bool = False
     bad_build_num: Optional[int] = None
     bad_release: str = 'latest'
     build_num: Optional[int] = None
+    build_type: str = 'Debug'
     ccache: bool = True
-    clean: bool = False
     colcon_build_args: Optional[str] = None
     command: Optional[str] = None
-    debug: bool = False
     executable: Optional[str] = None
     flavor: str = 'ros-core'
+    global_setup: Optional[str] = '.rosdev/install/setup.bash'
     good_build_num: Optional[int] = None
     good_release: str = 'crystal'
     gui: bool = False
     interactive: bool = False
-    local_setup_path: Optional[str] = None
+    local_setup: Optional[str] = None
     log_level: str = 'INFO'
     name: Optional[str] = None
     package: Optional[str] = None
     ports: FrozenSet[int] = frozenset()
     pull: bool = False
     release: str = 'latest'
+    rosdep_install_args: Optional[str] = None
+    sanitizer: Optional[str] = None
     uuid: Optional[str] = None
     volumes: frozendict = frozendict()
 
@@ -45,7 +45,7 @@ class Defaults:
     def _get_local_overrides() -> Dict:
         # noinspection PyBroadException
         try:
-            with open(f'{os.getcwd()}/.rosdev/defaults', 'r') as overrides_f_in:
+            with open(f'{Path.cwd()}/.rosdev/defaults', 'r') as overrides_f_in:
                 return ast.literal_eval(overrides_f_in.read())
         except Exception:
             return {}
@@ -101,13 +101,15 @@ positional = Positional()
 
 @dataclass(frozen=True)
 class Choices:
-    architecture = sorted({'amd64', 'arm32v7', 'arm64v8'})
-    bad_release = sorted({'bionic', 'crystal'}) + ['latest']
-    flavor = sorted({'desktop', 'desktop-full', 'robot', 'perception', 'ros-core', 'ros-base'})
-    good_release = sorted({'ardent', 'bionic', 'crystal'})
+    architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
+    bad_release = tuple(sorted({'bionic', 'crystal'}) + ['latest'])
+    build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
+    flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
+    good_release = tuple(sorted({'ardent', 'bionic', 'crystal'}))
     # noinspection PyProtectedMember
-    log_level = [name for _, name in sorted(logging._levelToName.items())]
-    release = sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + ['latest']
+    log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
+    release = tuple(sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + ['latest'])
+    sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 
 choices = Choices()
@@ -116,15 +118,14 @@ choices = Choices()
 @dataclass(frozen=True)
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
-    asan: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_release: ArgumentParser = field(default_factory=gen_flag_parser)
     build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     ccache: ArgumentParser = field(default_factory=gen_flag_parser)
-    clean: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
-    debug: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
+    global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     good_release: ArgumentParser = field(default_factory=gen_flag_parser)
     gui: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -134,8 +135,10 @@ class Flag:
     port: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull: ArgumentParser = field(default_factory=gen_flag_parser)
-    local_setup_path: ArgumentParser = field(default_factory=gen_flag_parser)
+    local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
+    rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
+    sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
     uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
@@ -147,25 +150,6 @@ class Flag:
             help=f'Architecture to build. Currently: {defaults.architecture}',
         )
 
-        asan_group = self.asan.add_mutually_exclusive_group()
-        asan_group.add_argument(
-            '--asan',
-            action='store_true',
-            help=(
-                SUPPRESS if defaults.asan else
-                f'Build with Address Sanitizer enabled. Currently: {defaults.asan}'
-            )
-        )
-        asan_group.add_argument(
-            '--no-asan',
-            action='store_false',
-            dest='asan',
-            help=(
-                SUPPRESS if not defaults.asan else
-                f'Build with Address Sanitizer disabled, Currently: {not defaults.asan}'
-            )
-        )
-
         self.bad_release.add_argument(
             '--bad-release',
             default=defaults.bad_release,
@@ -173,6 +157,7 @@ class Flag:
             help=f'Bad release to compare. Currently: {defaults.bad_release}'
         )
 
+        # FIXME make mutually exclusive with --bad-build or combine flags
         self.bad_build_num.add_argument(
             '--bad-build-num',
             type=int,
@@ -188,6 +173,13 @@ class Flag:
                 f'Use specified build from OSRF build farm instead of {defaults.release}. '
                 f'Currently: {defaults.build_num}'
             ),
+        )
+
+        self.build_type.add_argument(
+            '--build-type',
+            default=defaults.build_type,
+            choices=choices.build_type,
+            help=f'Build type. Currently: {defaults.build_type}',
         )
 
         ccache_group = self.ccache.add_mutually_exclusive_group()
@@ -211,35 +203,14 @@ class Flag:
             )
         )
 
-        clean_group = self.clean.add_mutually_exclusive_group()
-        clean_group.add_argument(
-            '--clean',
-            action='store_true',
-            default=defaults.clean,
-            help=(
-                SUPPRESS if defaults.clean else
-                f'Start bash environment without sourcing a ROS setup.bash. '
-                f'Currently: {defaults.clean}'
-            )
-        )
-        clean_group.add_argument(
-            '--no-clean',
-            action='store_false',
-            dest='clean',
-            default=defaults.clean,
-            help=(
-                SUPPRESS if not defaults.clean else
-                f'Start bash environment with sourcing a ROS setup.bash. '
-                f'Currently: {not defaults.clean}'
-            )
-        )
-
         colcon_build_args_group = self.colcon_build_args.add_mutually_exclusive_group()
         colcon_build_args_group.add_argument(
             '--colcon-build-args',
             default=defaults.colcon_build_args,
-            help=f'Additional args to pass to colcon build. '
-            f'Currently: {defaults.colcon_build_args}'
+            help=(
+                f'Additional args to pass to colcon build. '
+                f'Currently: {defaults.colcon_build_args}'
+            )
         )
         colcon_build_args_group.add_argument(
             '--no-colcon-build-args',
@@ -254,27 +225,6 @@ class Flag:
             )
         )
 
-        debug_group = self.debug.add_mutually_exclusive_group()
-        debug_group.add_argument(
-            '--debug',
-            action='store_true',
-            default=defaults.debug,
-            help=(
-                SUPPRESS if defaults.debug else
-                f'Build with debug enabled. Currrently: {defaults.debug}'
-            )
-        )
-        debug_group.add_argument(
-            '--no-debug',
-            action='store_false',
-            dest='debug',
-            default=defaults.debug,
-            help=(
-                SUPPRESS if not defaults.debug else
-                f'Build with debug disabled. Currently: {defaults.debug}'
-            )
-        )
-
         self.flavor.add_argument(
             '--flavor',
             default=defaults.flavor,
@@ -282,6 +232,29 @@ class Flag:
             help=f'Linux flavor. Currently: {defaults.flavor}'
         )
 
+        global_setup_group = self.global_setup.add_mutually_exclusive_group()
+        global_setup_group.add_argument(
+            '--global-setup',
+            default=defaults.global_setup,
+            help=(
+                f'Path to global setup.bash file to source. '
+                f'Currently: {defaults.global_setup}'
+            )
+        )
+        global_setup_group.add_argument(
+            '--no-global-setup',
+            action='store_const',
+            const=None,
+            dest='global_setup',
+            default=defaults.global_setup,
+            help=(
+                SUPPRESS if not defaults.global_setup else
+                f'Do not source a global  setup.bash. '
+                f'Currently: {defaults.global_setup}'
+            )
+        )
+
+        # FIXME make mutually exclusive with --good-build or combine flags
         self.good_build_num.add_argument(
             '--good-build-num',
             type=int,
@@ -339,25 +312,25 @@ class Flag:
             )
         )
 
-        local_setup_path_group = self.local_setup_path.add_mutually_exclusive_group()
-        local_setup_path_group.add_argument(
-            '--local-setup-path',
-            default=defaults.local_setup_path,
+        local_setup_group = self.local_setup.add_mutually_exclusive_group()
+        local_setup_group.add_argument(
+            '--local-setup',
+            default=defaults.local_setup,
             help=(
                 f'Path to local setup.bash file to source. '
-                f'Currently: {defaults.local_setup_path}'
+                f'Currently: {defaults.local_setup}'
             )
         )
-        local_setup_path_group.add_argument(
-            '--no-local-setup-path',
+        local_setup_group.add_argument(
+            '--no-local-setup',
             action='store_const',
             const=None,
-            dest='local_setup_path',
-            default=defaults.local_setup_path,
+            dest='local_setup',
+            default=defaults.local_setup,
             help=(
-                SUPPRESS if not defaults.local_setup_path else
-                f'Do not source a setup.bash. '
-                f'Currently: {defaults.local_setup_path}'
+                SUPPRESS if not defaults.local_setup else
+                f'Do not source a local setup.bash. '
+                f'Currently: {defaults.local_setup}'
             )
         )
 
@@ -420,6 +393,48 @@ class Flag:
             )
         )
 
+        rosdep_install_args_group = self.rosdep_install_args.add_mutually_exclusive_group()
+        rosdep_install_args_group.add_argument(
+            '--rosdep-install-args',
+            default=defaults.rosdep_install_args,
+            help=(
+                f'Additional args to pass to rosdep install. '
+                f'Currently: {defaults.rosdep_install_args}'
+            )
+        )
+        rosdep_install_args_group.add_argument(
+            '--no-rosdep-install-args',
+            action='store_const',
+            const=None,
+            dest='rosdep_install_args',
+            default=defaults.rosdep_install_args,
+            help=(
+                SUPPRESS if defaults.rosdep_install_args is None else
+                f'Do not pass additional args to rosdep install. '
+                f'Currently: {defaults.rosdep_install_args}'
+            )
+        )
+
+        sanitizer_group = self.sanitizer.add_mutually_exclusive_group()
+        sanitizer_group.add_argument(
+            '--sanitizer',
+            default=defaults.sanitizer,
+            choices=choices.sanitizer,
+            help=f'Build with sanitizer enabled. Currently: {defaults.sanitizer}',
+        )
+        sanitizer_group.add_argument(
+            '--no-sanitizer',
+            action='store_const',
+            const=None,
+            dest='sanitizer',
+            default=defaults.sanitizer,
+            help=(
+                SUPPRESS if defaults.sanitizer is None else
+                f'Do not build with a sanitizer enabled. '
+                f'Currently: {defaults.sanitizer}'
+            )
+        )
+
         class UuidAction(Action):
             def __call__(
                     self,
@@ -456,8 +471,6 @@ class Flag:
                     except ValueError:
                         host_path, container_path = value, value
 
-                    host_path = os.path.realpath(os.path.expanduser(host_path))
-                    container_path = os.path.realpath(os.path.expanduser(container_path))
                     volumes[host_path] = container_path
 
                 setattr(namespace, self.dest, frozendict(volumes))
@@ -474,6 +487,8 @@ class Flag:
 flag = Flag()
 
 
+# TODO turn this parser tree into something like a defaultdict. Boilerplate to add a new parser
+#  is tedious and error-prone.
 rosdev_parser = ArgumentParser(parents=[flag.log_level])
 rosdev_subparsers = rosdev_parser.add_subparsers(required=True)
 rosdev_bash_parser = rosdev_subparsers.add_parser(
@@ -481,10 +496,10 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
         flag.architecture,
         flag.build_num,
         flag.ccache,
-        flag.clean,
         flag.flavor,
+        flag.global_setup,
         flag.gui,
-        flag.local_setup_path,
+        flag.local_setup,
         flag.log_level,
         flag.ports,
         flag.pull,
@@ -499,15 +514,15 @@ rosdev_bisect_parser = rosdev_subparsers.add_parser(
     parents=[
         positional.command,
         flag.architecture,
-        flag.asan,
         flag.bad_release,
         flag.bad_build_num,
+        flag.build_type,
         flag.colcon_build_args,
-        flag.debug,
         flag.good_build_num,
         flag.good_release,
         flag.pull,
         flag.release,
+        flag.sanitizer,
     ]
 )
 rosdev_bisect_parser.set_defaults(
@@ -517,10 +532,12 @@ rosdev_clion_parser = rosdev_subparsers.add_parser(
     parents=[
         flag.architecture,
         flag.build_num,
-        flag.clean,
-        flag.local_setup_path,
+        flag.build_type,
+        flag.global_setup,
+        flag.local_setup,
         flag.pull,
-        flag.release
+        flag.release,
+        flag.sanitizer,
     ]
 )
 rosdev_clion_parser.set_defaults(
@@ -536,13 +553,14 @@ rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
     'build',
     parents=[
         flag.architecture,
-        flag.asan,
         flag.build_num,
-        flag.clean,
+        flag.build_type,
         flag.colcon_build_args,
-        flag.debug,
+        flag.global_setup,
+        flag.local_setup,
         flag.pull,
-        flag.release
+        flag.release,
+        flag.sanitizer,
     ])
 rosdev_gen_colcon_build_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.colcon.build').Build)
@@ -585,11 +603,12 @@ rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
     parents=[
         flag.architecture,
         flag.build_num,
-        flag.clean,
-        flag.local_setup_path,
+        flag.global_setup,
+        flag.local_setup,
         flag.ports,
         flag.pull,
-        flag.release
+        flag.release,
+        flag.sanitizer,
     ]
 )
 rosdev_gen_clion_toolchain_parser.set_defaults(
@@ -608,8 +627,9 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
     parents=[
         positional.command,
         flag.architecture,
-        flag.clean,
+        flag.global_setup,
         flag.interactive,
+        flag.local_setup,
         flag.ports,
         flag.pull,
         flag.release,
@@ -623,15 +643,41 @@ rosdev_gen_docker_image_parser = rosdev_gen_docker_subparsers.add_parser(
 rosdev_gen_docker_image_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.docker.image').Image)
 rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
-    'install', parents=[flag.architecture, flag.build_num, flag.log_level, flag.pull, flag.release])
+    'install', parents=[
+        flag.architecture,
+        flag.build_num,
+        flag.log_level,
+        flag.pull,
+        flag.release
+    ]
+)
 rosdev_gen_install_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.install').Install)
+rosdev_gen_rosdep_parser = rosdev_gen_subparsers.add_parser(
+    'rosdep', parents=[])
+rosdev_gen_rosdep_subparsers = rosdev_gen_rosdep_parser.add_subparsers(required=True)
+rosdev_gen_rosdep_config_parser = rosdev_gen_rosdep_subparsers.add_parser(
+    'config',
+    parents=[]
+)
+rosdev_gen_rosdep_install_parser = rosdev_gen_rosdep_subparsers.add_parser(
+    'install',
+    parents=[
+        flag.architecture,
+        flag.log_level,
+        flag.pull,
+        flag.release,
+        flag.rosdep_install_args,
+    ])
+rosdev_gen_rosdep_install_parser.set_defaults(
+    get_handler=lambda: import_module('rosdev.gen.rosdep.install').Install)
 rosdev_gen_rosdev_parser = rosdev_gen_subparsers.add_parser(
     'rosdev', parents=[])
 rosdev_gen_rosdev_subparsers = rosdev_gen_rosdev_parser.add_subparsers(required=True)
 rosdev_gen_rosdev_config_parser = rosdev_gen_rosdev_subparsers.add_parser(
     'config',
-    parents=[])
+    parents=[]
+)
 rosdev_gen_rosdev_config_parser.set_defaults(
     get_handler=lambda: import_module('rosdev.gen.rosdev.config').Config)
 rosdev_gen_src_parser = rosdev_gen_subparsers.add_parser(

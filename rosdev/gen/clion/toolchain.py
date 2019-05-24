@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
+from typing import Mapping
 
 from rosdev.gen.clion.cmake import Cmake
-from rosdev.gen.clion.gdb import Gdb
+
+from rosdev.gen.gdbinit import Gdbinit
 from rosdev.gen.docker.container import Container
 from rosdev.gen.install import Install
 from rosdev.gen.src import Src
@@ -22,11 +24,11 @@ log = getLogger(__name__)
 class Toolchain(Handler):
 
     @property
-    def volumes(self) -> frozendict:
+    def volumes(self) -> Mapping:
         return frozendict({
             **self.options.volumes,
             **Cmake(self.options).volumes,
-            **Gdb(self.options).volumes,
+            **Gdbinit(self.options).volumes,
             f'{Path.home()}/.ssh': f'{Path.home()}/.ssh',
         })
 
@@ -34,7 +36,7 @@ class Toolchain(Handler):
     async def _main(self) -> None:
         await gather(
             Cmake(self.options),
-            Gdb(self.options),
+            Gdbinit(self.options),
             Install(self.options),
             Src(self.options),
         )

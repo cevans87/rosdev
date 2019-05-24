@@ -62,6 +62,7 @@ async def shell(command: str, err_ok: bool = False) -> int:
 
 @memoize
 async def get_shell_lines(command: str) -> Tuple[str]:
+    log.debug(f'Getting lines from command: {command}')
     process = await create_subprocess_shell(command, stdout=PIPE, env=os.environ)
 
     return await _process_lines(process)
