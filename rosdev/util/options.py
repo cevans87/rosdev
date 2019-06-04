@@ -13,7 +13,6 @@ class _TakeFromSelf:
 class Options:
     architecture: str
     bad_build_num: Optional[int]
-    bad_release: str
     build_num: Optional[int]
     build_type: Optional[str]
     ccache: bool
@@ -23,7 +22,6 @@ class Options:
     flavor: str
     global_setup: Optional[str]
     good_build_num: Optional[int]
-    good_release: str
     gui: bool
     interactive: bool
     local_setup: Optional[str]
@@ -42,7 +40,6 @@ class Options:
             self,
             architecture: str = _TakeFromSelf,
             bad_build_num: Optional[int] = _TakeFromSelf,
-            bad_release: str = _TakeFromSelf,
             build_num: Optional[int] = _TakeFromSelf,
             build_type: Optional[str] = _TakeFromSelf,
             ccache: bool = _TakeFromSelf,
@@ -52,7 +49,6 @@ class Options:
             flavor: str = _TakeFromSelf,
             global_setup: Optional[str] = _TakeFromSelf,
             good_build_num: Optional[int] = _TakeFromSelf,
-            good_release: str = _TakeFromSelf,
             gui: bool = _TakeFromSelf,
             interactive: bool = _TakeFromSelf,
             local_setup: Optional[str] = _TakeFromSelf,
@@ -78,7 +74,6 @@ class Options:
         return __call___inner(
             architecture=architecture,
             bad_build_num=bad_build_num,
-            bad_release=bad_release,
             build_num=build_num,
             build_type=build_type,
             ccache=ccache,
@@ -88,7 +83,6 @@ class Options:
             flavor=flavor,
             global_setup=global_setup,
             good_build_num=good_build_num,
-            good_release=good_release,
             gui=gui,
             interactive=interactive,
             local_setup=local_setup,

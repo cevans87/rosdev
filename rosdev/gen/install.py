@@ -45,14 +45,6 @@ class Install(Handler):
     def local_path(self) -> str:
         return f'{self.local_path_base}/install'
 
-    # TODO find a better place for this
-    @property
-    def ros_distro(self) -> str:
-        if (self.options.build_num is not None) or (self.options.release == 'latest'):
-            return 'crystal'
-
-        return self.options.release
-
     @property
     def volumes(self) -> Mapping[str, str]:
         if self.options.global_setup is None:
@@ -80,23 +72,10 @@ class Install(Handler):
             await self._create_global_install_from_osrf_build_farm()
         else:
             raise NotImplemented()
-            # await self._create_global_install_from_container()
 
         await exec(f'chmod -R -w {self.global_path}')
 
         log.info(f'Global install at {self.global_path}')
-
-    # async def _create_global_install_from_container(self) -> None:
-    #     log.info(
-    #         f'Installing from docker image {self.options.release} to {self.global_install_path}')
-    #     await exec(f'mkdir -p {self.global_install_path}')
-    #     await Container(
-    #         self.options(
-    #             global_setup=None,
-    #             command=f'cp -r /opt/ros/{self.ros_distro} {self.global_install_path}',
-    #             interactive=False,
-    #         )
-    #     )
 
     async def _create_global_install_from_osrf_build_farm(self) -> None:
         log.info("Installing from OSRF build farm")

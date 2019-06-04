@@ -53,7 +53,7 @@ class _Jenkins:
         def get_build_console_output_inner() -> Tuple[str]:
             return tuple(self._external_jenkins.get_build_console_output(
                 f'packaging_{get_operating_system(architecture)}', build_num
-            ).split('\n'))
+            ).splitlines())
 
         return await get_event_loop().run_in_executor(None, get_build_console_output_inner)
 

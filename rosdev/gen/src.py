@@ -45,14 +45,6 @@ class Src(Handler):
     def local_path(self) -> str:
         return f'{self.local_path_base}/src'
 
-    # TODO find a better place for this
-    @property
-    def ros_distro(self) -> str:
-        if (self.options.build_num is not None) or (self.options.release == 'latest'):
-            return 'crystal'
-
-        return self.options.release
-
     @property
     def volumes(self) -> Mapping[str, str]:
         if self.options.global_setup is None:

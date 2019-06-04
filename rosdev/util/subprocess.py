@@ -26,7 +26,7 @@ async def _process_lines(process: Process) -> Tuple[str]:
     stdout = await process.stdout.read()
 
     # FIXME return an async iterator that decodes lines as they come in
-    return tuple(stdout.decode().strip().split('\n'))
+    return tuple(stdout.decode().strip().splitlines())
 
 
 @memoize

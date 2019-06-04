@@ -1,6 +1,7 @@
 from __future__ import annotations
 from argcomplete import autocomplete
-from argparse import Action, ArgumentParser, Namespace, SUPPRESS
+# noinspection PyProtectedMember
+from argparse import Action, ArgumentParser, Namespace, _SubParsersAction, SUPPRESS
 import ast
 from collections import ChainMap
 from dataclasses import asdict, dataclass, field
@@ -8,7 +9,10 @@ from frozendict import frozendict
 from importlib import import_module
 import logging
 from pathlib import Path
-from typing import Awaitable, Dict, FrozenSet, List, Optional
+from stringcase import capitalcase
+from typing import (
+    AbstractSet, Awaitable, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple
+)
 from uuid import UUID
 
 
@@ -16,7 +20,6 @@ from uuid import UUID
 class Defaults:
     architecture: str = 'amd64'
     bad_build_num: Optional[int] = None
-    bad_release: str = 'latest'
     build_num: Optional[int] = None
     build_type: str = 'Debug'
     ccache: bool = True
@@ -26,7 +29,6 @@ class Defaults:
     flavor: str = 'ros-core'
     global_setup: Optional[str] = '.rosdev/install/setup.bash'
     good_build_num: Optional[int] = None
-    good_release: str = 'crystal'
     gui: bool = False
     interactive: bool = False
     local_setup: Optional[str] = None
@@ -102,13 +104,13 @@ positional = Positional()
 @dataclass(frozen=True)
 class Choices:
     architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
-    bad_release = tuple(sorted({'bionic', 'crystal'}) + ['latest'])
     build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
     flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
-    good_release = tuple(sorted({'ardent', 'bionic', 'crystal'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    release = tuple(sorted({'ardent', 'bionic', 'crystal', 'kinetic', 'melodic'}) + ['latest'])
+    release = tuple(
+        sorted({'ardent', 'bionic', 'crystal', 'dashing', 'kinetic', 'melodic'}) + ['latest']
+    )
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 
@@ -119,7 +121,6 @@ choices = Choices()
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
-    bad_release: ArgumentParser = field(default_factory=gen_flag_parser)
     build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     ccache: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -127,12 +128,10 @@ class Flag:
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
-    good_release: ArgumentParser = field(default_factory=gen_flag_parser)
     gui: ArgumentParser = field(default_factory=gen_flag_parser)
     interactive: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     name: ArgumentParser = field(default_factory=gen_flag_parser)
-    port: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull: ArgumentParser = field(default_factory=gen_flag_parser)
     local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -148,13 +147,6 @@ class Flag:
             default=defaults.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {defaults.architecture}',
-        )
-
-        self.bad_release.add_argument(
-            '--bad-release',
-            default=defaults.bad_release,
-            choices=choices.bad_release,
-            help=f'Bad release to compare. Currently: {defaults.bad_release}'
         )
 
         # FIXME make mutually exclusive with --bad-build or combine flags
@@ -260,13 +252,6 @@ class Flag:
             type=int,
             default=defaults.good_build_num,
             help=f'Good build number to compare. Supersedes --good-build'
-        )
-
-        self.good_release.add_argument(
-            '--good-release',
-            default=defaults.good_release,
-            choices=choices.good_release,
-            help=f'Good release to compare. Currently: {defaults.good_release}'
         )
 
         gui_group = self.gui.add_mutually_exclusive_group()
@@ -487,12 +472,113 @@ class Flag:
 flag = Flag()
 
 
-# TODO turn this parser tree into something like a defaultdict. Boilerplate to add a new parser
-#  is tedious and error-prone.
-rosdev_parser = ArgumentParser(parents=[flag.log_level])
-rosdev_subparsers = rosdev_parser.add_subparsers(required=True)
-rosdev_bash_parser = rosdev_subparsers.add_parser(
-    'bash', parents=[
+@dataclass(frozen=True)
+class Parser:
+    sub_command: str
+    positionals: Tuple[ArgumentParser, ...] = tuple()
+    flags: FrozenSet[ArgumentParser] = frozenset()
+    sub_parser_by_sub_command: Mapping[str, Parser] = frozendict()
+
+    # noinspection PyShadowingNames
+    def merged_with(
+            self,
+            *,
+            sub_commands: Sequence[str],
+            positionals: Sequence[ArgumentParser] = tuple(),
+            flags: AbstractSet[ArgumentParser] = frozenset(),
+    ) -> Parser:
+        if len(sub_commands) == 0:
+            parser = Parser(
+                sub_command=self.sub_command,
+                positionals=tuple([*self.positionals, *positionals]),
+                flags=frozenset(self.flags | flags),
+                sub_parser_by_sub_command=self.sub_parser_by_sub_command
+            )
+        else:
+            sub_parser = self.sub_parser_by_sub_command.get(sub_commands[0])
+            if sub_parser is None:
+                sub_parser = Parser(sub_command=sub_commands[0])
+
+            sub_parser = sub_parser.merged_with(
+                sub_commands=sub_commands[1:],
+                positionals=positionals,
+                flags=flags,
+            )
+
+            parser = Parser(
+                sub_command=self.sub_command,
+                positionals=self.positionals,
+                flags=self.flags,
+                sub_parser_by_sub_command=frozendict(
+                    ChainMap(
+                        {sub_parser.sub_command: sub_parser},
+                        self.sub_parser_by_sub_command,
+                    )
+                )
+            )
+
+        return parser
+
+    # noinspection PyShadowingNames
+    def get_argument_parser(
+            self,
+            parent_sub_argument_parser: Optional[_SubParsersAction] = None,
+            parent_flags: AbstractSet[ArgumentParser] = frozenset(),
+            prev_sub_commands: Sequence[str] = tuple()
+    ) -> ArgumentParser:
+        flags = frozenset(parent_flags | self.flags)
+
+        if parent_sub_argument_parser is None:
+            # noinspection PyProtectedMember
+            argument_parser = ArgumentParser(
+                parents=[
+                    *self.positionals,
+                    *sorted(flags, key=lambda flag: flag._actions[0].dest),
+                ],
+                conflict_handler='resolve',
+            )
+        else:
+            # noinspection PyProtectedMember
+            argument_parser = parent_sub_argument_parser.add_parser(
+                self.sub_command,
+                parents=[
+                    *self.positionals,
+                    *sorted(flags, key=lambda flag: flag._actions[0].dest),
+                ],
+                conflict_handler='resolve',
+            )
+            
+        if self.sub_parser_by_sub_command:
+            sub_argument_parser = argument_parser.add_subparsers(required=True)
+            for sub_parser in self.sub_parser_by_sub_command.values():
+                sub_parser.get_argument_parser(
+                    parent_sub_argument_parser=sub_argument_parser,
+                    parent_flags=flags,
+                    prev_sub_commands=tuple([*prev_sub_commands, self.sub_command])
+                )
+        else:
+            argument_parser.set_defaults(
+                get_handler=lambda: getattr(
+                    import_module(
+                        '.'.join(tuple([*prev_sub_commands, self.sub_command]))
+                    ),
+                    capitalcase(self.sub_command),
+                )
+            )
+
+        return argument_parser
+
+
+parser = Parser(
+    sub_command='rosdev',
+    flags=frozenset({
+        #flag.log_level
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands=tuple('bash'.split()),
+    flags=frozenset({
         flag.architecture,
         flag.build_num,
         flag.ccache,
@@ -505,31 +591,29 @@ rosdev_bash_parser = rosdev_subparsers.add_parser(
         flag.pull,
         flag.release,
         flag.volumes,
-    ]
+    })
 )
-rosdev_bash_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.bash').Bash)
-rosdev_bisect_parser = rosdev_subparsers.add_parser(
-    'bisect',
-    parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('bisect'.split()),
+    positionals=(
         positional.command,
+    ),
+    flags=frozenset({
         flag.architecture,
-        flag.bad_release,
         flag.bad_build_num,
         flag.build_type,
         flag.colcon_build_args,
         flag.good_build_num,
-        flag.good_release,
         flag.pull,
         flag.release,
         flag.sanitizer,
-    ]
+    })
 )
-rosdev_bisect_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.bisect').Bisect)
-rosdev_clion_parser = rosdev_subparsers.add_parser(
-    'clion',
-    parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('clion'.split()),
+    flags=frozenset({
         flag.architecture,
         flag.build_num,
         flag.build_type,
@@ -538,20 +622,19 @@ rosdev_clion_parser = rosdev_subparsers.add_parser(
         flag.pull,
         flag.release,
         flag.sanitizer,
-    ]
+    })
 )
-rosdev_clion_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.clion').Clion)
 
-rosdev_gen_parser = rosdev_subparsers.add_parser(
-    'gen', parents=[])
-rosdev_gen_subparsers = rosdev_gen_parser.add_subparsers(required=True)
-rosdev_gen_colcon_parser = rosdev_gen_subparsers.add_parser(
-    'colcon', parents=[])
-rosdev_gen_colcon_subparsers = rosdev_gen_colcon_parser.add_subparsers(required=True)
-rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
-    'build',
-    parents=[
+parser = parser.merged_with(
+    sub_commands=tuple('gen'.split()),
+    flags=frozenset({
+        flag.log_level,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen colcon build'.split()),
+    flags=frozenset({
         flag.architecture,
         flag.build_num,
         flag.build_type,
@@ -561,71 +644,28 @@ rosdev_gen_colcon_build_parser = rosdev_gen_colcon_subparsers.add_parser(
         flag.pull,
         flag.release,
         flag.sanitizer,
-    ])
-rosdev_gen_colcon_build_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.colcon.build').Build)
-rosdev_gen_clion_parser = rosdev_gen_subparsers.add_parser(
-    'clion', parents=[]
+    })
 )
-rosdev_gen_clion_subparsers = rosdev_gen_clion_parser.add_subparsers(required=True)
-rosdev_gen_clion_cmake_parser = rosdev_gen_clion_subparsers.add_parser(
-    'cmake', parents=[]
+
+parser = parser.merged_with(sub_commands=tuple('gen clion cmake'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion config'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion ide'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion keepass'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion overlay'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion settings'.split()))
+parser = parser.merged_with(sub_commands=tuple('gen clion toolchain'.split()))
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen defaults'.split()),
+    flags=frozenset(asdict(flag).values())
 )
-rosdev_gen_clion_cmake_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.cmake').Cmake)
-rosdev_gen_colcon_config_parser = rosdev_gen_colcon_subparsers.add_parser(
-    'config',
-    parents=[])
-rosdev_gen_colcon_config_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.colcon.config').Config)
-rosdev_gen_clion_ide_parser = rosdev_gen_clion_subparsers.add_parser(
-    'ide', parents=[]
-)
-rosdev_gen_clion_ide_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.ide').Ide)
-rosdev_gen_clion_keepass_parser = rosdev_gen_clion_subparsers.add_parser(
-    'keepass', parents=[]
-)
-rosdev_gen_clion_keepass_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.keepass').Keepass)
-rosdev_gen_clion_overlay_parser = rosdev_gen_clion_subparsers.add_parser(
-    'overlay', parents=[]
-)
-rosdev_gen_clion_overlay_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.overlay').Overlay)
-rosdev_gen_clion_settings_parser = rosdev_gen_clion_subparsers.add_parser(
-    'settings', parents=[]
-)
-rosdev_gen_clion_settings_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.settings').Settings)
-rosdev_gen_clion_toolchain_parser = rosdev_gen_clion_subparsers.add_parser(
-    'toolchain',
-    parents=[
-        flag.architecture,
-        flag.build_num,
-        flag.global_setup,
-        flag.local_setup,
-        flag.ports,
-        flag.pull,
-        flag.release,
-        flag.sanitizer,
-    ]
-)
-rosdev_gen_clion_toolchain_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.clion.toolchain').Toolchain)
-rosdev_gen_defaults_parser = rosdev_gen_subparsers.add_parser(
-    'defaults',
-    parents=asdict(flag).values()
-)
-rosdev_gen_defaults_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.defaults').Defaults)
-rosdev_gen_docker_parser = rosdev_gen_subparsers.add_parser(
-    'docker', parents=[])
-rosdev_gen_docker_subparsers = rosdev_gen_docker_parser.add_subparsers(required=True)
-rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
-    'container',
-    parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen docker container'.split()),
+    positionals=(
         positional.command,
+    ),
+    flags=frozenset({
         flag.architecture,
         flag.global_setup,
         flag.interactive,
@@ -633,75 +673,70 @@ rosdev_gen_docker_container_parser = rosdev_gen_docker_subparsers.add_parser(
         flag.ports,
         flag.pull,
         flag.release,
-        flag.volumes
-    ]
+        flag.volumes,
+    })
 )
-rosdev_gen_docker_container_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.docker.container').Container)
-rosdev_gen_docker_image_parser = rosdev_gen_docker_subparsers.add_parser(
-    'image', parents=[flag.architecture, flag.log_level, flag.pull, flag.release])
-rosdev_gen_docker_image_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.docker.image').Image)
-rosdev_gen_install_parser = rosdev_gen_subparsers.add_parser(
-    'install', parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen docker image'.split()),
+    flags=frozenset({
+        flag.architecture,
+        flag.pull,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen install'.split()),
+    flags=frozenset({
         flag.architecture,
         flag.build_num,
         flag.log_level,
         flag.pull,
         flag.release
-    ]
+    })
 )
-rosdev_gen_install_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.install').Install)
-rosdev_gen_rosdep_parser = rosdev_gen_subparsers.add_parser(
-    'rosdep', parents=[])
-rosdev_gen_rosdep_subparsers = rosdev_gen_rosdep_parser.add_subparsers(required=True)
-rosdev_gen_rosdep_config_parser = rosdev_gen_rosdep_subparsers.add_parser(
-    'config',
-    parents=[]
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen rosdep config'.split()),
 )
-rosdev_gen_rosdep_install_parser = rosdev_gen_rosdep_subparsers.add_parser(
-    'install',
-    parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen rosdep install'.split()),
+    flags=frozenset({
         flag.architecture,
         flag.log_level,
         flag.pull,
         flag.release,
         flag.rosdep_install_args,
-    ])
-rosdev_gen_rosdep_install_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.rosdep.install').Install)
-rosdev_gen_rosdev_parser = rosdev_gen_subparsers.add_parser(
-    'rosdev', parents=[])
-rosdev_gen_rosdev_subparsers = rosdev_gen_rosdev_parser.add_subparsers(required=True)
-rosdev_gen_rosdev_config_parser = rosdev_gen_rosdev_subparsers.add_parser(
-    'config',
-    parents=[]
+    })
 )
-rosdev_gen_rosdev_config_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.rosdev.config').Config)
-rosdev_gen_src_parser = rosdev_gen_subparsers.add_parser(
-    'src',
-    parents=[
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen rosdev config'.split()),
+)
+
+parser = parser.merged_with(
+    sub_commands=tuple('gen src'.split()),
+    flags=frozenset({
         flag.build_num,
         flag.log_level,
         flag.pull,
         flag.release
-    ]
+    })
 )
-rosdev_gen_src_parser.set_defaults(
-    get_handler=lambda: import_module('rosdev.gen.src').Src)
 
 
 def get_handler(args: Optional[List[str]]) -> Awaitable:
-    autocomplete(rosdev_parser)
+    argument_parser = parser.get_argument_parser()
+    autocomplete(argument_parser)
 
     import sys
     args = args if args is not None else sys.argv[1:]
     try:
-        args = rosdev_parser.parse_args(args)
+        args = argument_parser.parse_args(args)
     except Exception:
-        rosdev_parser.print_usage()
+        argument_parser.print_usage()
         raise
 
     for k, v in args.__dict__.items():
@@ -711,6 +746,5 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
     handler = args.get_handler()
     del args.__dict__['get_handler']
 
-    from collections import ChainMap
     from rosdev.util.options import Options
     return handler(Options(**ChainMap(args.__dict__, asdict(defaults))))
