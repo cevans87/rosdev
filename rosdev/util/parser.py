@@ -4,7 +4,7 @@ from argcomplete import autocomplete
 from argparse import Action, ArgumentParser, Namespace, _SubParsersAction, SUPPRESS
 import ast
 from collections import ChainMap
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from frozendict import frozendict
 from importlib import import_module
 import logging
@@ -505,10 +505,8 @@ class Parser:
                 flags=flags,
             )
 
-            parser = Parser(
-                sub_command=self.sub_command,
-                positionals=self.positionals,
-                flags=self.flags,
+            parser = replace(
+                self,
                 sub_parser_by_sub_command=frozendict(
                     ChainMap(
                         {sub_parser.sub_command: sub_parser},
@@ -526,17 +524,15 @@ class Parser:
             parent_flags: AbstractSet[ArgumentParser] = frozenset(),
             prev_sub_commands: Sequence[str] = tuple()
     ) -> ArgumentParser:
-        flags = frozenset(parent_flags | self.flags)
+        # noinspection PyProtectedMember
+        flags = frozenset(
+            {flag._actions[0].dest: flag for flag in parent_flags | self.flags}.values()
+        )
 
         if parent_sub_argument_parser is None:
-            # noinspection PyProtectedMember
-            argument_parser = ArgumentParser(
-                parents=[
-                    *self.positionals,
-                    *sorted(flags, key=lambda flag: flag._actions[0].dest),
-                ],
-                conflict_handler='resolve',
-            )
+            argument_parser = ArgumentParser()
+        elif self.sub_parser_by_sub_command:
+            argument_parser = parent_sub_argument_parser.add_parser(self.sub_command)
         else:
             # noinspection PyProtectedMember
             argument_parser = parent_sub_argument_parser.add_parser(
@@ -545,7 +541,6 @@ class Parser:
                     *self.positionals,
                     *sorted(flags, key=lambda flag: flag._actions[0].dest),
                 ],
-                conflict_handler='resolve',
             )
             
         if self.sub_parser_by_sub_command:
@@ -572,7 +567,7 @@ class Parser:
 parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
-        #flag.log_level
+        flag.log_level
     })
 )
 
@@ -586,7 +581,6 @@ parser = parser.merged_with(
         flag.global_setup,
         flag.gui,
         flag.local_setup,
-        flag.log_level,
         flag.ports,
         flag.pull,
         flag.release,
@@ -622,13 +616,6 @@ parser = parser.merged_with(
         flag.pull,
         flag.release,
         flag.sanitizer,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands=tuple('gen'.split()),
-    flags=frozenset({
-        flag.log_level,
     })
 )
 
@@ -691,7 +678,6 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.build_num,
-        flag.log_level,
         flag.pull,
         flag.release
     })
@@ -705,7 +691,6 @@ parser = parser.merged_with(
     sub_commands=tuple('gen rosdep install'.split()),
     flags=frozenset({
         flag.architecture,
-        flag.log_level,
         flag.pull,
         flag.release,
         flag.rosdep_install_args,
@@ -720,7 +705,6 @@ parser = parser.merged_with(
     sub_commands=tuple('gen src'.split()),
     flags=frozenset({
         flag.build_num,
-        flag.log_level,
         flag.pull,
         flag.release
     })

@@ -15,6 +15,8 @@ class Build(Handler):
     def command(self) -> str:
         parts = [f'--cmake-args -DCMAKE_BUILD_TYPE={self.options.build_type}']
 
+        # TODO use sanitizer mixins created specifically for this. Requires that mixins be built
+        #  into docker image.
         if self.options.sanitizer is not None:
             flags = {
                 'asan': f'-fsanitize=address',
