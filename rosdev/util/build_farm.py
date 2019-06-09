@@ -5,8 +5,8 @@ from jenkins import Jenkins as _ExternalJenkins
 import re
 from typing import List, Optional, Tuple
 
-from rosdev.util.lookup import get_build_num, get_operating_system
-from rosdev.util.options import Options
+from rosdev.util.lookup import get_machine, get_operating_system
+
 
 @memoize
 @dataclass(frozen=True)
@@ -15,34 +15,35 @@ class _Jenkins:
         init=False, default_factory=lambda: _ExternalJenkins('https://ci.ros2.org')
     )
 
-    def get_job_name(self, architecture: str) -> str:
+    @staticmethod
+    def get_job_name(architecture: str) -> str:
         return f'packaging_{get_operating_system(architecture)}'
 
     @memoize
     async def get_build_num(self, architecture: str, release: str) -> int:
-        try:
+        if release != 'latest':
             return {
                 'amd64': {
+                    'dashing': 1482,
                     'crystal': 1289,
                 },
                 'arm32v7': {
-
+                    'dashing': 16,
                 },
                 'arm64v8': {
+                    'dashing': 825,
                     'crystal': 651,
                 },
             }[architecture][release]
-        except KeyError:
-            pass
+        else:
+            def get_build_num_inner() -> int:
+                return self._external_jenkins.get_job_info(
+                    name=self.get_job_name(architecture=architecture),
+                    depth=1,
+                    fetch_all_builds=False,
+                )['lastSuccessfulBuild']['number']
 
-        def get_build_num_inner() -> int:
-            return self._external_jenkins.get_job_info(
-                name=self.get_job_name(architecture=architecture),
-                depth=1,
-                fetch_all_builds=False,
-            )['lastSuccessfulBuild']['number']
-
-        return await get_event_loop().run_in_executor(None, get_build_num_inner)
+            return await get_event_loop().run_in_executor(None, get_build_num_inner)
 
     async def get_build_console_output(
             self, architecture: str, build_num: Optional[int], release: str
@@ -94,3 +95,15 @@ async def get_ros2_repos(architecture: str, build_num: Optional[int], release: s
             ros2_repos_lines.append(line)
 
     return '\n'.join(ros2_repos_lines)
+
+
+async def get_artifacts_url(architecture: str, build_num: Optional[int], release: str) -> str:
+    if build_num is None:
+        async with _JenkinsContext() as jenkins:
+            build_num = await jenkins.get_build_num(architecture=architecture, release=release)
+
+    return (
+        f'https://ci.ros2.org/view/packaging/job/'
+        f'packaging_{get_operating_system(architecture)}/{build_num}/artifact/'
+        f'ws/ros2-package-linux-{get_machine(architecture)}.tar.bz2'
+    )

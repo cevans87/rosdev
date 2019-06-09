@@ -643,6 +643,10 @@ parser = parser.merged_with(sub_commands=tuple('gen clion settings'.split()))
 parser = parser.merged_with(sub_commands=tuple('gen clion toolchain'.split()))
 
 parser = parser.merged_with(
+    sub_commands=tuple('gen daemon'.split()),
+)
+
+parser = parser.merged_with(
     sub_commands=tuple('gen defaults'.split()),
     flags=frozenset(asdict(flag).values())
 )

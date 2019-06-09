@@ -7,9 +7,8 @@ from tempfile import TemporaryDirectory
 from typing import Mapping
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
-# from rosdev.gen.docker.container import Container
+from rosdev.util.build_farm import get_artifacts_url
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_build_num, get_machine, get_operating_system
 from rosdev.util.subprocess import exec
 
 
@@ -68,33 +67,20 @@ class Install(Handler):
             log.info(f'Found install cached at {self.global_path}')
             return
 
-        if self.options.build_num is not None or self.options.release != 'latest':
-            await self._create_global_install_from_osrf_build_farm()
-        else:
-            raise NotImplemented()
+        log.info("Finding artifacts url from OSRF build farm")
+        artifacts_url = await get_artifacts_url(
+            architecture=self.options.architecture,
+            build_num=self.options.build_num,
+            release=self.options.release,
+        )
 
-        await exec(f'chmod -R -w {self.global_path}')
-
-        log.info(f'Global install at {self.global_path}')
-
-    async def _create_global_install_from_osrf_build_farm(self) -> None:
         log.info("Installing from OSRF build farm")
-        if self.options.build_num is not None:
-            build_num = self.options.build_num
-        else:
-            build_num = get_build_num(self.options.architecture, self.options.release)
-
         with TemporaryDirectory() as temp_dir:
             staging_path = f'{temp_dir}/install'
             artifacts_path = f'{temp_dir}/artifacts.tar.bz2'
 
-            log.info(f'Downloading install artifacts at {artifacts_path}')
-            await exec(
-                f'wget https://ci.ros2.org/view/packaging/job/'
-                f'packaging_{get_operating_system(self.options.architecture)}/{build_num}/artifact/'
-                f'ws/ros2-package-linux-{get_machine(self.options.architecture)}.tar.bz2 '
-                f'-O {artifacts_path}'
-            )
+            log.info(f'Downloading install artifacts to {artifacts_path}')
+            await exec(f'wget {artifacts_url} -O {artifacts_path}')
 
             log.info(f'Staging install at {staging_path}')
             await exec(f'mkdir -p {staging_path}')
@@ -103,6 +89,10 @@ class Install(Handler):
             log.info(f'Caching install at {self.global_path}')
             await exec(f'mkdir -p {self.global_path_base}')
             await exec(f'mv {staging_path} {self.global_path}')
+
+        await exec(f'chmod -R -w {self.global_path}')
+
+        log.info(f'Global install at {self.global_path}')
 
     async def _create_local_install(self) -> None:
         log.info(f'Linking install at {self.local_path}')
