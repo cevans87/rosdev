@@ -10,6 +10,7 @@ from typing import Mapping
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.util.build_farm import get_ros2_repos
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 from rosdev.util.subprocess import exec
 
 
@@ -22,7 +23,7 @@ class Src(Handler):
 
     @property
     def container_path_base(self) -> str:
-        return RosdevConfig(self.options).container_path
+        return RosdevConfig(super().options).container_path
 
     @property
     def container_path(self) -> str:
@@ -30,28 +31,33 @@ class Src(Handler):
 
     @property
     def global_path_base(self) -> str:
-        return f'{RosdevConfig(self.options).global_path}/src'
+        return f'{RosdevConfig(super().options).global_path}/src'
 
     @property
     def global_path(self) -> str:
         return f'{self.global_path_base}/' \
-            f'{self.options.architecture}_{self.options.build_num or self.options.release}'
+            f'{super().options.architecture}_{super().options.build_num or super().options.release}'
 
     @property
     def local_path_base(self) -> str:
-        return RosdevConfig(self.options).local_path
+        return RosdevConfig(super().options).local_path
 
     @property
     def local_path(self) -> str:
         return f'{self.local_path_base}/src'
 
     @property
-    def volumes(self) -> Mapping[str, str]:
-        if self.options.global_setup is None:
-            return self.options.volumes
+    def options(self) -> Options:
+        return super().options(
+            volumes=self.volumes
+        )
 
+    @property
+    def volumes(self) -> Mapping[str, str]:
+        if super().options.global_setup is None:
+            return super().options.volumes
         return frozendict({
-            **self.options.volumes,
+            **super().options.volumes,
             self.local_path: self.container_path,
         })
 

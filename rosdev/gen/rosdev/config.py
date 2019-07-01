@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
+from typing import Mapping
 
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 from rosdev.util.subprocess import exec
 
 
@@ -27,11 +29,17 @@ class Config(Handler):
     @property
     def local_path(self) -> str:
         return f'{Path.cwd()}/.rosdev'
-    
+
     @property
-    def volumes(self) -> frozendict:
+    def options(self) -> Options:
+        return super().options(
+            volumes=self.volumes,
+        )
+
+    @property
+    def volumes(self) -> Mapping[str, str]:
         return frozendict({
-            **self.options.volumes,
+            **super().options.volumes,
             self.global_path: self.global_path,
             self.local_path: self.container_path
         })

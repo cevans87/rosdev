@@ -10,6 +10,7 @@ from rosdev.gen.rosdep.config import Config as RosdepConfig
 from rosdev.gen.src import Src
 from rosdev.gen.docker.container import Container
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 
 
 log = getLogger(__name__)
@@ -24,12 +25,20 @@ class Bash(Handler):
         return '/bin/bash'
 
     @property
+    def options(self) -> Options:
+        return super().options(
+            command=self.command,
+            interactive=True,
+            volumes=self.volumes,
+        )
+
+    @property
     def volumes(self) -> frozendict:
         return frozendict({
-            **self.options.volumes,
-            **Install(self.options).volumes,
-            **RosdepConfig(self.options).volumes,
-            **Src(self.options).volumes,
+            **super().options.volumes,
+            **Install(super().options).volumes,
+            **RosdepConfig(super().options).volumes,
+            **Src(super().options).volumes,
             f'{Path.home()}/.bashrc': f'{Path.home()}/.bashrc',
             f'{Path.home()}/.bash_history': f'{Path.home()}/.bash_history',
             f'{Path.home()}/.profile': f'{Path.home()}/.profile',
@@ -37,15 +46,9 @@ class Bash(Handler):
 
     @memoize
     async def _main(self) -> None:
-        options = self.options(
-            command=self.command,
-            interactive=True,
-            volumes=self.volumes,
-        )
-
         await gather(
-            Install(options),
-            RosdepConfig(options),
-            Src(options),
+            Install(self.options),
+            RosdepConfig(self.options),
+            Src(self.options),
         )
-        await Container(options)
+        await Container(self.options)

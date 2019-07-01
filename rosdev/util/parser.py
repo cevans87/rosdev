@@ -1,7 +1,9 @@
 from __future__ import annotations
 from argcomplete import autocomplete
 # noinspection PyProtectedMember
-from argparse import Action, ArgumentParser, Namespace, _SubParsersAction, SUPPRESS
+from argparse import (
+    Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, SUPPRESS
+)
 import ast
 from collections import ChainMap
 from dataclasses import asdict, dataclass, field, replace
@@ -11,7 +13,8 @@ import logging
 from pathlib import Path
 from stringcase import capitalcase
 from typing import (
-    AbstractSet, Awaitable, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple
+    AbstractSet, Awaitable, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple,
+    Union
 )
 from uuid import UUID
 
@@ -25,6 +28,7 @@ class Defaults:
     ccache: bool = True
     colcon_build_args: Optional[str] = None
     command: Optional[str] = None
+    container_name: Optional[str] = None
     executable: Optional[str] = None
     flavor: str = 'ros-core'
     global_setup: Optional[str] = '.rosdev/install/setup.bash'
@@ -33,11 +37,13 @@ class Defaults:
     interactive: bool = False
     local_setup: Optional[str] = None
     log_level: str = 'INFO'
-    name: Optional[str] = None
     package: Optional[str] = None
     ports: FrozenSet[int] = frozenset()
+    # TODO change this to pull_docker_image
     pull: bool = False
     release: str = 'latest'
+    # TODO change this to replace_docker_container
+    replace_named_container: bool = True
     rosdep_install_args: Optional[str] = None
     sanitizer: Optional[str] = None
     uuid: Optional[str] = None
@@ -83,7 +89,7 @@ defaults = Defaults.with_overrides()
 
 
 def gen_flag_parser() -> ArgumentParser:
-    return ArgumentParser(add_help=False)
+    return ArgumentParser(add_help=False, conflict_handler='resolve')
 
 
 @dataclass(frozen=True)
@@ -125,17 +131,19 @@ class Flag:
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
+    container_name: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     gui: ArgumentParser = field(default_factory=gen_flag_parser)
+    help: ArgumentParser = field(default_factory=gen_flag_parser)
     interactive: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
-    name: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull: ArgumentParser = field(default_factory=gen_flag_parser)
     local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
+    replace_named_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
     uuid: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -217,6 +225,16 @@ class Flag:
             )
         )
 
+        self.container_name.add_argument(
+            '--container-name',
+            default=defaults.container_name,
+            help=(
+                f'Name to assign to docker container. '
+                f'Existing container with name will be removed. '
+                f'Currently: {defaults.container_name}'
+            ),
+        )
+
         self.flavor.add_argument(
             '--flavor',
             default=defaults.flavor,
@@ -274,6 +292,35 @@ class Flag:
                 f'Do not allow container to use host X11 server. Currently: {defaults.gui}'
             )
         )
+        
+        class HelpAction(_HelpAction):
+
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace,
+                    values,
+                    option_string=None
+            ) -> None:
+                module = import_module(namespace.rosdev_handler_module)
+                if hasattr(namespace, 'rosdev_handler_class'):
+                    _parser.description = getattr(module, 'rosdev_handler_class').__doc__
+                else:
+                    _parser.description = module.__doc__
+
+                super().__call__(
+                    parser=_parser,
+                    namespace=namespace,
+                    values=values,
+                    option_string=option_string
+                )
+
+        self.help.add_argument(
+            '--help', '-h',
+            action=HelpAction,
+            dest=SUPPRESS,
+            help='show this help message and exit',
+        )
 
         interactive_group = self.interactive.add_mutually_exclusive_group()
         interactive_group.add_argument(
@@ -326,16 +373,6 @@ class Flag:
             help=f'Currently: {defaults.log_level}',
         )
 
-        self.name.add_argument(
-            '--name',
-            default=defaults.name,
-            help=(
-                f'Name to assign to docker container. '
-                f'Existing container with name will be removed. '
-                f'Currently: {defaults.name}'
-            ),
-        )
-
         # TODO add PortsAction to allow <host>:<container> mapping. See VolumesAction for reference.
         self.ports.add_argument(
             '--ports', '-p',
@@ -375,6 +412,15 @@ class Flag:
             help=(
                 f'ROS release to build. '
                 f'Currently: {defaults.release}'
+            )
+        )
+
+        self.replace_named_container.add_argument(
+            '--replace-named-container',
+            default=defaults.replace_named_container,
+            help=(
+                f'Replace named containers that should only need to be built once. '
+                f'Currently: {defaults.replace_named_container}'
             )
         )
 
@@ -472,6 +518,7 @@ class Flag:
 flag = Flag()
 
 
+
 @dataclass(frozen=True)
 class Parser:
     sub_command: str
@@ -483,10 +530,13 @@ class Parser:
     def merged_with(
             self,
             *,
-            sub_commands: Sequence[str],
+            sub_commands: Union[str, Sequence[str]],
             positionals: Sequence[ArgumentParser] = tuple(),
             flags: AbstractSet[ArgumentParser] = frozenset(),
     ) -> Parser:
+        if isinstance(sub_commands, str):
+            sub_commands = tuple(sub_commands.split())
+
         if len(sub_commands) == 0:
             parser = Parser(
                 sub_command=self.sub_command,
@@ -530,20 +580,28 @@ class Parser:
         )
 
         if parent_sub_argument_parser is None:
-            argument_parser = ArgumentParser()
-        elif self.sub_parser_by_sub_command:
-            argument_parser = parent_sub_argument_parser.add_parser(self.sub_command)
+            argument_parser = ArgumentParser(add_help=False, conflict_handler='resolve')
         else:
             # noinspection PyProtectedMember
             argument_parser = parent_sub_argument_parser.add_parser(
                 self.sub_command,
+                add_help=False,
+                conflict_handler='resolve',
                 parents=[
                     *self.positionals,
                     *sorted(flags, key=lambda flag: flag._actions[0].dest),
                 ],
             )
-            
-        if self.sub_parser_by_sub_command:
+
+        argument_parser.set_defaults(
+            rosdev_handler_module='.'.join(tuple([*prev_sub_commands, self.sub_command])),
+        )
+
+        if not self.sub_parser_by_sub_command:
+            argument_parser.set_defaults(
+                rosdev_handler_class=capitalcase(self.sub_command),
+            )
+        else:
             sub_argument_parser = argument_parser.add_subparsers(required=True)
             for sub_parser in self.sub_parser_by_sub_command.values():
                 sub_parser.get_argument_parser(
@@ -551,15 +609,6 @@ class Parser:
                     parent_flags=flags,
                     prev_sub_commands=tuple([*prev_sub_commands, self.sub_command])
                 )
-        else:
-            argument_parser.set_defaults(
-                get_handler=lambda: getattr(
-                    import_module(
-                        '.'.join(tuple([*prev_sub_commands, self.sub_command]))
-                    ),
-                    capitalcase(self.sub_command),
-                )
-            )
 
         return argument_parser
 
@@ -567,12 +616,13 @@ class Parser:
 parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
-        flag.log_level
+        flag.help,
+        flag.log_level,
     })
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('bash'.split()),
+    sub_commands='bash',
     flags=frozenset({
         flag.architecture,
         flag.build_num,
@@ -589,7 +639,7 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('bisect'.split()),
+    sub_commands='bisect',
     positionals=(
         positional.command,
     ),
@@ -606,7 +656,7 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('clion'.split()),
+    sub_commands='clion',
     flags=frozenset({
         flag.architecture,
         flag.build_num,
@@ -620,7 +670,7 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen colcon build'.split()),
+    sub_commands='gen colcon build',
     flags=frozenset({
         flag.architecture,
         flag.build_num,
@@ -634,25 +684,21 @@ parser = parser.merged_with(
     })
 )
 
-parser = parser.merged_with(sub_commands=tuple('gen clion cmake'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion config'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion ide'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion keepass'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion overlay'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion settings'.split()))
-parser = parser.merged_with(sub_commands=tuple('gen clion toolchain'.split()))
+parser = parser.merged_with(sub_commands='gen clion cmake')
+parser = parser.merged_with(sub_commands='gen clion config')
+parser = parser.merged_with(sub_commands='gen clion ide')
+parser = parser.merged_with(sub_commands='gen clion keepass')
+parser = parser.merged_with(sub_commands='gen clion overlay')
+parser = parser.merged_with(sub_commands='gen clion settings')
+parser = parser.merged_with(sub_commands='gen clion toolchain')
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen daemon'.split()),
-)
-
-parser = parser.merged_with(
-    sub_commands=tuple('gen defaults'.split()),
+    sub_commands='gen defaults',
     flags=frozenset(asdict(flag).values())
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen docker container'.split()),
+    sub_commands='gen docker container',
     positionals=(
         positional.command,
     ),
@@ -669,7 +715,7 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen docker image'.split()),
+    sub_commands='gen docker image',
     flags=frozenset({
         flag.architecture,
         flag.pull,
@@ -678,7 +724,7 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen install'.split()),
+    sub_commands='gen install',
     flags=frozenset({
         flag.architecture,
         flag.build_num,
@@ -688,11 +734,11 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen rosdep config'.split()),
+    sub_commands='gen rosdep config',
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen rosdep install'.split()),
+    sub_commands='gen rosdep install',
     flags=frozenset({
         flag.architecture,
         flag.pull,
@@ -702,11 +748,11 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen rosdev config'.split()),
+    sub_commands='gen rosdev config',
 )
 
 parser = parser.merged_with(
-    sub_commands=tuple('gen src'.split()),
+    sub_commands='gen src',
     flags=frozenset({
         flag.build_num,
         flag.pull,
@@ -724,15 +770,19 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
     try:
         args = argument_parser.parse_args(args)
     except Exception:
-        argument_parser.print_usage()
-        raise
+        args.append('-h')
+        argument_parser.parse_args(args)
 
     for k, v in args.__dict__.items():
         if isinstance(v, list):
             setattr(args, k, frozenset(v))
 
-    handler = args.get_handler()
-    del args.__dict__['get_handler']
+    handler = getattr(
+        import_module(args.rosdev_handler_module),
+        args.rosdev_handler_class
+    )
+    del args.__dict__['rosdev_handler_module']
+    del args.__dict__['rosdev_handler_class']
 
     from rosdev.util.options import Options
     return handler(Options(**ChainMap(args.__dict__, asdict(defaults))))

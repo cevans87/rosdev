@@ -18,6 +18,7 @@ class Options:
     ccache: bool
     colcon_build_args: Optional[str]
     command: Optional[str]
+    container_name: Optional[str]
     executable: str
     flavor: str
     global_setup: Optional[str]
@@ -26,11 +27,11 @@ class Options:
     interactive: bool
     local_setup: Optional[str]
     log_level: str
-    name: Optional[str]
     package: Optional[str]
     ports: FrozenSet[int]
     pull: bool
     release: str
+    replace_named_container: bool
     rosdep_install_args: Optional[str]
     sanitizer: Optional[str]
     uuid: Optional[str]
@@ -45,6 +46,7 @@ class Options:
             ccache: bool = _TakeFromSelf,
             colcon_build_args: Optional[str] = _TakeFromSelf,
             command: Optional[str] = _TakeFromSelf,
+            container_name: Optional[str] = _TakeFromSelf,
             executable: str = _TakeFromSelf,
             flavor: str = _TakeFromSelf,
             global_setup: Optional[str] = _TakeFromSelf,
@@ -53,11 +55,11 @@ class Options:
             interactive: bool = _TakeFromSelf,
             local_setup: Optional[str] = _TakeFromSelf,
             log_level: str = _TakeFromSelf,
-            name: Optional[str] = _TakeFromSelf,
             package: Optional[str] = _TakeFromSelf,
             ports: FrozenSet[int] = _TakeFromSelf,
             pull: bool = _TakeFromSelf,
             release: str = _TakeFromSelf,
+            replace_named_container: bool = _TakeFromSelf,
             rosdep_install_args: Optional[str] = _TakeFromSelf,
             sanitizer: Optional[str] = _TakeFromSelf,
             uuid: Optional[str] = _TakeFromSelf,
@@ -79,6 +81,7 @@ class Options:
             ccache=ccache,
             colcon_build_args=colcon_build_args,
             command=command,
+            container_name=container_name,
             executable=executable,
             flavor=flavor,
             global_setup=global_setup,
@@ -87,11 +90,11 @@ class Options:
             interactive=interactive,
             local_setup=local_setup,
             log_level=log_level,
-            name=name,
             package=package,
             ports=ports,
             pull=pull,
             release=release,
+            replace_named_container=replace_named_container,
             rosdep_install_args=rosdep_install_args,
             sanitizer=sanitizer,
             uuid=uuid,

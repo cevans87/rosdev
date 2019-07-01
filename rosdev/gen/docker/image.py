@@ -1,4 +1,3 @@
-from __future__ import annotations
 import asyncio
 from atools import memoize
 import docker
@@ -9,7 +8,6 @@ import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 
-from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_machine
 
@@ -22,10 +20,6 @@ class Image(Handler):
 
     class Exception(Exception):
         pass
-
-    @property
-    def cwd(self) -> str:
-        return f'{Path.cwd()}'
 
     @property
     def profile(self) -> str:
@@ -58,7 +52,7 @@ class Image(Handler):
     @property
     def rosdev_entrypoint_sh_contents(self) -> str:
         # TODO improve the way we're executing this entrypoint. Make this global entrypoint
-        # execute a local entrypoint, which we will volume mount from the local rosdev workspace
+        #  execute a local entrypoint, which we will volume mount from the local rosdev workspace
         return dedent(fr'''
             #!/bin/bash
             set -e
@@ -97,15 +91,10 @@ class Image(Handler):
                 coreutils \
                 curl \
                 gdb \
-                gdbserver \
                 git \
                 liblog4cxx-dev \
                 openssh-server \
                 python3-pip \
-                python3-colcon-common-extensions \
-                python3-pip \
-                python-rosdep \
-                python3-vcstool \
                 sudo \
                 wget
                 
@@ -135,6 +124,7 @@ class Image(Handler):
                 pytest-repeat \
                 pytest-rerunfailures \
                 pytest-runner \
+                rosdep \
                 setuptools \
                 vcstool
                 

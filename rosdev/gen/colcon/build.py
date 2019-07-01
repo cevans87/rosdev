@@ -5,7 +5,9 @@ from typing import Mapping
 from rosdev.gen.docker.container import Container
 from rosdev.gen.install import Install
 from rosdev.gen.rosdep.config import Config as RosdepConfig
+from rosdev.gen.rosdep.install import Install as RosdepInstall
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 
 
 @memoize
@@ -35,6 +37,16 @@ class Build(Handler):
         return f'/bin/bash -c \'colcon build {" ".join(parts)}\''
 
     @property
+    @memoize
+    def options(self) -> Options:
+        return super().options(
+            command=self.command,
+            container_name=RosdepInstall(super().options).container_name,
+            replace_named_container=False,
+            volumes=self.volumes,
+        )
+
+    @property
     def volumes(self) -> Mapping[str, str]:
         return frozendict({
             **self.options.volumes,
@@ -44,11 +56,5 @@ class Build(Handler):
 
     @memoize
     async def _main(self) -> None:
-        await Container(
-            self.options(
-                command=self.command,
-                # FIXME interactive makes us exec the docker process, so this doesn't return.
-                interactive=True,
-                volumes=self.volumes,
-            )
-        )
+        await RosdepInstall(self.options)
+        await Container(self.options)

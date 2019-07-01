@@ -1,6 +1,8 @@
+from asyncio import get_event_loop
 from atools import memoize
 from dataclasses import dataclass
 import docker
+from docker.models.containers import Container as _Container
 from frozendict import frozendict
 from logging import getLogger
 import os
@@ -10,7 +12,6 @@ from typing import Mapping
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.docker.image import Image
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_machine
 from rosdev.util.subprocess import exec
 
 
@@ -80,28 +81,32 @@ class Container(Handler):
 
         client = docker.client.from_env()
 
-        # Make sure no other container with our name exists.
-        if self.options.name is not None:
+        # Make sure only one container with our name exists.
+        if self.options.container_name is not None:
             # noinspection PyUnresolvedReferences
             try:
-                container = client.containers.get(self.options.name)
+                container = client.containers.get(self.options.container_name)
             except docker.errors.NotFound:
                 pass
             else:
-                log.info(f'Removing existing docker container "{self.options.name}"')
-                container.remove(force=True)
+                if self.options.replace_named_container:
+                    log.info(f'Replacing existing docker container "{self.options.container_name}"')
+                    container.remove(force=True)
+                else:
+                    log.info(f'Found existing docker container "{self.options.container_name}"')
+                    return
 
         log.debug(f'container volumes {self.options.volumes}')
         log.debug(f'container command {self.options.command}')
 
-        container = client.containers.create(
-            auto_remove=True,
+        container: _Container = client.containers.create(
+            auto_remove=self.options.container_name is None,
             command=self.options.command,
             detach=True,
             environment={k: v for k, v in self.environment.items()},
             image=Image(self.options).tag,
             ipc_mode='host',
-            name=self.options.name,
+            name=self.options.container_name,
             ports={port: port for port in self.options.ports},
             privileged=True,  # for X11
             security_opt=['seccomp=unconfined'],  # for GDB
@@ -121,4 +126,9 @@ class Container(Handler):
 
         log.info(f'Starting container "{container.name}"')
 
-        await exec(f'docker start {container.name}')
+        def attach() -> None:
+            for line in container.attach(stdout=True, stderr=True, stream=True):
+                print(line)
+
+        await get_event_loop().run_in_executor(None, attach)
+        #await exec(f'docker start {container.name}')
