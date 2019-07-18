@@ -16,8 +16,8 @@ class Ide(Handler):
 
     @memoize
     async def _main(self) -> None:
-        log.info('Starting CLion IDE')
+        log.info('Starting PyCharm IDE')
         await shell(
-            f'nohup {(await get_exec_lines("which clion"))[0]} '
+            f'nohup {(await get_exec_lines("which charm"))[0]} '
             f'{os.getcwd()} < /dev/null > /dev/null 2>&1 &'
         )

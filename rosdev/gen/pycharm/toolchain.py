@@ -6,9 +6,6 @@ from logging import getLogger
 from pathlib import Path
 from typing import Mapping
 
-from rosdev.gen.clion.cmake import Cmake
-
-from rosdev.gen.gdbinit import Gdbinit
 from rosdev.gen.docker.container import Container
 from rosdev.gen.install import Install
 from rosdev.gen.src import Src
@@ -28,7 +25,7 @@ class Toolchain(Handler):
     def options(self) -> Options:
         return super().options(
             command='bash -c "sudo service ssh start && sleep infinity"',
-            docker_container_name='rosdev_gen_clion_toolchain',
+            docker_container_name='rosdev_gen_pycharm_toolchain',
             # FIXME find another port
             ports=frozenset({22}),
             replace_docker_container=True,
@@ -39,16 +36,12 @@ class Toolchain(Handler):
     def volumes(self) -> Mapping[str, str]:
         return frozendict({
             **super().options.volumes,
-            **Cmake(super().options).options.volumes,
-            **Gdbinit(super().options).options.volumes,
             f'{Path.home()}/.ssh': f'{Path.home()}/.ssh',
         })
 
     @memoize
     async def _main(self) -> None:
         await gather(
-            Cmake(self.options),
-            Gdbinit(self.options),
             Install(self.options),
             Src(self.options),
         )

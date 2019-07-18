@@ -3,11 +3,12 @@ from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
 import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Mapping
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
-from rosdev.util.build_farm import get_artifacts_url
+from rosdev.util.build_farm import get_artifacts_url, get_build_num
 from rosdev.util.handler import Handler
 from rosdev.util.subprocess import exec
 
@@ -29,16 +30,18 @@ class Install(Handler):
 
     @property
     def global_path_base(self) -> str:
-        return f'{RosdevConfig(self.options).global_path}/install'
+        return (
+            f'{RosdevConfig(super().options).global_path}/{super().options.architecture}/'
+            f'{super().options.build_num}'
+        )
 
     @property
     def global_path(self) -> str:
-        return f'{self.global_path_base}/' \
-            f'{self.options.architecture}_{self.options.build_num or self.options.release}'
+        return f'{self.global_path_base}/install'
 
     @property
     def local_path_base(self) -> str:
-        return RosdevConfig(self.options).local_path
+        return RosdevConfig(super().options).local_path
 
     @property
     def local_path(self) -> str:
@@ -53,6 +56,31 @@ class Install(Handler):
             **self.options.volumes,
             self.local_path: self.container_path,
         })
+
+    @memoize
+    async def get_global_path(self) -> str:
+
+        build_num = self.options.build_num
+        if self.options.build_num is not None:
+            build_num = self.options.build_num
+        elif self.options.pull_install:
+            build_num = await get_build_num(
+                architecture=self.options.architecture, release=self.options.release
+            )
+        # TODO change to walrus operator in py38
+        elif self.options.release == 'latest':
+            paths = sorted(Path(self.global_path_base).glob(f'{self.options.architecture}_*'))
+            if paths:
+                build_num = int(paths[-1].parts[-1].lstrip(f'{self.options.architecture}_'))
+            else:
+                build_num = await get_build_num(
+                    architecture=self.options.architecture, release=self.options.release
+                )
+
+        return f'{self.global_path_base}/{self.options.architecture}_{build_num}'
+
+    def __post_init__(self) -> None:
+        assert self.options.build_num is not None
 
     @memoize
     async def _main(self) -> None:
@@ -88,6 +116,8 @@ class Install(Handler):
 
             log.info(f'Caching install at {self.global_path}')
             await exec(f'mkdir -p {self.global_path_base}')
+            # FIXME this fails if the global path already exists since we recursively made it
+            #  read-only
             await exec(f'mv {staging_path} {self.global_path}')
 
         await exec(f'chmod -R -w {self.global_path}')

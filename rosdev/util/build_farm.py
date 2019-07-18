@@ -74,6 +74,7 @@ class _JenkinsContext:
         self._lock.release()
 
 
+@memoize
 async def get_ros2_repos(architecture: str, build_num: Optional[int], release: str) -> str:
     async with _JenkinsContext() as jenkins:
         lines = await jenkins.get_build_console_output(
@@ -97,6 +98,7 @@ async def get_ros2_repos(architecture: str, build_num: Optional[int], release: s
     return '\n'.join(ros2_repos_lines)
 
 
+@memoize
 async def get_artifacts_url(architecture: str, build_num: Optional[int], release: str) -> str:
     if build_num is None:
         async with _JenkinsContext() as jenkins:
@@ -107,3 +109,9 @@ async def get_artifacts_url(architecture: str, build_num: Optional[int], release
         f'packaging_{get_operating_system(architecture)}/{build_num}/artifact/'
         f'ws/ros2-package-linux-{get_machine(architecture)}.tar.bz2'
     )
+
+
+@memoize
+async def get_build_num(architecture: str, release: str) -> int:
+    async with _JenkinsContext() as jenkins:
+        return await jenkins.get_build_num(architecture=architecture, release=release)

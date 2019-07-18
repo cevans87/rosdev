@@ -7,7 +7,8 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
-from typing import Mapping
+from stringcase import snakecase
+from typing import Mapping, Optional
 
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.gen.docker.image import Image
@@ -24,6 +25,13 @@ class Container(Handler):
 
     class Exception(Exception):
         pass
+
+    @property
+    def docker_container_name(self) -> str:
+        return super().options.docker_container_name or (
+            f'rosdev_{super().options.architecture}_{super().options.release}_at_'
+            f'{snakecase(str(Path.cwd().relative_to(Path.home())).replace("/", "_"))}'
+        )
 
     @property
     def environment(self) -> frozendict:
@@ -82,53 +90,63 @@ class Container(Handler):
         client = docker.client.from_env()
 
         # Make sure only one container with our name exists.
-        if self.options.container_name is not None:
-            # noinspection PyUnresolvedReferences
-            try:
-                container = client.containers.get(self.options.container_name)
-            except docker.errors.NotFound:
-                pass
-            else:
-                if self.options.replace_named_container:
-                    log.info(f'Replacing existing docker container "{self.options.container_name}"')
-                    container.remove(force=True)
-                else:
-                    log.info(f'Found existing docker container "{self.options.container_name}"')
-                    return
+        # noinspection PyUnresolvedReferences
+        try:
+            container: Optional[_Container] = client.containers.get(self.docker_container_name)
+        except docker.errors.NotFound:
+            container = None
+        else:
+            # TODO also remove if container is based on an old image
+            if self.options.replace_docker_container:
+                log.info(
+                    f'Replacing existing docker container '
+                    f'"{self.docker_container_name}"'
+                )
+                container.remove(force=True)
+                container = None
+            elif container.status != 'running':
+                container.start()
 
-        log.debug(f'container volumes {self.options.volumes}')
-        log.debug(f'container command {self.options.command}')
-
-        container: _Container = client.containers.create(
-            auto_remove=self.options.container_name is None,
-            command=self.options.command,
-            detach=True,
-            environment={k: v for k, v in self.environment.items()},
-            image=Image(self.options).tag,
-            ipc_mode='host',
-            name=self.options.container_name,
-            ports={port: port for port in self.options.ports},
-            privileged=True,  # for X11
-            security_opt=['seccomp=unconfined'],  # for GDB
-            stdin_open=True,
-            tty=True,
-            volumes={
-                f'{Path(k).expanduser().absolute()}': {
-                    'bind': f'{Path(v).expanduser().absolute()}'
-                } for k, v in self.volumes.items()
-            },
-            working_dir=f'{Path.cwd()}',
-        )
+        if container is None:
+            container = client.containers.run(
+                command='/sbin/init',
+                detach=True,
+                environment={k: v for k, v in self.environment.items()},
+                image=Image(self.options).tag,
+                ipc_mode='host',
+                name=self.docker_container_name,
+                ports={port: port for port in self.options.ports},
+                privileged=True,  # for X11
+                security_opt=['seccomp=unconfined'],  # for GDB
+                stdin_open=True,
+                tty=True,
+                volumes={
+                    f'{Path(k).expanduser().absolute()}': {
+                        'bind': f'{Path(v).expanduser().absolute()}'
+                    } for k, v in self.volumes.items()
+                },
+                working_dir=f'{Path.cwd()}',
+            )
 
         if self.options.interactive:
-            log.debug(f'Attaching container "{container.name}"')
-            os.execlpe('docker', *f'docker start -ai {container.name}'.split(), os.environ)
+            os.execlpe(
+                'docker',
+                *(
+                    f'docker exec -it {container.name} /rosdev_entrypoint.sh {self.options.command}'
+                ).split(),
+                os.environ
+            )
+        else:
+            container.exec_run(
+                cmd=self.options.command,
+                detach=True,
+                privileged=True,
+                user=os.getlogin(),
+                workdir=str(Path.cwd()),
+            )
 
-        log.info(f'Starting container "{container.name}"')
+        #def attach() -> None:
+        #    for line in container.attach(stdout=True, stderr=True, stream=True):
+        #        print(line)
 
-        def attach() -> None:
-            for line in container.attach(stdout=True, stderr=True, stream=True):
-                print(line)
-
-        await get_event_loop().run_in_executor(None, attach)
-        #await exec(f'docker start {container.name}')
+        #await get_event_loop().run_in_executor(None, attach)

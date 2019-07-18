@@ -1,102 +1,40 @@
 from __future__ import annotations
-from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from frozendict import frozendict
 from typing import FrozenSet, Mapping, Optional
 
 
-class _TakeFromSelf:
-    pass
-
-
-@memoize
 @dataclass(frozen=True)
 class Options:
-    architecture: str
-    bad_build_num: Optional[int]
-    build_num: Optional[int]
-    build_type: Optional[str]
-    ccache: bool
-    colcon_build_args: Optional[str]
-    command: Optional[str]
-    container_name: Optional[str]
-    executable: str
-    flavor: str
-    global_setup: Optional[str]
-    good_build_num: Optional[int]
-    gui: bool
-    interactive: bool
-    local_setup: Optional[str]
-    log_level: str
-    package: Optional[str]
-    ports: FrozenSet[int]
-    pull: bool
-    release: str
-    replace_named_container: bool
-    rosdep_install_args: Optional[str]
-    sanitizer: Optional[str]
-    uuid: Optional[str]
-    volumes: Mapping[str, str]
+    architecture: str = 'amd64'
+    bad_build_num: Optional[int] = None
+    build_num: Optional[int] = None
+    build_type: str = 'Debug'
+    ccache: bool = True
+    colcon_build_args: Optional[str] = None
+    command: Optional[str] = None
+    docker_container_name: Optional[str] = None
+    executable: Optional[str] = None
+    flavor: str = 'ros-core'
+    global_setup: Optional[str] = '.rosdev/install/setup.bash'
+    good_build_num: Optional[int] = None
+    gui: bool = False
+    interactive: bool = False
+    local_setup: Optional[str] = None
+    log_level: str = 'INFO'
+    package: Optional[str] = None
+    ports: FrozenSet[int] = frozenset()
+    # TODO change this to pull_docker_image
+    pull_docker_image: bool = False
+    pull_src: bool = False
+    pull_install: bool = False
+    release: str = 'latest'
+    # TODO change this to replace_docker_container
+    replace_docker_container: bool = False
+    rosdep_install_args: Optional[str] = None
+    sanitizer: Optional[str] = None
+    uuid: Optional[str] = None
+    volumes: Mapping[str, str] = frozendict()
 
-    def __call__(
-            self,
-            architecture: str = _TakeFromSelf,
-            bad_build_num: Optional[int] = _TakeFromSelf,
-            build_num: Optional[int] = _TakeFromSelf,
-            build_type: Optional[str] = _TakeFromSelf,
-            ccache: bool = _TakeFromSelf,
-            colcon_build_args: Optional[str] = _TakeFromSelf,
-            command: Optional[str] = _TakeFromSelf,
-            container_name: Optional[str] = _TakeFromSelf,
-            executable: str = _TakeFromSelf,
-            flavor: str = _TakeFromSelf,
-            global_setup: Optional[str] = _TakeFromSelf,
-            good_build_num: Optional[int] = _TakeFromSelf,
-            gui: bool = _TakeFromSelf,
-            interactive: bool = _TakeFromSelf,
-            local_setup: Optional[str] = _TakeFromSelf,
-            log_level: str = _TakeFromSelf,
-            package: Optional[str] = _TakeFromSelf,
-            ports: FrozenSet[int] = _TakeFromSelf,
-            pull: bool = _TakeFromSelf,
-            release: str = _TakeFromSelf,
-            replace_named_container: bool = _TakeFromSelf,
-            rosdep_install_args: Optional[str] = _TakeFromSelf,
-            sanitizer: Optional[str] = _TakeFromSelf,
-            uuid: Optional[str] = _TakeFromSelf,
-            volumes: Mapping[str, str] = _TakeFromSelf,
-    ) -> Options:
-
-        def __call___inner(**kwargs) -> Options:
-            for k, v in kwargs.items():
-                if v is _TakeFromSelf:
-                    kwargs[k] = getattr(self, k)
-
-            return Options(**kwargs)
-
-        return __call___inner(
-            architecture=architecture,
-            bad_build_num=bad_build_num,
-            build_num=build_num,
-            build_type=build_type,
-            ccache=ccache,
-            colcon_build_args=colcon_build_args,
-            command=command,
-            container_name=container_name,
-            executable=executable,
-            flavor=flavor,
-            global_setup=global_setup,
-            good_build_num=good_build_num,
-            gui=gui,
-            interactive=interactive,
-            local_setup=local_setup,
-            log_level=log_level,
-            package=package,
-            ports=ports,
-            pull=pull,
-            release=release,
-            replace_named_container=replace_named_container,
-            rosdep_install_args=rosdep_install_args,
-            sanitizer=sanitizer,
-            uuid=uuid,
-            volumes=volumes,
-        )
+    def __call__(self, **kwargs) -> Options:
+        return replace(self, **kwargs)

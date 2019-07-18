@@ -3,12 +3,12 @@ from pprint import pformat
 
 from rosdev.gen.rosdev.config import Config
 from rosdev.util.handler import Handler
-from rosdev.util.parser import Defaults as ParserDefaults
+from rosdev.util.options import Options
 from rosdev.util.subprocess import exec
 
 
 @memoize
-class Defaults(Handler):
+class Overrides(Handler):
 
     @property
     def local_path_base(self) -> str:
@@ -16,16 +16,18 @@ class Defaults(Handler):
     
     @property
     def local_path(self) -> str:
-        return f'{self.local_path_base}/defaults'
+        return f'{self.local_path_base}/overrides'
 
     @memoize
     async def _main(self) -> None:
 
+        # FIXME recursively include all directories until homedir
+
         commit = {}
-        parser_defaults = ParserDefaults.with_global_overrides()
+        default_options = Options()
 
         for k, v in self.options.__dict__.items():
-            if getattr(parser_defaults, k) != v:
+            if getattr(default_options, k) != v:
                 commit[k] = v
 
         if commit:

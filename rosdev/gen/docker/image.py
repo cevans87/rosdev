@@ -172,7 +172,7 @@ class Image(Handler):
                 client = docker.client.from_env()
                 client.images.build(
                     path=tempdir_path,
-                    pull=self.options.pull,
+                    pull=self.options.pull_docker_image,
                     rm=True,
                     tag=self.tag,
                 )

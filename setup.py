@@ -9,7 +9,7 @@ setup(
     },
     install_requires=[
         'argcomplete>=1.9.4',
-        'atools>=0.6.1',
+        'atools>=0.6.2',
         'docker>=3.7.0',
         'frozendict>=1.2',
         'lxml>=4.3.3',

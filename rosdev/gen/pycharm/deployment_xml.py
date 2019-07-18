@@ -6,8 +6,8 @@ from lxml import etree
 from lxml.etree import _Element
 from textwrap import dedent
 
-from rosdev.gen.pycharm.config import Config as PycharmConfig
-from rosdev.gen.pycharm.uuid import Uuid
+from rosdev.gen.clion.config import Config as ClionConfig
+from rosdev.gen.clion.uuid import Uuid
 from rosdev.util.handler import Handler
 from rosdev.util.xml import get_root_element_from_path, merge_elements
 from rosdev.util.subprocess import exec
@@ -22,7 +22,7 @@ class DeploymentXml(Handler):
 
     @property
     def local_path_base(self) -> str:
-        return PycharmConfig(self.options).local_path
+        return ClionConfig(self.options).local_path
 
     @property
     def local_path(self) -> str:

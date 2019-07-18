@@ -14,6 +14,10 @@ from rosdev.util.subprocess import exec
 log = getLogger(__name__)
 
 
+# FIXME We probably shouldn't need to store any config on the host. It should just be stored in a
+#  persistent container. Basically, we should delete this.
+
+
 @memoize
 @dataclass(frozen=True)
 class Config(Handler):

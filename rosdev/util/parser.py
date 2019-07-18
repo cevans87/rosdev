@@ -13,79 +13,27 @@ import logging
 from pathlib import Path
 from stringcase import capitalcase
 from typing import (
-    AbstractSet, Awaitable, Dict, FrozenSet, List, Mapping, Optional, Sequence, Tuple,
+    AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple,
     Union
 )
 from uuid import UUID
 
+from rosdev.util.options import Options
 
-@dataclass(frozen=True)
-class Defaults:
-    architecture: str = 'amd64'
-    bad_build_num: Optional[int] = None
-    build_num: Optional[int] = None
-    build_type: str = 'Debug'
-    ccache: bool = True
-    colcon_build_args: Optional[str] = None
-    command: Optional[str] = None
-    container_name: Optional[str] = None
-    executable: Optional[str] = None
-    flavor: str = 'ros-core'
-    global_setup: Optional[str] = '.rosdev/install/setup.bash'
-    good_build_num: Optional[int] = None
-    gui: bool = False
-    interactive: bool = False
-    local_setup: Optional[str] = None
-    log_level: str = 'INFO'
-    package: Optional[str] = None
-    ports: FrozenSet[int] = frozenset()
-    # TODO change this to pull_docker_image
-    pull: bool = False
-    release: str = 'latest'
-    # TODO change this to replace_docker_container
-    replace_named_container: bool = True
-    rosdep_install_args: Optional[str] = None
-    sanitizer: Optional[str] = None
-    uuid: Optional[str] = None
-    volumes: frozendict = frozendict()
 
-    @staticmethod
-    def _get_local_overrides() -> Dict:
-        # noinspection PyBroadException
+def get_options_with_overrides() -> Options:
+    overrides = []
+    for path in [Path.cwd(), *Path.cwd().parents]:
         try:
-            with open(f'{Path.cwd()}/.rosdev/defaults', 'r') as overrides_f_in:
-                return ast.literal_eval(overrides_f_in.read())
-        except Exception:
-            return {}
+            with open(f'{path}/.rosdev/overrides', 'r') as overrides_f_in:
+                overrides.append(ast.literal_eval(overrides_f_in.read()))
+        except FileNotFoundError:
+            pass
 
-    @staticmethod
-    def _get_global_overrides() -> Dict:
-        # noinspection PyBroadException
-        try:
-            with open(f'{Path.home()}/.rosdev/defaults', 'r') as overrides_f_in:
-                return ast.literal_eval(overrides_f_in.read())
-        except Exception:
-            return {}
-
-    @staticmethod
-    def with_local_overrides() -> Defaults:
-        return Defaults(**Defaults._get_local_overrides())
-
-    @staticmethod
-    def with_global_overrides() -> Defaults:
-        return Defaults(**Defaults._get_global_overrides())
-
-    @staticmethod
-    def with_overrides() -> Defaults:
-        return Defaults(
-            **ChainMap(
-                Defaults._get_local_overrides(),
-                Defaults._get_global_overrides()
-            )
-        )
+    return Options(**ChainMap(*overrides))
 
 
-defaults = Defaults.with_overrides()
+options = get_options_with_overrides()
 
 
 def gen_flag_parser() -> ArgumentParser:
@@ -131,7 +79,7 @@ class Flag:
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
-    container_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_name: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -140,10 +88,10 @@ class Flag:
     interactive: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
-    pull: ArgumentParser = field(default_factory=gen_flag_parser)
+    pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
     local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
-    replace_named_container: ArgumentParser = field(default_factory=gen_flag_parser)
+    replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
     uuid: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -152,64 +100,64 @@ class Flag:
     def __post_init__(self) -> None:
         self.architecture.add_argument(
             '--architecture', '-a',
-            default=defaults.architecture,
+            default=options.architecture,
             choices=choices.architecture,
-            help=f'Architecture to build. Currently: {defaults.architecture}',
+            help=f'Architecture to build. Currently: {options.architecture}',
         )
 
         # FIXME make mutually exclusive with --bad-build or combine flags
         self.bad_build_num.add_argument(
             '--bad-build-num',
             type=int,
-            default=defaults.bad_build_num,
+            default=options.bad_build_num,
             help=f'Bad build number to compare. Supersedes --bad-build'
         )
 
         self.build_num.add_argument(
             '--build-num',
             type=int,
-            default=defaults.build_num,
+            default=options.build_num,
             help=(
-                f'Use specified build from OSRF build farm instead of {defaults.release}. '
-                f'Currently: {defaults.build_num}'
+                f'Use specified build from OSRF build farm instead of {options.release}. '
+                f'Currently: {options.build_num}'
             ),
         )
 
         self.build_type.add_argument(
             '--build-type',
-            default=defaults.build_type,
+            default=options.build_type,
             choices=choices.build_type,
-            help=f'Build type. Currently: {defaults.build_type}',
+            help=f'Build type. Currently: {options.build_type}',
         )
 
         ccache_group = self.ccache.add_mutually_exclusive_group()
         ccache_group.add_argument(
             '--ccache',
             action='store_true',
-            default=defaults.ccache,
+            default=options.ccache,
             help=(
-                SUPPRESS if defaults.ccache else
-                f'Enable ccache. Currently: {defaults.ccache}'
+                SUPPRESS if options.ccache else
+                f'Enable ccache. Currently: {options.ccache}'
             )
         )
         ccache_group.add_argument(
             '--no-ccache',
             action='store_false',
             dest='ccache',
-            default=defaults.ccache,
+            default=options.ccache,
             help=(
-                SUPPRESS if not defaults.ccache else
-                f'Disable ccache. Currently: {defaults.ccache}'
+                SUPPRESS if not options.ccache else
+                f'Disable ccache. Currently: {options.ccache}'
             )
         )
 
         colcon_build_args_group = self.colcon_build_args.add_mutually_exclusive_group()
         colcon_build_args_group.add_argument(
             '--colcon-build-args',
-            default=defaults.colcon_build_args,
+            default=options.colcon_build_args,
             help=(
                 f'Additional args to pass to colcon build. '
-                f'Currently: {defaults.colcon_build_args}'
+                f'Currently: {options.colcon_build_args}'
             )
         )
         colcon_build_args_group.add_argument(
@@ -217,38 +165,38 @@ class Flag:
             action='store_const',
             const=None,
             dest='colcon_build_args',
-            default=defaults.colcon_build_args,
+            default=options.colcon_build_args,
             help=(
-                SUPPRESS if defaults.colcon_build_args is None else
+                SUPPRESS if options.colcon_build_args is None else
                 f'Do not pass additional args to colcon build. '
-                f'Currently: {defaults.colcon_build_args}'
+                f'Currently: {options.colcon_build_args}'
             )
         )
 
-        self.container_name.add_argument(
-            '--container-name',
-            default=defaults.container_name,
+        self.docker_container_name.add_argument(
+            '--docker-container-name',
+            default=options.docker_container_name,
             help=(
                 f'Name to assign to docker container. '
                 f'Existing container with name will be removed. '
-                f'Currently: {defaults.container_name}'
+                f'Currently: {options.docker_container_name}'
             ),
         )
 
         self.flavor.add_argument(
             '--flavor',
-            default=defaults.flavor,
+            default=options.flavor,
             choices=choices.flavor,
-            help=f'Linux flavor. Currently: {defaults.flavor}'
+            help=f'Linux flavor. Currently: {options.flavor}'
         )
 
         global_setup_group = self.global_setup.add_mutually_exclusive_group()
         global_setup_group.add_argument(
             '--global-setup',
-            default=defaults.global_setup,
+            default=options.global_setup,
             help=(
                 f'Path to global setup.bash file to source. '
-                f'Currently: {defaults.global_setup}'
+                f'Currently: {options.global_setup}'
             )
         )
         global_setup_group.add_argument(
@@ -256,11 +204,11 @@ class Flag:
             action='store_const',
             const=None,
             dest='global_setup',
-            default=defaults.global_setup,
+            default=options.global_setup,
             help=(
-                SUPPRESS if not defaults.global_setup else
+                SUPPRESS if not options.global_setup else
                 f'Do not source a global  setup.bash. '
-                f'Currently: {defaults.global_setup}'
+                f'Currently: {options.global_setup}'
             )
         )
 
@@ -268,31 +216,31 @@ class Flag:
         self.good_build_num.add_argument(
             '--good-build-num',
             type=int,
-            default=defaults.good_build_num,
+            default=options.good_build_num,
             help=f'Good build number to compare. Supersedes --good-build'
         )
 
         gui_group = self.gui.add_mutually_exclusive_group()
         gui_group.add_argument(
             '--gui',
-            default=defaults.gui,
+            default=options.gui,
             action='store_true',
             help=(
-                SUPPRESS if defaults.gui else
-                f'Allow container to use host X11 server. Currently: {defaults.gui}'
+                SUPPRESS if options.gui else
+                f'Allow container to use host X11 server. Currently: {options.gui}'
             )
         )
         gui_group.add_argument(
             '--no-gui',
             dest='gui',
-            default=defaults.gui,
+            default=options.gui,
             action='store_false',
             help=(
-                SUPPRESS if not defaults.gui else
-                f'Do not allow container to use host X11 server. Currently: {defaults.gui}'
+                SUPPRESS if not options.gui else
+                f'Do not allow container to use host X11 server. Currently: {options.gui}'
             )
         )
-        
+
         class HelpAction(_HelpAction):
 
             def __call__(
@@ -304,7 +252,10 @@ class Flag:
             ) -> None:
                 module = import_module(namespace.rosdev_handler_module)
                 if hasattr(namespace, 'rosdev_handler_class'):
-                    _parser.description = getattr(module, 'rosdev_handler_class').__doc__
+                    _parser.description = getattr(
+                        module,
+                        namespace.rosdev_handler_class
+                    ).__doc__
                 else:
                     _parser.description = module.__doc__
 
@@ -326,31 +277,31 @@ class Flag:
         interactive_group.add_argument(
             '--interactive',
             action='store_true',
-            default=defaults.interactive,
+            default=options.interactive,
             help=(
-                SUPPRESS if defaults.interactive else
-                f'Make derived docker container interactive. Currently: {defaults.interactive}'
+                SUPPRESS if options.interactive else
+                f'Make derived docker container interactive. Currently: {options.interactive}'
             )
         )
         interactive_group.add_argument(
             '--no-interactive',
             dest='interactive',
             action='store_false',
-            default=defaults.interactive,
+            default=options.interactive,
             help=(
-                SUPPRESS if not defaults.interactive else
+                SUPPRESS if not options.interactive else
                 f'Do not make derived docker container interactive. '
-                f'Currently: {defaults.interactive}'
+                f'Currently: {options.interactive}'
             )
         )
 
         local_setup_group = self.local_setup.add_mutually_exclusive_group()
         local_setup_group.add_argument(
             '--local-setup',
-            default=defaults.local_setup,
+            default=options.local_setup,
             help=(
                 f'Path to local setup.bash file to source. '
-                f'Currently: {defaults.local_setup}'
+                f'Currently: {options.local_setup}'
             )
         )
         local_setup_group.add_argument(
@@ -358,19 +309,19 @@ class Flag:
             action='store_const',
             const=None,
             dest='local_setup',
-            default=defaults.local_setup,
+            default=options.local_setup,
             help=(
-                SUPPRESS if not defaults.local_setup else
+                SUPPRESS if not options.local_setup else
                 f'Do not source a local setup.bash. '
-                f'Currently: {defaults.local_setup}'
+                f'Currently: {options.local_setup}'
             )
         )
 
         self.log_level.add_argument(
             '--log-level',
-            default=defaults.log_level,
+            default=options.log_level,
             choices=choices.log_level,
-            help=f'Currently: {defaults.log_level}',
+            help=f'Currently: {options.log_level}',
         )
 
         # TODO add PortsAction to allow <host>:<container> mapping. See VolumesAction for reference.
@@ -378,59 +329,75 @@ class Flag:
             '--ports', '-p',
             nargs='*',
             type=int,
-            default=sorted(defaults.ports),
+            default=sorted(options.ports),
             help=f'List of ports to expose in docker container. '
-            f'Currently: {defaults.ports}'
+            f'Currently: {options.ports}'
         )
-        pull_group = self.pull.add_mutually_exclusive_group()
+        pull_group = self.pull_docker_image.add_mutually_exclusive_group()
         pull_group.add_argument(
-            '--pull',
+            '--pull-docker-image',
             action='store_true',
-            default=defaults.pull,
+            default=options.pull_docker_image,
             help=(
-                SUPPRESS if defaults.pull else
+                SUPPRESS if options.pull_docker_image else
                 f'Pull newer docker image. '
-                f'Currently: {defaults.pull}'
+                f'Currently: {options.pull_docker_image}'
             )
         )
         pull_group.add_argument(
-            '--no-pull',
+            '--no-pull-docker-image',
             action='store_false',
-            dest='pull',
-            default=defaults.pull,
+            dest='pull_docker_image',
+            default=options.pull_docker_image,
             help=(
-                SUPPRESS if not defaults.pull else
+                SUPPRESS if not options.pull_docker_image else
                 f'Do not pull newer docker image. '
-                f'Currently: {defaults.pull}'
+                f'Currently: {options.pull_docker_image}'
             )
         )
 
         self.release.add_argument(
             '--release', '-r',
-            default=defaults.release,
+            default=options.release,
             choices=choices.release,
             help=(
                 f'ROS release to build. '
-                f'Currently: {defaults.release}'
+                f'Currently: {options.release}'
             )
         )
 
-        self.replace_named_container.add_argument(
-            '--replace-named-container',
-            default=defaults.replace_named_container,
+        replace_docker_container_group = (
+            self.replace_docker_container.add_mutually_exclusive_group()
+        )
+        replace_docker_container_group.add_argument(
+            '--replace-docker-container',
+            action='store_true',
+            default=options.replace_docker_container,
             help=(
-                f'Replace named containers that should only need to be built once. '
-                f'Currently: {defaults.replace_named_container}'
+                SUPPRESS if options.replace_docker_container else
+                f'Replace docker containers that should only need to be built once. '
+                f'Currently: {options.replace_docker_container}'
+            )
+        )
+        replace_docker_container_group.add_argument(
+            '--no-replace-docker-container',
+            action='store_false',
+            dest='replace_docker_container',
+            default=options.replace_docker_container,
+            help=(
+                SUPPRESS if not options.replace_docker_container else
+                f'Do not replace docker containers that should only need to be built once. '
+                f'Currently: {options.replace_docker_container}'
             )
         )
 
         rosdep_install_args_group = self.rosdep_install_args.add_mutually_exclusive_group()
         rosdep_install_args_group.add_argument(
             '--rosdep-install-args',
-            default=defaults.rosdep_install_args,
+            default=options.rosdep_install_args,
             help=(
                 f'Additional args to pass to rosdep install. '
-                f'Currently: {defaults.rosdep_install_args}'
+                f'Currently: {options.rosdep_install_args}'
             )
         )
         rosdep_install_args_group.add_argument(
@@ -438,31 +405,31 @@ class Flag:
             action='store_const',
             const=None,
             dest='rosdep_install_args',
-            default=defaults.rosdep_install_args,
+            default=options.rosdep_install_args,
             help=(
-                SUPPRESS if defaults.rosdep_install_args is None else
+                SUPPRESS if options.rosdep_install_args is None else
                 f'Do not pass additional args to rosdep install. '
-                f'Currently: {defaults.rosdep_install_args}'
+                f'Currently: {options.rosdep_install_args}'
             )
         )
 
         sanitizer_group = self.sanitizer.add_mutually_exclusive_group()
         sanitizer_group.add_argument(
             '--sanitizer',
-            default=defaults.sanitizer,
+            default=options.sanitizer,
             choices=choices.sanitizer,
-            help=f'Build with sanitizer enabled. Currently: {defaults.sanitizer}',
+            help=f'Build with sanitizer enabled. Currently: {options.sanitizer}',
         )
         sanitizer_group.add_argument(
             '--no-sanitizer',
             action='store_const',
             const=None,
             dest='sanitizer',
-            default=defaults.sanitizer,
+            default=options.sanitizer,
             help=(
-                SUPPRESS if defaults.sanitizer is None else
+                SUPPRESS if options.sanitizer is None else
                 f'Do not build with a sanitizer enabled. '
-                f'Currently: {defaults.sanitizer}'
+                f'Currently: {options.sanitizer}'
             )
         )
 
@@ -478,12 +445,12 @@ class Flag:
 
         self.uuid.add_argument(
             '--uuid',
-            default=defaults.uuid,
+            default=options.uuid,
             action=UuidAction,
             type=str,
             help=(
                 f'UUID to use for generated settings. '
-                f' Currently: {defaults.uuid}'
+                f' Currently: {options.uuid}'
             )
         )
 
@@ -509,14 +476,13 @@ class Flag:
         self.volumes.add_argument(
             '--volumes', '-v',
             nargs='+',
-            default=defaults.volumes,
+            default=options.volumes,
             action=VolumesAction,
-            help=f'Additional volumes to mount in docker container. Currently: {defaults.volumes}',
+            help=f'Additional volumes to mount in docker container. Currently: {options.volumes}',
         )
 
 
 flag = Flag()
-
 
 
 @dataclass(frozen=True)
@@ -632,8 +598,9 @@ parser = parser.merged_with(
         flag.gui,
         flag.local_setup,
         flag.ports,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
+        flag.replace_docker_container,
         flag.volumes,
     })
 )
@@ -649,7 +616,7 @@ parser = parser.merged_with(
         flag.build_type,
         flag.colcon_build_args,
         flag.good_build_num,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
     })
@@ -663,7 +630,7 @@ parser = parser.merged_with(
         flag.build_type,
         flag.global_setup,
         flag.local_setup,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
     })
@@ -678,7 +645,7 @@ parser = parser.merged_with(
         flag.colcon_build_args,
         flag.global_setup,
         flag.local_setup,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
     })
@@ -688,14 +655,9 @@ parser = parser.merged_with(sub_commands='gen clion cmake')
 parser = parser.merged_with(sub_commands='gen clion config')
 parser = parser.merged_with(sub_commands='gen clion ide')
 parser = parser.merged_with(sub_commands='gen clion keepass')
-parser = parser.merged_with(sub_commands='gen clion overlay')
+# parser = parser.merged_with(sub_commands='gen clion overlay')
 parser = parser.merged_with(sub_commands='gen clion settings')
 parser = parser.merged_with(sub_commands='gen clion toolchain')
-
-parser = parser.merged_with(
-    sub_commands='gen defaults',
-    flags=frozenset(asdict(flag).values())
-)
 
 parser = parser.merged_with(
     sub_commands='gen docker container',
@@ -708,8 +670,9 @@ parser = parser.merged_with(
         flag.interactive,
         flag.local_setup,
         flag.ports,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
+        flag.replace_docker_container,
         flag.volumes,
     })
 )
@@ -718,7 +681,7 @@ parser = parser.merged_with(
     sub_commands='gen docker image',
     flags=frozenset({
         flag.architecture,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
     })
 )
@@ -728,10 +691,22 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.build_num,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release
     })
 )
+
+parser = parser.merged_with(
+    sub_commands='gen overrides',
+    flags=frozenset(asdict(flag).values())
+)
+
+parser = parser.merged_with(sub_commands='gen pycharm config')
+parser = parser.merged_with(sub_commands='gen pycharm ide')
+parser = parser.merged_with(sub_commands='gen pycharm keepass')
+# parser = parser.merged_with(sub_commands='gen pycharm overlay')
+parser = parser.merged_with(sub_commands='gen pycharm settings')
+
 
 parser = parser.merged_with(
     sub_commands='gen rosdep config',
@@ -741,7 +716,7 @@ parser = parser.merged_with(
     sub_commands='gen rosdep install',
     flags=frozenset({
         flag.architecture,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release,
         flag.rosdep_install_args,
     })
@@ -755,8 +730,22 @@ parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
         flag.build_num,
-        flag.pull,
+        flag.pull_docker_image,
         flag.release
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='pycharm',
+    flags=frozenset({
+        flag.architecture,
+        flag.build_num,
+        flag.build_type,
+        flag.global_setup,
+        flag.local_setup,
+        flag.pull_docker_image,
+        flag.release,
+        flag.sanitizer,
     })
 )
 
@@ -767,6 +756,7 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
 
     import sys
     args = args if args is not None else sys.argv[1:]
+    # noinspection PyBroadException
     try:
         args = argument_parser.parse_args(args)
     except Exception:
@@ -784,5 +774,4 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
     del args.__dict__['rosdev_handler_module']
     del args.__dict__['rosdev_handler_class']
 
-    from rosdev.util.options import Options
-    return handler(Options(**ChainMap(args.__dict__, asdict(defaults))))
+    return handler(replace(options, **args.__dict__))

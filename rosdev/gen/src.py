@@ -1,4 +1,3 @@
-from __future__ import annotations
 from atools import memoize
 from dataclasses import dataclass
 from frozendict import frozendict
@@ -31,12 +30,12 @@ class Src(Handler):
 
     @property
     def global_path_base(self) -> str:
-        return f'{RosdevConfig(super().options).global_path}/src'
+        return f'{RosdevConfig(super().options).global_path}/{super().options.architecture}/' \
+            f'{super().options.build_num}'
 
     @property
     def global_path(self) -> str:
-        return f'{self.global_path_base}/' \
-            f'{super().options.architecture}_{super().options.build_num or super().options.release}'
+        return f'{self.global_path_base}/src'
 
     @property
     def local_path_base(self) -> str:
@@ -60,6 +59,9 @@ class Src(Handler):
             **super().options.volumes,
             self.local_path: self.container_path,
         })
+
+    def __post_init__(self) -> None:
+        assert self.options.build_num is not None
 
     @memoize
     async def _main(self) -> None:
@@ -92,6 +94,8 @@ class Src(Handler):
 
             log.info(f'Caching src at {self.global_path}')
             await exec(f'mkdir -p {self.global_path_base}')
+            # FIXME this fails if the global path already exists since we recursively made it
+            #  read-only
             await exec(f'mv {staging_path} {self.global_path}')
 
         await exec(f'chmod -R -w {self.global_path}')
