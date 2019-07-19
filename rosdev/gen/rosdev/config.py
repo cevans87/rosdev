@@ -1,6 +1,6 @@
 from asyncio import gather
 from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
@@ -21,7 +21,7 @@ class Config(Handler):
 
     @property
     def container_path(self) -> str:
-        return f'{Path.cwd()}/.rosdev'kj
+        return f'{Path.cwd()}/.rosdev'
 
     @property
     def global_path(self) -> str:
@@ -33,7 +33,8 @@ class Config(Handler):
 
     @property
     def options(self) -> Options:
-        return super().options(
+        return replace(
+            super().options,
             volumes=self.volumes,
         )
 
