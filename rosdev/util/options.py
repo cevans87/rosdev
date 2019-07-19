@@ -32,26 +32,3 @@ class Options:
     sanitizer: Optional[str] = None
     uuid: Optional[str] = None
     volumes: Mapping[str, str] = frozendict()
-    
-    @memoize
-    async def get_build_num(self) -> int:
-        build_num = self.build_num
-        if (build_num is None) and \
-                (not self.pull_install) and \
-                (not self.pull_src):
-            try:
-                paths = sorted(Path(self.global_path).iterdir())
-            except FileNotFoundError:
-                pass
-            else:
-                try:
-                    build_num = int(str(paths[-1].parts[-1]))
-                except (IndexError, ValueError):
-                    pass
-
-        if build_num is None:
-            build_num = await get_build_num(
-                architecture=self.architecture, release=self.release
-            )
-
-        return build_num

@@ -9,7 +9,7 @@ from rosdev.gen.docker.container import Container
 from rosdev.gen.colcon.build import Build
 from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_build_num, get_operating_system
+from rosdev.util.lookup import get_operating_system
 from rosdev.util.subprocess import shell
 
 

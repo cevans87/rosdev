@@ -1,5 +1,5 @@
 from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from frozendict import frozendict
 from logging import getLogger
 import os
@@ -30,8 +30,7 @@ class Src(Handler):
 
     @property
     def global_path_base(self) -> str:
-        return f'{RosdevConfig(super().options).global_path}/{super().options.architecture}/' \
-            f'{super().options.build_num}'
+        return RosdevConfig(super().options).global_path
 
     @property
     def global_path(self) -> str:
@@ -47,7 +46,8 @@ class Src(Handler):
 
     @property
     def options(self) -> Options:
-        return super().options(
+        return replace(
+            super().options,
             volumes=self.volumes
         )
 

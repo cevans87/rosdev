@@ -30,10 +30,7 @@ class Install(Handler):
 
     @property
     def global_path_base(self) -> str:
-        return (
-            f'{RosdevConfig(super().options).global_path}/{super().options.architecture}/'
-            f'{super().options.build_num}'
-        )
+        return RosdevConfig(super().options).global_path
 
     @property
     def global_path(self) -> str:

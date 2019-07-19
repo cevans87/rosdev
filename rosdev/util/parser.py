@@ -491,6 +491,7 @@ class Parser:
     positionals: Tuple[ArgumentParser, ...] = tuple()
     flags: FrozenSet[ArgumentParser] = frozenset()
     sub_parser_by_sub_command: Mapping[str, Parser] = frozendict()
+    resolve_flags: FrozenSet[str] = frozenset()
 
     # noinspection PyShadowingNames
     def merged_with(
@@ -499,6 +500,7 @@ class Parser:
             sub_commands: Union[str, Sequence[str]],
             positionals: Sequence[ArgumentParser] = tuple(),
             flags: AbstractSet[ArgumentParser] = frozenset(),
+            resolve_flags: AbstractSet[str] = frozenset(),
     ) -> Parser:
         if isinstance(sub_commands, str):
             sub_commands = tuple(sub_commands.split())
@@ -508,7 +510,8 @@ class Parser:
                 sub_command=self.sub_command,
                 positionals=tuple([*self.positionals, *positionals]),
                 flags=frozenset(self.flags | flags),
-                sub_parser_by_sub_command=self.sub_parser_by_sub_command
+                sub_parser_by_sub_command=self.sub_parser_by_sub_command,
+                resolve_flags=frozenset(self.resolve_flags | resolve_flags),
             )
         else:
             sub_parser = self.sub_parser_by_sub_command.get(sub_commands[0])
@@ -519,6 +522,7 @@ class Parser:
                 sub_commands=sub_commands[1:],
                 positionals=positionals,
                 flags=flags,
+                resolve_flags=frozenset(resolve_flags),
             )
 
             parser = replace(
@@ -575,6 +579,9 @@ class Parser:
                     parent_flags=flags,
                     prev_sub_commands=tuple([*prev_sub_commands, self.sub_command])
                 )
+        argument_parser.set_defaults(
+            resolve_flags=self.resolve_flags
+        )
 
         return argument_parser
 
@@ -602,6 +609,9 @@ parser = parser.merged_with(
         flag.release,
         flag.replace_docker_container,
         flag.volumes,
+    }),
+    resolve_flags=frozenset({
+        'build_num',
     })
 )
 
@@ -633,6 +643,9 @@ parser = parser.merged_with(
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
+    }),
+    resolve_flags=frozenset({
+        'build_num',
     })
 )
 
@@ -774,4 +787,15 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
     del args.__dict__['rosdev_handler_module']
     del args.__dict__['rosdev_handler_class']
 
-    return handler(replace(options, **args.__dict__))
+    resolve_flags = args.resolve_flags
+    del args.__dict__['resolve_flags']
+
+    import asyncio
+    import rosdev.util.resolve as resolve
+
+    global options
+    options = replace(options, **args.__dict__)
+    for resolve_flag in resolve_flags:
+        options = asyncio.run(getattr(resolve, resolve_flag)(options))
+
+    return handler(options)
