@@ -1,5 +1,6 @@
 from asyncio import get_event_loop
 from atools import memoize
+from dataclasses import replace
 from logging import getLogger
 from jenkins import Jenkins
 from typing import Dict, List, Tuple
@@ -33,17 +34,19 @@ class Bisect(Handler):
                     build_nums[:len(build_nums) // 2] + build_nums[(len(build_nums) // 2) + 1:]
                 continue
 
+            options = replace(self.options, build_num=test_build_num, interactive=True)
+
             log.info(f'testing build {test_build_num}')
 
             await shell('rm -rf build install log')
 
-            await Install(self.options(build_num=test_build_num))
+            await Install(options)
 
-            await Build(self.options(build_num=test_build_num)).must_succeed()
+            await Build(options)
 
             try:
                 await Container(
-                    self.options(build_num=test_build_num, interactive=False)
+                    replace(self.options, build_num=test_build_num, interactive=False)
                 ).must_succeed()
             except Container.Exception:
                 log.info(f'build {test_build_num} is bad')

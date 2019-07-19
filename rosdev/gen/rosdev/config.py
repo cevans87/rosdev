@@ -21,7 +21,7 @@ class Config(Handler):
 
     @property
     def container_path(self) -> str:
-        return f'{Path.cwd()}/.rosdev'
+        return f'{Path.cwd()}/.rosdev'kj
 
     @property
     def global_path(self) -> str:

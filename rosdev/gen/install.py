@@ -49,11 +49,11 @@ class Install(Handler):
 
     @property
     def volumes(self) -> Mapping[str, str]:
-        if self.options.global_setup is None:
-            return self.options.volumes
+        if super().options.global_setup is None:
+            return super().options.volumes
 
         return frozendict({
-            **self.options.volumes,
+            **super().options.volumes,
             self.local_path: self.container_path,
         })
 

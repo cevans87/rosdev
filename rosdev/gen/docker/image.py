@@ -160,6 +160,7 @@ class Image(Handler):
     @memoize
     async def _main(self) -> None:
         def _main_internal() -> None:
+            log.info(f'Creating docker image {self.tag} from {self.base_tag}')
             with TemporaryDirectory() as tempdir_path:
                 with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
                     dockerfile_f_out.write(self.dockerfile_contents)
@@ -176,7 +177,6 @@ class Image(Handler):
                     rm=True,
                     tag=self.tag,
                 )
+            log.info(f'Created docker image {self.tag} from {self.base_tag}')
 
-        log.info(f'Creating docker image {self.tag} from {self.base_tag}')
         await asyncio.get_event_loop().run_in_executor(None, _main_internal)
-        log.info(f'Created docker image {self.tag} from {self.base_tag}')

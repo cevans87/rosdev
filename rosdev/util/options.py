@@ -1,5 +1,4 @@
-from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from frozendict import frozendict
 from typing import FrozenSet, Mapping, Optional
 
@@ -24,17 +23,35 @@ class Options:
     log_level: str = 'INFO'
     package: Optional[str] = None
     ports: FrozenSet[int] = frozenset()
-    # TODO change this to pull_docker_image
     pull_docker_image: bool = False
     pull_src: bool = False
     pull_install: bool = False
     release: str = 'latest'
-    # TODO change this to replace_docker_container
     replace_docker_container: bool = False
     rosdep_install_args: Optional[str] = None
     sanitizer: Optional[str] = None
     uuid: Optional[str] = None
     volumes: Mapping[str, str] = frozendict()
+    
+    @memoize
+    async def get_build_num(self) -> int:
+        build_num = self.build_num
+        if (build_num is None) and \
+                (not self.pull_install) and \
+                (not self.pull_src):
+            try:
+                paths = sorted(Path(self.global_path).iterdir())
+            except FileNotFoundError:
+                pass
+            else:
+                try:
+                    build_num = int(str(paths[-1].parts[-1]))
+                except (IndexError, ValueError):
+                    pass
 
-    def __call__(self, **kwargs) -> Options:
-        return replace(self, **kwargs)
+        if build_num is None:
+            build_num = await get_build_num(
+                architecture=self.architecture, release=self.release
+            )
+
+        return build_num

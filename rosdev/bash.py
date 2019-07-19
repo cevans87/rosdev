@@ -19,21 +19,13 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class Bash(Handler):
     
-    @property
-    def command(self) -> str:
-        return '/bin/bash'
-
-    @property
-    def global_path(self) -> str:
-        return f'{RosdevConfig(super().options).global_path}/{super().options.architecture}/'
-
     @memoize
     async def _main(self) -> None:
         build_num = await RosdevConfig(self.options).get_build_num()
-
         options = replace(
             self.options,
-            command=self.command,
+            build_num=build_num,
+            command='/bin/bash',
             interactive=True,
             volumes=frozendict({
                 **self.options.volumes,
@@ -44,7 +36,6 @@ class Bash(Handler):
                 **Src(replace(self.options, build_num=build_num)).options.volumes,
             })
         )
-
         await gather(
             Install(options),
             Src(options),
