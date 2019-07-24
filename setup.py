@@ -17,7 +17,6 @@ setup(
         'pykeepass>=2.19',
         'pytest>=4.4.1',
         'python-jenkins>=1.4.0',
-        'stringcase>=1.2.0',
         'vcstool>=0.1.38'
     ],
     test_suite='tests',

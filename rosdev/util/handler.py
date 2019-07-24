@@ -1,7 +1,9 @@
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from __future__ import annotations
+from asyncio import gather
+from atools import memoize
+from dataclasses import dataclass, field
 from logging import getLogger
-from typing import Generator
+from typing import Tuple, Type
 
 from rosdev.util.options import Options
 
@@ -10,16 +12,80 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Handler(ABC):
-    _options: Options
+class Handler:
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=tuple())
+    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=tuple())
 
-    def __await__(self) -> Generator[None, None, None]:
-        return self._main().__await__()
+    @classmethod
+    async def run(cls, options: Options) -> None:
+        options = await cls._resolve_all_options(options)
+        await cls._validate_all_options(options)
+        await cls._main_all(options)
 
-    @property
-    def options(self) -> Options:
-        return self._options
+    @classmethod
+    async def _pre_resolve_options(cls, options: Options) -> Options:
+        for pre_dependency in cls.pre_dependencies:
+            options = await pre_dependency._resolve_all_options(options)
 
-    @abstractmethod
-    async def _main(self) -> None:
-        raise NotImplemented()
+        return options
+
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        return options
+
+    @classmethod
+    async def _post_resolve_options(cls, options: Options) -> Options:
+        for post_dependency in cls.post_dependencies:
+            options = await post_dependency._resolve_all_options(options)
+
+        return options
+
+    @classmethod
+    async def _resolve_all_options(cls, options: Options) -> Options:
+        options = await cls._pre_resolve_options(options)
+        options = await cls.resolve_options(options)
+        options = await cls._post_resolve_options(options)
+
+        return options
+
+    @classmethod
+    async def validate_options(cls, options: Options) -> None:
+        pass
+
+    @classmethod
+    @memoize
+    async def _validate_all_options(cls, options: Options) -> None:
+        await gather(
+            *[
+                pre_dependency._validate_all_options(options)
+                for pre_dependency in cls.pre_dependencies
+            ],
+            cls.validate_options(options),
+            *[
+                post_dependency._validate_all_options(options)
+                for post_dependency in cls.post_dependencies
+            ]
+        )
+
+    @classmethod
+    async def _pre_main(cls, options: Options) -> None:
+        await gather(*[
+            pre_dependency._main_all(options) for pre_dependency in cls.pre_dependencies
+        ])
+
+    @classmethod
+    async def main(cls, options: Options) -> None:
+        pass
+
+    @classmethod
+    async def _post_main(cls, options: Options) -> None:
+        await gather(*[
+            post_dependency._main_all(options) for post_dependency in cls.post_dependencies
+        ])
+
+    @classmethod
+    @memoize
+    async def _main_all(cls, options: Options) -> None:
+        await cls._pre_main(options)
+        await cls.main(options)
+        await cls._post_main(options)

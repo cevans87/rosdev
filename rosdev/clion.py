@@ -1,7 +1,7 @@
-from asyncio import gather
 from atools import memoize
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field
 from logging import getLogger
+from typing import Tuple, Type
 
 from rosdev.gen.clion.cpp_toolchains_xml import CppToolchainsXml
 from rosdev.gen.clion.deployment_xml import DeploymentXml
@@ -23,17 +23,18 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class Clion(Handler):
 
+    dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        CppToolchainsXml,
+        DeploymentXml,
+        Install,
+        Keepass,
+        SecurityXml,
+        Src,
+        Toolchain,
+        WebserversXml,
+        WorkspaceXml,
+    ))
+
     @memoize
     async def _main(self) -> None:
-        await gather(
-            CppToolchainsXml(self.options),
-            DeploymentXml(self.options),
-            Install(self.options),
-            Keepass(self.options),
-            SecurityXml(self.options),
-            Src(self.options),
-            Toolchain(self.options),
-            WebserversXml(self.options),
-            WorkspaceXml(self.options),
-        )
         await Ide(self.options)

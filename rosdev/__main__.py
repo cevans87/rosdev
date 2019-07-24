@@ -3,20 +3,20 @@
 
 import logging
 from typing import List, Optional
-from rosdev.util.parser import get_handler
+from rosdev.util.parser import get_handler_and_options
 
 log = logging.getLogger(__package__)
 
 
 def main(args: Optional[List[str]] = None) -> int:
-    handler = get_handler(args)
+    handler, options = get_handler_and_options(args)
 
     import sys
     stream_handler = logging.StreamHandler(sys.stdout)
     # noinspection PyProtectedMember,PyUnresolvedReferences
-    stream_handler.setLevel(logging._nameToLevel[handler.options.log_level])
+    stream_handler.setLevel(logging._nameToLevel[options.log_level])
     # noinspection PyProtectedMember,PyUnresolvedReferences
-    log.setLevel(logging._nameToLevel[handler.options.log_level])
+    log.setLevel(logging._nameToLevel[options.log_level])
     log.addHandler(stream_handler)
 
     async def run_handler():

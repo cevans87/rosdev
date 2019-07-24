@@ -1,14 +1,11 @@
-from asyncio import gather
-from atools import memoize
-from dataclasses import dataclass, replace
-from frozendict import frozendict
+from dataclasses import dataclass, field, replace
 from logging import getLogger
-from pathlib import Path
-from typing import Mapping
+from typing import Tuple, Type
 
-from rosdev.gen.install import Install
-from rosdev.gen.src import Src
-from rosdev.gen.docker.container import Container
+from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.ros.install import GenRosInstall
+from rosdev.gen.ros.src import GenRosSrc
+from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -16,38 +13,21 @@ from rosdev.util.options import Options
 log = getLogger(__name__)
 
 
-@memoize
 @dataclass(frozen=True)
 class Bash(Handler):
-    
-    @property
-    def command(self) -> str:
-        return '/bin/bash'
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenDockerImage,
+        GenRosInstall,
+        GenRosSrc,
+    ))
+    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenDockerContainer,
+    ))
 
-    @property
-    def options(self) -> Options:
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
         return replace(
-            super().options,
-            command=self.command,
-            interactive=True,
-            volumes=self.volumes,
+            options,
+            docker_container_command='/bin/bash',
+            interactive_docker_container=True,
         )
-
-    @property
-    def volumes(self) -> Mapping[str, str]:
-        return frozendict({
-            **super().options.volumes,
-            f'{Path.home()}/.bashrc': f'{Path.home()}/.bashrc',
-            f'{Path.home()}/.bash_history': f'{Path.home()}/.bash_history',
-            f'{Path.home()}/.profile': f'{Path.home()}/.profile',
-            **Install(super().options).options.volumes,
-            **Src(super().options).options.volumes,
-        })
-
-    @memoize
-    async def _main(self) -> None:
-        await gather(
-            Install(self.options),
-            Src(self.options),
-        )
-        await Container(self.options)

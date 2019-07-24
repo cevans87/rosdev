@@ -1,5 +1,5 @@
 import asyncio
-from atools import memoize
+from dataclasses import dataclass, field, replace
 import docker
 from logging import getLogger
 import os
@@ -7,76 +7,80 @@ from pathlib import Path
 import platform
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from typing import Tuple, Type
 
+from rosdev.gen.architecture import GenArchitecture
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_machine
+from rosdev.util.options import Options
 
 
 log = getLogger(__name__)
 
 
-@memoize
-class Image(Handler):
+@dataclass(frozen=True)
+class GenDockerImage(Handler):
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenArchitecture,
+    ))
 
-    class Exception(Exception):
-        pass
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        docker_image_base_tag = options.docker_image_base_tag
+        if docker_image_base_tag is None:
+            if options.ros_release != 'latest':
+                docker_image_base_tag = (
+                    f'{cls.get_profile(options)}/ros:{options.ros_release}-{options.flavor}'
+                )
+            elif cls.get_profile(options) != 'amd64':
+                docker_image_base_tag = '{cls.get_profile(options)}/ros:crystal-{options.flavor}'
+            else:
+                docker_image_base_tag = 'osrf/ros2:nightly'
+                
+        docker_image_tag = options.docker_image_tag
+        if docker_image_tag is None:
+            docker_image_tag = f'{docker_image_base_tag}-dev'
 
-    @property
-    def profile(self) -> str:
-        if self.options.flavor in {'desktop', 'desktop-full'}:
+        return replace(
+            options,
+            docker_image_base_tag=docker_image_base_tag,
+            docker_image_tag=docker_image_tag,
+        )
+
+    @classmethod
+    def get_profile(cls, options: Options) -> str:
+        if options.flavor in {'desktop', 'desktop-full'}:
             return 'osrf'
         else:
-            return self.options.architecture
+            return options.architecture
 
-    @property
-    def base_tag(self) -> str:
-        if self.options.release != 'latest':
-            return f'{self.profile}/ros:{self.options.release}-{self.options.flavor}'
-        elif self.profile != 'amd64':
-            return f'{self.profile}/ros:crystal-{self.options.flavor}'
-        else:
-            return f'osrf/ros2:nightly'
+    @classmethod
+    def get_qemu_path(cls, options: Options) -> str:
+        return f'/usr/bin/qemu-{options.machine}-static'
 
-    @property
-    def tag(self) -> str:
-        return f'{self.base_tag}-dev'
-
-    @property
-    def machine(self) -> str:
-        return get_machine(self.options.architecture)
-
-    @property
-    def qemu_path(self) -> str:
-        return f'/usr/bin/qemu-{self.machine}-static'
-
-    @property
-    def rosdev_entrypoint_sh_contents(self) -> str:
-        # TODO improve the way we're executing this entrypoint. Make this global entrypoint
-        #  execute a local entrypoint, which we will volume mount from the local rosdev workspace
+    @classmethod
+    def get_rosdev_entrypoint_sh_contents(cls, options: Options) -> str:
         return dedent(fr'''
             #!/bin/bash
             set -e
             
-            if [ ! -z ${{ROSDEV_GLOBAL_SETUP+x}} ]; then \
-               source "$ROSDEV_GLOBAL_SETUP"
+            if [ ! -z ${{ROSDEV_ROS_SETUP_UNDERLAY_CONTAINER_PATH+x}} ]; then \
+               source "$ROSDEV_ROS_SETUP_UNDERLAY_CONTAINER_PATH"
             fi
             
-            if [ ! -z ${{ROSDEV_LOCAL_SETUP+x}} ]; then \
-               source "$ROSDEV_LOCAL_SETUP"
+            if [ ! -z ${{ROSDEV_ROS_SETUP_OVERLAY_CONTAINER_PATH+x}} ]; then \
+               source "$ROSDEV_ROS_SETUP_OVERLAY_CONTAINER_PATH"
             fi
             
             exec "$@"
         ''').lstrip()
 
-    @property
-    def dockerfile_contents(self) -> str:
-        # FIXME see how hard it is to host this image on Dockerhub. It takes a while to build.
-        # FIXME allow user to specify additional apt and pip3 packages
+    @classmethod
+    def get_dockerfile_contents(cls, options: Options) -> str:
         return dedent(fr'''
-            FROM {self.base_tag}
+            FROM {options.docker_image_base_tag}
 
             # qemu static binaries
-            {f'VOLUME {self.qemu_path}' if platform.machine() != self.machine
+            {f'VOLUME {cls.get_qemu_path(options)}' if platform.machine() != options.machine
                 and platform.system() != 'Darwin' else '# not needed'}
 
             # make ssh easier
@@ -157,15 +161,18 @@ class Image(Handler):
             CMD bash
         ''').lstrip()
 
-    @memoize
-    async def _main(self) -> None:
-        def _main_internal() -> None:
-            log.info(f'Creating docker image {self.tag} from {self.base_tag}')
+    @classmethod
+    async def main(cls, options: Options) -> None:
+        def main_internal() -> None:
+            log.info(
+                f'Creating docker image {options.docker_image_tag} '
+                f'from {options.docker_image_base_tag}'
+            )
             with TemporaryDirectory() as tempdir_path:
                 with open(f'{tempdir_path}/Dockerfile', 'w') as dockerfile_f_out:
-                    dockerfile_f_out.write(self.dockerfile_contents)
+                    dockerfile_f_out.write(cls.get_dockerfile_contents(options))
                 with open(f'{tempdir_path}/rosdev_entrypoint.sh', 'w') as entrypoint_f_out:
-                    entrypoint_f_out.write(self.rosdev_entrypoint_sh_contents)
+                    entrypoint_f_out.write(cls.get_rosdev_entrypoint_sh_contents(options))
                 with open(f'{Path.home()}/.ssh/id_rsa.pub', 'r') as id_rsa_f_in, \
                         open(f'{tempdir_path}/id_rsa.pub', 'w') as id_rsa_f_out:
                     id_rsa_f_out.write(id_rsa_f_in.read())
@@ -173,10 +180,13 @@ class Image(Handler):
                 client = docker.client.from_env()
                 client.images.build(
                     path=tempdir_path,
-                    pull=self.options.pull_docker_image,
+                    pull=options.pull_docker_image,
                     rm=True,
-                    tag=self.tag,
+                    tag=options.docker_image_tag,
                 )
-            log.info(f'Created docker image {self.tag} from {self.base_tag}')
+            log.info(
+                f'Created docker image {options.docker_image_tag} '
+                f'from {options.docker_image_base_tag}'
+            )
 
-        await asyncio.get_event_loop().run_in_executor(None, _main_internal)
+        await asyncio.get_event_loop().run_in_executor(None, main_internal)

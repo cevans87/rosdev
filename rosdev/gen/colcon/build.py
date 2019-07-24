@@ -10,6 +10,7 @@ from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
 
+# FIXME colcon build doesn't add much value. Get rid of it.
 @memoize
 class Build(Handler):
 
@@ -49,7 +50,7 @@ class Build(Handler):
     @property
     def volumes(self) -> Mapping[str, str]:
         return frozendict({
-            **self.options.volumes,
+            **self.options.docker_container_volumes,
             **Install(self.options).volumes,
             **RosdepConfig(self.options).volumes,
         })

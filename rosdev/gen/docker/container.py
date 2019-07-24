@@ -1,107 +1,89 @@
-from asyncio import get_event_loop
-from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 import docker
-from docker.models.containers import Container as _Container
+from docker.models.containers import Container
 from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
-from stringcase import snakecase
-from typing import Mapping, Optional
+from typing import Optional, Tuple, Type
 
-from rosdev.gen.rosdev.config import Config as RosdevConfig
-from rosdev.gen.docker.image import Image
+from rosdev.gen.base import GenBase
+from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.rosdev import GenRosdev
+from rosdev.gen.ros.install import GenRosInstall
 from rosdev.util.handler import Handler
-from rosdev.util.subprocess import exec
+from rosdev.util.options import Options
 
 
 log = getLogger(__name__)
 
 
-@memoize
 @dataclass(frozen=True)
-class Container(Handler):
+class GenDockerContainer(Handler):
+    # FIXME depend on overlay/underlay
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenBase,
+        GenDockerImage,
+        GenRosdev,
+        GenRosInstall,
+    ))
 
-    class Exception(Exception):
-        pass
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
 
-    @property
-    def docker_container_name(self) -> str:
-        return super().options.docker_container_name or (
-            f'rosdev_{super().options.architecture}_{super().options.release}_at_'
-            f'{snakecase(str(Path.cwd().relative_to(Path.home())).replace("/", "_"))}'
+        docker_container_name = options.resolve_str(options.docker_container_name)
+        #docker_container_name += f'_{hash(str(options.base_workspace_path))}'
+
+        docker_container_environment = dict(options.docker_container_environment)
+        docker_container_environment['ROSDEV_DOCKER_CONTAINER_NAME'] = docker_container_name
+        if options.source_ros_setup_overlay:
+            docker_container_environment['ROSDEV_ROS_SETUP_OVERLAY_CONTAINER_PATH'] = (
+                str(options.ros_setup_overlay_container_path)
+            )
+        if options.source_ros_setup_underlay:
+            docker_container_environment['ROSDEV_ROS_SETUP_UNDERLAY_CONTAINER_PATH'] = (
+                # FIXME move this resolve_container_path to underlay
+                str(options.resolve_container_path(options.ros_setup_underlay_container_path))
+            )
+        if options.enable_gui:
+            docker_container_environment['DISPLAY'] = os.environ['DISPLAY']
+        if options.enable_ccache:
+            docker_container_environment['CC'] = '/usr/lib/ccache/gcc'
+            docker_container_environment['CXX'] = '/usr/lib/ccache/g++'
+        docker_container_environment = frozendict(docker_container_environment)
+
+        docker_container_volumes = dict(options.docker_container_volumes)
+        #docker_container_volumes[options.rosdev_universal_path] = options.rosdev_universal_path
+        docker_container_volumes[options.ros_install_universal_path] = (
+            options.ros_install_container_path
+        )
+        docker_container_volumes[options.ros_src_universal_path] = options.ros_src_container_path
+        docker_container_volumes[options.base_workspace_path] = options.base_container_path
+        if options.enable_gui:
+            docker_container_volumes['/tmp/.X11-unix'] = '/tmp/.X11-unix'
+        docker_container_volumes = frozendict(docker_container_volumes)
+
+        return replace(
+            options,
+            docker_container_environment=docker_container_environment,
+            docker_container_name=docker_container_name,
+            docker_container_volumes=docker_container_volumes,
         )
 
-    @property
-    def environment(self) -> frozendict:
-        environment = {k: v for k, v in os.environ.items() if 'AWS' in k}
-        if self.options.global_setup is not None:
-            environment['ROSDEV_GLOBAL_SETUP'] = (
-                f'{Path(self.options.global_setup).expanduser().absolute()}'
-            )
-        if self.options.local_setup is not None:
-            environment['ROSDEV_LOCAL_SETUP'] = (
-                f'{Path(self.options.local_setup).expanduser().absolute()}'
-            )
-
-        if self.options.gui:
-            environment['DISPLAY'] = os.environ['DISPLAY']
-
-        if self.options.ccache:
-            environment['CC'] = '/usr/lib/ccache/gcc'
-            environment['CXX'] = '/usr/lib/ccache/g++'
-
-        #if self.options.sanitizer is not None:
-        #    if self.options.sanitizer == 'asan':
-        #        environment['LD_PRELOAD'] = (
-        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
-        #            f'libasan.so.4'
-        #        )
-        #    else:
-        #        environment['LD_PRELOAD'] = (
-        #            f'/usr/lib/{get_machine(self.options.architecture)}-linux-gnu/'
-        #            f'lib{self.options.sanitizer}.so.0'
-        #        )
-
-        environment = frozendict(environment)
-
-        return environment
-
-    @property
-    def volumes(self) -> Mapping[str, str]:
-        volumes = {
-            **self.options.volumes,
-            **RosdevConfig(self.options).volumes,
-            f'{Path.cwd()}': f'{Path.cwd()}',
-        }
-
-        if self.options.gui:
-            volumes['/tmp/.X11-unix'] = '/tmp/.X11-unix'
-
-        return frozendict(volumes)
-
-    @memoize
-    async def _main(self) -> None:
-        assert Path.home() in Path.cwd().parents
-
-        await Image(self.options)
-
+    @classmethod
+    async def main(cls, options: Options) -> None:
         client = docker.client.from_env()
 
         # Make sure only one container with our name exists.
         # noinspection PyUnresolvedReferences
         try:
-            container: Optional[_Container] = client.containers.get(self.docker_container_name)
+            container: Optional[Container] = client.containers.get(options.docker_container_name)
         except docker.errors.NotFound:
             container = None
         else:
             # TODO also remove if container is based on an old image
-            if self.options.replace_docker_container:
-                log.info(
-                    f'Replacing existing docker container '
-                    f'"{self.docker_container_name}"'
-                )
+            if options.replace_docker_container:
+                log.info(f'Replacing existing docker container "{options.docker_container_name}"')
                 container.remove(force=True)
                 container = None
             elif container.status != 'running':
@@ -111,42 +93,38 @@ class Container(Handler):
             container = client.containers.run(
                 command='/sbin/init',
                 detach=True,
-                environment={k: v for k, v in self.environment.items()},
-                image=Image(self.options).tag,
+                environment={k: v for k, v in options.docker_container_environment.items()},
+                image=options.docker_image_tag,
                 ipc_mode='host',
-                name=self.docker_container_name,
-                ports={port: port for port in self.options.ports},
+                name=options.docker_container_name,
+                ports={port: port for port in options.ports},
                 privileged=True,  # for X11
                 security_opt=['seccomp=unconfined'],  # for GDB
                 stdin_open=True,
                 tty=True,
                 volumes={
-                    f'{Path(k).expanduser().absolute()}': {
-                        'bind': f'{Path(v).expanduser().absolute()}'
-                    } for k, v in self.volumes.items()
+                    str(host_path): {'bind': str(container_path)}
+                    for host_path, container_path
+                    in options.docker_container_volumes.items()
                 },
-                working_dir=f'{Path.cwd()}',
+                working_dir=str(options.base_container_path),
             )
 
-        if self.options.interactive:
-            os.execlpe(
-                'docker',
-                *(
-                    f'docker exec -it {container.name} /rosdev_entrypoint.sh {self.options.command}'
-                ).split(),
-                os.environ
-            )
-        else:
-            container.exec_run(
-                cmd=self.options.command,
-                detach=True,
-                privileged=True,
-                user=os.getlogin(),
-                workdir=str(Path.cwd()),
-            )
-
-        #def attach() -> None:
-        #    for line in container.attach(stdout=True, stderr=True, stream=True):
-        #        print(line)
-
-        #await get_event_loop().run_in_executor(None, attach)
+        if options.docker_container_command is not None:
+            if options.interactive_docker_container:
+                os.execlpe(
+                    'docker',
+                    *(
+                        f'docker exec -it {container.name} '
+                        f'/rosdev_entrypoint.sh {options.docker_container_command}'
+                    ).split(),
+                    os.environ
+                )
+            else:
+                container.exec_run(
+                    cmd=options.docker_container_command,
+                    detach=True,
+                    privileged=True,
+                    user=os.getlogin(),
+                    workdir=str(options.base_container_path),
+                )

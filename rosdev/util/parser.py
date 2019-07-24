@@ -11,7 +11,6 @@ from frozendict import frozendict
 from importlib import import_module
 import logging
 from pathlib import Path
-from stringcase import capitalcase
 from typing import (
     AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple,
     Union
@@ -62,7 +61,7 @@ class Choices:
     flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    release = tuple(
+    ros_release = tuple(
         sorted({'ardent', 'bionic', 'crystal', 'dashing', 'kinetic', 'melodic'}) + ['latest']
     )
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
@@ -75,21 +74,23 @@ choices = Choices()
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
-    build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
-    ccache: ArgumentParser = field(default_factory=gen_flag_parser)
+    ros_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    enable_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
-    global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
+    #global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
-    gui: ArgumentParser = field(default_factory=gen_flag_parser)
+    enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
-    interactive: ArgumentParser = field(default_factory=gen_flag_parser)
+    interactive_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
-    local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
+    pull_ros_install: ArgumentParser = field(default_factory=gen_flag_parser)
+    pull_ros_src: ArgumentParser = field(default_factory=gen_flag_parser)
+    #local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -113,42 +114,11 @@ class Flag:
             help=f'Bad build number to compare. Supersedes --bad-build'
         )
 
-        self.build_num.add_argument(
-            '--build-num',
-            type=int,
-            default=options.build_num,
-            help=(
-                f'Use specified build from OSRF build farm instead of {options.release}. '
-                f'Currently: {options.build_num}'
-            ),
-        )
-
         self.build_type.add_argument(
             '--build-type',
             default=options.build_type,
             choices=choices.build_type,
             help=f'Build type. Currently: {options.build_type}',
-        )
-
-        ccache_group = self.ccache.add_mutually_exclusive_group()
-        ccache_group.add_argument(
-            '--ccache',
-            action='store_true',
-            default=options.ccache,
-            help=(
-                SUPPRESS if options.ccache else
-                f'Enable ccache. Currently: {options.ccache}'
-            )
-        )
-        ccache_group.add_argument(
-            '--no-ccache',
-            action='store_false',
-            dest='ccache',
-            default=options.ccache,
-            help=(
-                SUPPRESS if not options.ccache else
-                f'Disable ccache. Currently: {options.ccache}'
-            )
         )
 
         colcon_build_args_group = self.colcon_build_args.add_mutually_exclusive_group()
@@ -183,33 +153,32 @@ class Flag:
             ),
         )
 
+        enable_ccache_group = self.enable_ccache.add_mutually_exclusive_group()
+        enable_ccache_group.add_argument(
+            '--enable-ccache',
+            action='store_true',
+            default=options.enable_ccache,
+            help=(
+                SUPPRESS if options.enable_ccache else
+                f'Enable ccache. Currently: {options.enable_ccache}'
+            )
+        )
+        enable_ccache_group.add_argument(
+            '--disable-ccache',
+            action='store_false',
+            dest='enable_ccache',
+            default=options.enable_ccache,
+            help=(
+                SUPPRESS if not options.enable_ccache else
+                f'Disable ccache. Currently: {options.enable_ccache}'
+            )
+        )
+
         self.flavor.add_argument(
             '--flavor',
             default=options.flavor,
             choices=choices.flavor,
             help=f'Linux flavor. Currently: {options.flavor}'
-        )
-
-        global_setup_group = self.global_setup.add_mutually_exclusive_group()
-        global_setup_group.add_argument(
-            '--global-setup',
-            default=options.global_setup,
-            help=(
-                f'Path to global setup.bash file to source. '
-                f'Currently: {options.global_setup}'
-            )
-        )
-        global_setup_group.add_argument(
-            '--no-global-setup',
-            action='store_const',
-            const=None,
-            dest='global_setup',
-            default=options.global_setup,
-            help=(
-                SUPPRESS if not options.global_setup else
-                f'Do not source a global  setup.bash. '
-                f'Currently: {options.global_setup}'
-            )
         )
 
         # FIXME make mutually exclusive with --good-build or combine flags
@@ -220,24 +189,24 @@ class Flag:
             help=f'Good build number to compare. Supersedes --good-build'
         )
 
-        gui_group = self.gui.add_mutually_exclusive_group()
-        gui_group.add_argument(
-            '--gui',
-            default=options.gui,
+        enable_gui_group = self.enable_gui.add_mutually_exclusive_group()
+        enable_gui_group.add_argument(
+            '--enable-gui',
+            default=options.enable_gui,
             action='store_true',
             help=(
-                SUPPRESS if options.gui else
-                f'Allow container to use host X11 server. Currently: {options.gui}'
+                SUPPRESS if options.enable_gui else
+                f'Allow container to use host X11 server. Currently: {options.enable_gui}'
             )
         )
-        gui_group.add_argument(
-            '--no-gui',
-            dest='gui',
-            default=options.gui,
+        enable_gui_group.add_argument(
+            '--disable-gui',
+            dest='enable_gui',
+            default=options.enable_gui,
             action='store_false',
             help=(
-                SUPPRESS if not options.gui else
-                f'Do not allow container to use host X11 server. Currently: {options.gui}'
+                SUPPRESS if not options.enable_gui else
+                f'Do not allow container to use host X11 server. Currently: {options.enable_gui}'
             )
         )
 
@@ -273,49 +242,52 @@ class Flag:
             help='show this help message and exit',
         )
 
-        interactive_group = self.interactive.add_mutually_exclusive_group()
-        interactive_group.add_argument(
-            '--interactive',
+        interactive_docker_container_group = (
+            self.interactive_docker_container.add_mutually_exclusive_group()
+        )
+        interactive_docker_container_group.add_argument(
+            '--interactive-docker-container',
             action='store_true',
-            default=options.interactive,
+            default=options.interactive_docker_container,
             help=(
-                SUPPRESS if options.interactive else
-                f'Make derived docker container interactive. Currently: {options.interactive}'
+                SUPPRESS if options.interactive_docker_container else
+                f'Make derived docker container interactive. '
+                f'Currently: {options.interactive_docker_container}'
             )
         )
-        interactive_group.add_argument(
-            '--no-interactive',
-            dest='interactive',
+        interactive_docker_container_group.add_argument(
+            '--no-interactive-docker-container',
+            dest='interactive_docker_container',
             action='store_false',
-            default=options.interactive,
+            default=options.interactive_docker_container,
             help=(
-                SUPPRESS if not options.interactive else
+                SUPPRESS if not options.interactive_docker_container else
                 f'Do not make derived docker container interactive. '
-                f'Currently: {options.interactive}'
+                f'Currently: {options.interactive_docker_container}'
             )
         )
 
-        local_setup_group = self.local_setup.add_mutually_exclusive_group()
-        local_setup_group.add_argument(
-            '--local-setup',
-            default=options.local_setup,
-            help=(
-                f'Path to local setup.bash file to source. '
-                f'Currently: {options.local_setup}'
-            )
-        )
-        local_setup_group.add_argument(
-            '--no-local-setup',
-            action='store_const',
-            const=None,
-            dest='local_setup',
-            default=options.local_setup,
-            help=(
-                SUPPRESS if not options.local_setup else
-                f'Do not source a local setup.bash. '
-                f'Currently: {options.local_setup}'
-            )
-        )
+        #local_setup_group = self.local_setup.add_mutually_exclusive_group()
+        #local_setup_group.add_argument(
+        #    '--local-setup',
+        #    default=options.local_setup,
+        #    help=(
+        #        f'Path to local setup.bash file to source. '
+        #        f'Currently: {options.local_setup}'
+        #    )
+        #)
+        #local_setup_group.add_argument(
+        #    '--no-local-setup',
+        #    action='store_const',
+        #    const=None,
+        #    dest='local_setup',
+        #    default=options.local_setup,
+        #    help=(
+        #        SUPPRESS if not options.local_setup else
+        #        f'Do not source a local setup.bash. '
+        #        f'Currently: {options.local_setup}'
+        #    )
+        #)
 
         self.log_level.add_argument(
             '--log-level',
@@ -333,8 +305,8 @@ class Flag:
             help=f'List of ports to expose in docker container. '
             f'Currently: {options.ports}'
         )
-        pull_group = self.pull_docker_image.add_mutually_exclusive_group()
-        pull_group.add_argument(
+        pull_docker_image_group = self.pull_docker_image.add_mutually_exclusive_group()
+        pull_docker_image_group.add_argument(
             '--pull-docker-image',
             action='store_true',
             default=options.pull_docker_image,
@@ -344,7 +316,7 @@ class Flag:
                 f'Currently: {options.pull_docker_image}'
             )
         )
-        pull_group.add_argument(
+        pull_docker_image_group.add_argument(
             '--no-pull-docker-image',
             action='store_false',
             dest='pull_docker_image',
@@ -356,13 +328,69 @@ class Flag:
             )
         )
 
+        pull_ros_install_group = self.pull_ros_install.add_mutually_exclusive_group()
+        pull_ros_install_group.add_argument(
+            '--pull-ros-install',
+            action='store_true',
+            default=options.pull_ros_install,
+            help=(
+                SUPPRESS if options.pull_ros_install else
+                f'Pull newer ros install. '
+                f'Currently: {options.pull_ros_install}'
+            )
+        )
+        pull_ros_install_group.add_argument(
+            '--no-pull-ros-install',
+            action='store_false',
+            dest='pull_ros_install',
+            default=options.pull_ros_install,
+            help=(
+                SUPPRESS if not options.pull_ros_install else
+                f'Do not pull newer ros install. '
+                f'Currently: {options.pull_ros_install}'
+            )
+        )
+
+        pull_ros_src_group = self.pull_ros_src.add_mutually_exclusive_group()
+        pull_ros_src_group.add_argument(
+            '--pull-ros-src',
+            action='store_true',
+            default=options.pull_ros_src,
+            help=(
+                SUPPRESS if options.pull_ros_src else
+                f'Pull newer ros src. '
+                f'Currently: {options.pull_ros_src}'
+            )
+        )
+        pull_ros_src_group.add_argument(
+            '--no-pull-ros-src',
+            action='store_false',
+            dest='pull_ros_src',
+            default=options.pull_ros_src,
+            help=(
+                SUPPRESS if not options.pull_ros_src else
+                f'Do not pull newer ros src. '
+                f'Currently: {options.pull_ros_src}'
+            )
+        )
+
+        self.ros_build_num.add_argument(
+            '--ros-build-num',
+            type=int,
+            default=options.ros_build_num,
+            help=(
+                f'Use specified build from OSRF build farm instead of {options.ros_release}. '
+                f'Currently: {options.ros_build_num}'
+            ),
+        )
+
         self.release.add_argument(
-            '--release', '-r',
-            default=options.release,
-            choices=choices.release,
+            '--ros-release', '-r', '--release',
+            default=options.ros_release,
+            choices=choices.ros_release,
             help=(
                 f'ROS release to build. '
-                f'Currently: {options.release}'
+                f'Currently: {options.ros_release}'
             )
         )
 
@@ -474,11 +502,14 @@ class Flag:
                 setattr(namespace, self.dest, frozendict(volumes))
 
         self.volumes.add_argument(
-            '--volumes', '-v',
+            '--docker-container-volumes', '-v',
             nargs='+',
-            default=options.volumes,
+            default=options.docker_container_volumes,
             action=VolumesAction,
-            help=f'Additional volumes to mount in docker container. Currently: {options.volumes}',
+            help=(
+                f'Additional volumes to mount in docker container. '
+                f'Currently: {options.docker_container_volumes}'
+            )
         )
 
 
@@ -491,7 +522,6 @@ class Parser:
     positionals: Tuple[ArgumentParser, ...] = tuple()
     flags: FrozenSet[ArgumentParser] = frozenset()
     sub_parser_by_sub_command: Mapping[str, Parser] = frozendict()
-    resolve_flags: FrozenSet[str] = frozenset()
 
     # noinspection PyShadowingNames
     def merged_with(
@@ -500,7 +530,6 @@ class Parser:
             sub_commands: Union[str, Sequence[str]],
             positionals: Sequence[ArgumentParser] = tuple(),
             flags: AbstractSet[ArgumentParser] = frozenset(),
-            resolve_flags: AbstractSet[str] = frozenset(),
     ) -> Parser:
         if isinstance(sub_commands, str):
             sub_commands = tuple(sub_commands.split())
@@ -511,7 +540,6 @@ class Parser:
                 positionals=tuple([*self.positionals, *positionals]),
                 flags=frozenset(self.flags | flags),
                 sub_parser_by_sub_command=self.sub_parser_by_sub_command,
-                resolve_flags=frozenset(self.resolve_flags | resolve_flags),
             )
         else:
             sub_parser = self.sub_parser_by_sub_command.get(sub_commands[0])
@@ -522,7 +550,6 @@ class Parser:
                 sub_commands=sub_commands[1:],
                 positionals=positionals,
                 flags=flags,
-                resolve_flags=frozenset(resolve_flags),
             )
 
             parser = replace(
@@ -563,14 +590,15 @@ class Parser:
                 ],
             )
 
-        argument_parser.set_defaults(
-            rosdev_handler_module='.'.join(tuple([*prev_sub_commands, self.sub_command])),
-        )
+        rosdev_handler_module = '.'.join([*prev_sub_commands, self.sub_command])
+        argument_parser.set_defaults(rosdev_handler_module=rosdev_handler_module)
 
         if not self.sub_parser_by_sub_command:
-            argument_parser.set_defaults(
-                rosdev_handler_class=capitalcase(self.sub_command),
+            rosdev_handler_class = ''.join(
+                sub_command.capitalize() for sub_command in
+                [*prev_sub_commands[1:], self.sub_command]
             )
+            argument_parser.set_defaults(rosdev_handler_class=rosdev_handler_class)
         else:
             sub_argument_parser = argument_parser.add_subparsers(required=True)
             for sub_parser in self.sub_parser_by_sub_command.values():
@@ -579,9 +607,6 @@ class Parser:
                     parent_flags=flags,
                     prev_sub_commands=tuple([*prev_sub_commands, self.sub_command])
                 )
-        argument_parser.set_defaults(
-            resolve_flags=self.resolve_flags
-        )
 
         return argument_parser
 
@@ -598,21 +623,18 @@ parser = parser.merged_with(
     sub_commands='bash',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
-        flag.ccache,
+        flag.enable_ccache,
+        flag.enable_gui,
         flag.flavor,
-        flag.global_setup,
-        flag.gui,
-        flag.local_setup,
+        #flag.global_setup,
+        #flag.local_setup,
         flag.ports,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
+        flag.ros_build_num,
         flag.volumes,
     }),
-    resolve_flags=frozenset({
-        'build_num',
-    })
 )
 
 parser = parser.merged_with(
@@ -636,16 +658,20 @@ parser = parser.merged_with(
     sub_commands='clion',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
+        flag.ros_build_num,
         flag.build_type,
-        flag.global_setup,
-        flag.local_setup,
+        #flag.global_setup,
+        #flag.local_setup,
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
     }),
-    resolve_flags=frozenset({
-        'build_num',
+)
+
+parser = parser.merged_with(
+    sub_commands='gen architecture',
+    flags=frozenset({
+        flag.architecture
     })
 )
 
@@ -653,13 +679,13 @@ parser = parser.merged_with(
     sub_commands='gen colcon build',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.build_type,
         flag.colcon_build_args,
-        flag.global_setup,
-        flag.local_setup,
+        #flag.global_setup,
+        #flag.local_setup,
         flag.pull_docker_image,
         flag.release,
+        flag.ros_build_num,
         flag.sanitizer,
     })
 )
@@ -679,9 +705,9 @@ parser = parser.merged_with(
     ),
     flags=frozenset({
         flag.architecture,
-        flag.global_setup,
-        flag.interactive,
-        flag.local_setup,
+        #flag.global_setup,
+        flag.interactive_docker_container,
+        #flag.local_setup,
         flag.ports,
         flag.pull_docker_image,
         flag.release,
@@ -700,16 +726,6 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands='gen install',
-    flags=frozenset({
-        flag.architecture,
-        flag.build_num,
-        flag.pull_docker_image,
-        flag.release
-    })
-)
-
-parser = parser.merged_with(
     sub_commands='gen overrides',
     flags=frozenset(asdict(flag).values())
 )
@@ -720,6 +736,34 @@ parser = parser.merged_with(sub_commands='gen pycharm keepass')
 # parser = parser.merged_with(sub_commands='gen pycharm overlay')
 parser = parser.merged_with(sub_commands='gen pycharm settings')
 
+parser = parser.merged_with(
+    sub_commands='gen ros build num',
+    flags=frozenset({
+        flag.architecture,
+        flag.ros_build_num,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen ros install',
+    flags=frozenset({
+        flag.architecture,
+        flag.pull_docker_image,
+        flag.release,
+        flag.ros_build_num,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen ros src',
+    flags=frozenset({
+        flag.architecture,
+        flag.pull_docker_image,
+        flag.release,
+        flag.ros_build_num,
+    })
+)
 
 parser = parser.merged_with(
     sub_commands='gen rosdep config',
@@ -736,15 +780,15 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands='gen rosdev config',
+    sub_commands='gen rosdev',
 )
 
 parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
-        flag.build_num,
         flag.pull_docker_image,
-        flag.release
+        flag.release,
+        flag.ros_build_num,
     })
 )
 
@@ -752,18 +796,18 @@ parser = parser.merged_with(
     sub_commands='pycharm',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.build_type,
-        flag.global_setup,
-        flag.local_setup,
+        #flag.global_setup,
+        #flag.local_setup,
         flag.pull_docker_image,
         flag.release,
+        flag.ros_build_num,
         flag.sanitizer,
     })
 )
 
 
-def get_handler(args: Optional[List[str]]) -> Awaitable:
+def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
     argument_parser = parser.get_argument_parser()
     autocomplete(argument_parser)
 
@@ -787,15 +831,9 @@ def get_handler(args: Optional[List[str]]) -> Awaitable:
     del args.__dict__['rosdev_handler_module']
     del args.__dict__['rosdev_handler_class']
 
-    resolve_flags = args.resolve_flags
-    del args.__dict__['resolve_flags']
-
-    import asyncio
-    import rosdev.util.resolve as resolve
-
     global options
     options = replace(options, **args.__dict__)
-    for resolve_flag in resolve_flags:
-        options = asyncio.run(getattr(resolve, resolve_flag)(options))
+    import asyncio
+    options = asyncio.run(handler._resolve_all_options(options))
 
-    return handler(options)
+    return handler.run(replace(options, **args.__dict__)), options
