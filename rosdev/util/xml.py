@@ -5,6 +5,7 @@ from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
 from lxml.etree import Element, _Element
+from pathlib import Path
 import re
 from typing import Dict, Mapping, Optional
 
@@ -36,10 +37,10 @@ class _ElementKey:
         )
 
 
-def get_root_element_from_path(path: str) -> Optional[_Element]:
+def get_root_element_from_path(path: Path) -> Optional[_Element]:
     parser = etree.XMLParser(remove_blank_text=True)
     try:
-        root_element: Optional[_Element] = etree.parse(path, parser).getroot()
+        root_element: Optional[_Element] = etree.parse(str(path), parser).getroot()
     except OSError:
         root_element: Optional[_Element] = None
 

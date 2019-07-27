@@ -1,33 +1,55 @@
 from dataclasses import asdict, dataclass
 from frozendict import frozendict
 from pathlib import Path
-from typing import FrozenSet, Mapping, Optional
+from typing import Any, Mapping, Optional
+from uuid import UUID
 
 
 @dataclass(frozen=True)
 class Options:
     architecture: Optional[str] = None
-    bad_build_num: Optional[int] = None
     build_type: str = 'Debug'
+
     colcon_build_args: Optional[str] = None
-    docker_container_command: Optional[str] = None
+    docker_container_command: str = '/sbin/init'
     docker_container_environment: Mapping[str, str] = frozendict()
-    docker_container_name: str = 'rosdev_{architecture}_{ros_build_num}'
+    docker_container_name: str = 'rosdev_{architecture}_{ros_build_num}_{base_workspace_hash}'
+    # TODO expose ports
+    docker_container_ports: Mapping[int, int] = frozendict({22: 22})
     docker_container_volumes: Mapping[str, str] = frozendict()
     docker_image_base_tag: Optional[str] = None
     docker_image_tag: Optional[str] = None
+    docker_ssh_workspace_port: Optional[int] = None
     enable_ccache: bool = True
     enable_gui: bool = False
     executable: Optional[str] = None
     flavor: str = 'ros-core'
-    # TODO remove
-    good_build_num: Optional[int] = None
-    interactive_docker_container: bool = False
+    ros_container_environment: Mapping[str, str] = frozendict()
+    
+    idea_base_name: Optional[str] = None
+    idea_base_executable_universal_path: Optional[Path] = None
+
+    idea_base_universal_path: Optional[Path] = None
+    idea_base_workspace_path: Optional[Path] = None
+
+    idea_c_kdbx_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.kdbx')
+    idea_c_pwd_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.pwd')
+    idea_clion_cpp_toolchains_xml_universal_path: Path = Path(
+        '{idea_base_universal_path}', 'config', 'options', 'cpp.toolchains.xml'
+    )
+    idea_deployment_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'deployment.xml')
+    idea_workspace_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'workspace.xml')
+    idea_security_xml_universal_path: Path = Path(
+        '{idea_base_universal_path}', 'config', 'options', 'security.xml'
+    )
+    idea_webservers_xml_universal_path: Path = Path(
+        '{idea_base_universal_path}', 'config', 'options', 'webServers.xml'
+    )
+
+    idea_uuid: Optional[UUID] = None
     local_setup: Optional[str] = None
     log_level: str = 'INFO'
     package: Optional[str] = None
-    # TODO change name to docker_ports
-    ports: FrozenSet[int] = frozenset()
     pull_docker_image: bool = False
     pull_ros_src: bool = False
     pull_ros_install: bool = False
@@ -37,45 +59,80 @@ class Options:
     replace_docker_container: bool = False
     rosdep_install_args: Optional[str] = None
     sanitizer: Optional[str] = None
-    source_ros_setup_overlay: bool = False
-    source_ros_setup_underlay: bool = True
+    source_ros_overlay_setup_bash: bool = False
+    source_ros_underlay_setup_bash: bool = True
     uuid: Optional[str] = None
-
-    docker_build_context_path: Optional[Path] = None
+    base_workspace_hash: Optional[str] = None
 
     # FIXME allow these to reference eachother out of order
     base_container_path: Optional[Path] = None
     base_workspace_path: Optional[Path] = None
     base_universal_path: Optional[Path] = None
 
+    home_container_path: Optional[Path] = None
+    home_universal_path: Optional[Path] = None
+
     rosdev_container_path: Path = Path('{base_container_path}', '.rosdev')
     rosdev_workspace_path: Path = Path('{base_workspace_path}', '.rosdev')
     rosdev_universal_path: Path = Path('{base_universal_path}', '.rosdev')
 
-    architecture_container_path: Path = Path('{rosdev_container_path}', '{architecture}')
-    architecture_workspace_path: Path = Path('{rosdev_workspace_path}', '{architecture}')
-    architecture_universal_path: Path = Path('{rosdev_universal_path}', '{architecture}')
+    ros_build_num_universal_path: Path = Path(
+        '{rosdev_universal_path}', '{architecture}', 'ros_build_num'
+    )
 
-    ros_build_num_container_path: Path = Path('{architecture_container_path}', '{ros_build_num}')
-    ros_build_num_universal_path: Path = Path('{architecture_universal_path}', '{ros_build_num}')
-    ros_build_num_workspace_path: Path = Path('{architecture_workspace_path}', '{ros_build_num}')
+    ros_install_container_path: Path = Path(
+        '{rosdev_container_path}', 'install'
+    )
+    ros_install_universal_path: Path = Path(
+        '{rosdev_universal_path}', '{architecture}', '{ros_build_num}', 'install'
+    )
+    ros_install_workspace_path: Path = Path(
+        '{rosdev_workspace_path}', 'install'
+    )
 
-    ros_install_container_path: Path = Path('{ros_build_num_container_path}', 'install')
-    ros_install_universal_path: Path = Path('{ros_build_num_universal_path}', 'install')
-    ros_install_workspace_path: Path = Path('{ros_build_num_workspace_path}', 'install')
+    ros_src_container_path: Path = Path(
+        '{rosdev_container_path}', 'src'
+    )
+    ros_src_universal_path: Path = Path(
+        '{rosdev_universal_path}', '{architecture}', '{ros_build_num}', 'src'
+    )
+    ros_src_workspace_path: Path = Path(
+        '{rosdev_workspace_path}', 'src'
+    )
 
-    ros_src_container_path: Path = Path('{ros_build_num_container_path}', 'src')
-    ros_src_universal_path: Path = Path('{ros_build_num_universal_path}', 'src')
-    ros_src_workspace_path: Path = Path('{ros_build_num_workspace_path}', 'src')
+    docker_build_context_workspace_path: Path = Path(
+        '{rosdev_workspace_path}', 'docker_build_context'
+    )
 
-    ros_setup_overlay_container_path: Path = Path('{base_container_path}', 'install', 'setup.bash')
-    #ros_setup_overlay_universal_path: Path = Path('{ros_install_universal_path}', 'setup.bash')
-    ros_setup_overlay_workspace_path: Path = Path('{base_workspace_path}', 'install', 'setup.bash')
+    docker_bashrc_container_path: Path = Path(
+        '{home_container_path}', '.bashrc'
+    )
+    docker_bashrc_workspace_path: Path = Path(
+        '{home_workspace_path}', '.bashrc'
+    )
 
-    ros_setup_underlay_container_path: Path = Path('{ros_install_container_path}', 'setup.bash')
-    #ros_setup_underlay_universal_path: Path = Path('{ros_install_universal_path}', 'setup.bash')
-    ros_setup_underlay_workspace_path: Path = Path('{ros_install_workspace_path}', 'setup.bash')
+    docker_entrypoint_sh_container_path: Path = Path(
+        '/', 'rosdev_docker_entrypoint.sh'
+    )
+    docker_entrypoint_sh_workspace_path: Path = Path(
+        '{rosdev_workspace_path}', 'rosdev_docker_entrypoint.sh'
+    )
 
+    ros_overlay_setup_bash_container_path: Path = Path(
+        '{base_container_path}', 'install',  'setup.bash'
+    )
+    ros_overlay_setup_bash_workspace_path: Path = Path(
+        '{base_workspace_path}', 'install', 'setup.bash'
+    )
+
+    ros_underlay_setup_bash_container_path: Path = Path(
+        '{ros_install_container_path}', 'setup.bash'
+    )
+    ros_underlay_setup_bash_workspace_path: Path = Path(
+        '{base_workspace_path}', 'install', 'setup.bash'
+    )
+
+    # TODO move these properties to handler as "def get_machine(options)" etc.
     @property
     def machine(self) -> Optional[str]:
         return {
@@ -91,30 +148,30 @@ class Options:
             'arm64v8': f'linux-{self.machine}',
         }.get(self.architecture)
 
-    def _resolve_path(self, path: Path) -> Path:
-        return Path(str(path).format(**{
-            k: v for k, v in asdict(self).items() if v is not None
-        })).expanduser().absolute()
-
     def resolve_str(self, _str: str) -> str:
-        return _str.format(**{k: v for k, v in asdict(self).items() if v is not None})
+        # TODO py38 walrus loop
+        old_str = ''
+        while old_str != _str:
+            old_str = _str
+            _str = _str.format(**{k: v for k, v in asdict(self).items() if v is not None})
 
-    def resolve_container_path(self, path: Path) -> Path:
-        return self._resolve_path(path)
+        return _str
+
+    def resolve_path(self, path: Path) -> Path:
+        # TODO py38 walrus loop
+        old_path = Path()
+        while old_path != path:
+            old_path = path
+            path = Path(str(path).format(**{
+                k: v for k, v in asdict(self).items() if v is not None
+            })).expanduser().absolute()
         
-    def resolve_universal_path(self, path: Path) -> Path:
-        path = self._resolve_path(path)
-        
-        assert (
-            (path.home() in path.parents) or
-            (path.home() == path)
-        )
-
         return path
+    
+    #def __getattribute__(self, item: str) -> Any:
+    #    result = object.__getattribute__(self, item)
 
-    def resolve_workspace_path(self, path: Path) -> Path:
-        path = self._resolve_path(path)
-
-        assert path.home() in path.parents
-
-        return path
+    #    if isinstance(result, Path):
+    #        result = self.resolve_path(result)
+    #
+    #    return result

@@ -18,14 +18,14 @@ class Handler:
 
     @classmethod
     async def run(cls, options: Options) -> None:
-        options = await cls._resolve_all_options(options)
-        await cls._validate_all_options(options)
-        await cls._main_all(options)
+        options = await cls.__resolve_all_options(options)
+        await cls.__validate_all_options(options)
+        await cls.__main_all(options)
 
     @classmethod
-    async def _pre_resolve_options(cls, options: Options) -> Options:
+    async def __pre_resolve_options(cls, options: Options) -> Options:
         for pre_dependency in cls.pre_dependencies:
-            options = await pre_dependency._resolve_all_options(options)
+            options = await pre_dependency.__resolve_all_options(options)
 
         return options
 
@@ -34,17 +34,17 @@ class Handler:
         return options
 
     @classmethod
-    async def _post_resolve_options(cls, options: Options) -> Options:
+    async def __post_resolve_options(cls, options: Options) -> Options:
         for post_dependency in cls.post_dependencies:
-            options = await post_dependency._resolve_all_options(options)
+            options = await post_dependency.__resolve_all_options(options)
 
         return options
 
     @classmethod
-    async def _resolve_all_options(cls, options: Options) -> Options:
-        options = await cls._pre_resolve_options(options)
+    async def __resolve_all_options(cls, options: Options) -> Options:
+        options = await cls.__pre_resolve_options(options)
         options = await cls.resolve_options(options)
-        options = await cls._post_resolve_options(options)
+        options = await cls.__post_resolve_options(options)
 
         return options
 
@@ -54,23 +54,23 @@ class Handler:
 
     @classmethod
     @memoize
-    async def _validate_all_options(cls, options: Options) -> None:
+    async def __validate_all_options(cls, options: Options) -> None:
         await gather(
             *[
-                pre_dependency._validate_all_options(options)
+                pre_dependency.__validate_all_options(options)
                 for pre_dependency in cls.pre_dependencies
             ],
             cls.validate_options(options),
             *[
-                post_dependency._validate_all_options(options)
+                post_dependency.__validate_all_options(options)
                 for post_dependency in cls.post_dependencies
             ]
         )
 
     @classmethod
-    async def _pre_main(cls, options: Options) -> None:
+    async def __pre_main(cls, options: Options) -> None:
         await gather(*[
-            pre_dependency._main_all(options) for pre_dependency in cls.pre_dependencies
+            pre_dependency.__main_all(options) for pre_dependency in cls.pre_dependencies
         ])
 
     @classmethod
@@ -78,14 +78,14 @@ class Handler:
         pass
 
     @classmethod
-    async def _post_main(cls, options: Options) -> None:
+    async def __post_main(cls, options: Options) -> None:
         await gather(*[
-            post_dependency._main_all(options) for post_dependency in cls.post_dependencies
+            post_dependency.__main_all(options) for post_dependency in cls.post_dependencies
         ])
 
     @classmethod
     @memoize
-    async def _main_all(cls, options: Options) -> None:
-        await cls._pre_main(options)
+    async def __main_all(cls, options: Options) -> None:
+        await cls.__pre_main(options)
         await cls.main(options)
-        await cls._post_main(options)
+        await cls.__post_main(options)

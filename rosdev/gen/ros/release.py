@@ -3,7 +3,7 @@ from logging import getLogger
 from typing import Tuple, Type
 
 from rosdev.gen.architecture import GenArchitecture
-from rosdev.gen.ros.build.num import GenRosBuildNum
+from rosdev.gen.ros.build_num import GenRosBuildNum
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 

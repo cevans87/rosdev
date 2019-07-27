@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field, replace
-from frozendict import frozendict
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import Tuple, Type
 
-from rosdev.gen.ros.build.num import GenRosBuildNum
+from rosdev.gen.ros.build_num import GenRosBuildNum
 from rosdev.util.build_farm import get_ros2_repos
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -23,13 +22,13 @@ class GenRosSrc(Handler):
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        ros_src_container_path = options.resolve_container_path(
+        ros_src_container_path = options.resolve_path(
             options.ros_src_container_path
         )
-        ros_src_universal_path = options.resolve_universal_path(
+        ros_src_universal_path = options.resolve_path(
             options.ros_src_universal_path
         )
-        ros_src_workspace_path = options.resolve_workspace_path(
+        ros_src_workspace_path = options.resolve_path(
             options.ros_src_workspace_path
         )
 

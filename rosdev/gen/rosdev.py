@@ -23,45 +23,37 @@ class GenRosdev(Handler):
     ))
 
     @classmethod
-    async def resolve_rosdev_container_path(cls, options: Options) -> Options:
-        rosdev_container_path = options.resolve_container_path(options.rosdev_container_path)
-
-        return replace(options, rosdev_container_path=rosdev_container_path)
-
-    @classmethod
-    async def resolve_rosdev_universal_path(cls, options: Options) -> Options:
-        rosdev_universal_path = options.resolve_universal_path(options.rosdev_universal_path)
-
-        return replace(options, rosdev_universal_path=rosdev_universal_path)
-
-    @classmethod
-    async def resolve_rosdev_workspace_path(cls, options: Options) -> Options:
-        rosdev_workspace_path = options.rosdev_workspace_path
-
-        if rosdev_workspace_path is None:
-            for path in [Path.cwd(), *Path.cwd().parents]:
-                path = Path(path, '.rosdev')
-                if path.is_dir():
-                    rosdev_workspace_path = path
-                    break
-            else:
-                rosdev_workspace_path = Path(Path.cwd(), '.rosdev')
-
-        rosdev_workspace_path = options.resolve_workspace_path(rosdev_workspace_path)
-
-        return replace(options, rosdev_workspace_path=rosdev_workspace_path)
-
-    @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        options = await cls.resolve_rosdev_container_path(options)
-        options = await cls.resolve_rosdev_universal_path(options)
-        options = await cls.resolve_rosdev_workspace_path(options)
+        rosdev_container_path = options.resolve_path(options.rosdev_container_path)
+        rosdev_universal_path = options.resolve_path(options.rosdev_universal_path)
+        rosdev_workspace_path = options.resolve_path(options.rosdev_workspace_path)
 
-        return options
+        return replace(
+            options,
+            rosdev_container_path=rosdev_container_path,
+            rosdev_universal_path=rosdev_universal_path,
+            rosdev_workspace_path=rosdev_workspace_path,
+        )
+
+    @classmethod
+    async def validate_options(cls, options: Options) -> None:
+        # TODO py38 debug string
+        log.debug(f'rosdev_container_path: {options.rosdev_container_path}')
+        log.debug(f'rosdev_universal_path: {options.rosdev_universal_path}')
+        log.debug(f'rosdev_workspace_path: {options.rosdev_workspace_path}')
+
+        assert (
+            '.rosdev' == options.rosdev_container_path.parts[-1]
+        ), 'rosdev_container_path must end with .rosdev directory'
+        assert (
+            '.rosdev' == options.rosdev_universal_path.parts[-1]
+        ), 'rosdev_universal_path must end with .rosdev directory'
+        assert (
+            '.rosdev' == options.rosdev_workspace_path.parts[-1]
+        ), 'rosdev_workspace_path must end with .rosdev directory'
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        # TODO validate options
         await gather(
             exec(f'mkdir -p {options.rosdev_universal_path}'),
             exec(f'mkdir -p {options.rosdev_workspace_path}'),

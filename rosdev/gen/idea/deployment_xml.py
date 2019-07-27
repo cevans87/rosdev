@@ -1,14 +1,15 @@
-from atools import memoize
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
 from lxml.etree import _Element
 from textwrap import dedent
+from typing import Tuple, Type
 
-from rosdev.gen.pycharm.config import Config as PycharmConfig
-from rosdev.gen.pycharm.uuid import Uuid
+from rosdev.gen.idea.base import GenIdeaBase
+from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
 from rosdev.util.subprocess import exec
 
@@ -16,29 +17,36 @@ from rosdev.util.subprocess import exec
 log = getLogger(__name__)
 
 
-@memoize
 @dataclass(frozen=True)
-class DeploymentXml(Handler):
+class GenIdeaDeploymentXml(Handler):
+    
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenIdeaBase,
+        GenIdeaUuid,
+    ))
 
-    @property
-    def local_path_base(self) -> str:
-        return PycharmConfig(self.options).local_path
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        idea_deployment_xml_workspace_path = options.resolve_path(
+            options.idea_deployment_xml_workspace_path
+        )
+        
+        return replace(
+            options,
+            idea_deployment_xml_workspace_path=idea_deployment_xml_workspace_path,
+        )
 
-    @property
-    def local_path(self) -> str:
-        return f'{self.local_path_base}/deployment.xml'
-
-    @property
-    def element(self) -> _Element:
+    @classmethod
+    def get_element(cls, options: Options) -> _Element:
         return etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <project version="4">
                   <component
                       name="PublishConfigData"
-                      serverName="rosdev ({Uuid(self.options).uuid})">
+                      serverName="rosdev_{options.idea_base_name} ({options.idea_uuid})">
                     <serverData>
-                      <paths name="rosdev ({Uuid(self.options).uuid})">
+                      <paths name="rosdev_{options.idea_base_name} ({options.idea_uuid})">
                         <serverdata>
                           <mappings>
                             <mapping deploy="/" local="/" web="/" />
@@ -55,16 +63,16 @@ class DeploymentXml(Handler):
             ''').strip()
         )
 
-    @memoize
-    async def _main(self) -> None:
+    @classmethod
+    async def main(cls, options: Options) -> None:
         root_element = merge_elements(
-            from_element=self.element,
-            into_element=get_root_element_from_path(self.local_path)
+            from_element=cls.get_element(options),
+            into_element=get_root_element_from_path(options.idea_deployment_xml_workspace_path)
         )
 
-        await exec(f'mkdir -p {self.local_path_base}')
-        with open(self.local_path, 'wb') as deployment_xml_f_out:
-            deployment_xml_f_out.write(
+        await exec(f'mkdir -p {options.idea_deployment_xml_workspace_path.parent}')
+        with open(str(options.idea_deployment_xml_workspace_path), 'wb') as f_out:
+            f_out.write(
                 etree.tostring(
                     root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
                 )

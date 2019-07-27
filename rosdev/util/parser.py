@@ -73,24 +73,20 @@ choices = Choices()
 @dataclass(frozen=True)
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
-    bad_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     ros_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_ports: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
-    #global_setup: ArgumentParser = field(default_factory=gen_flag_parser)
-    good_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
-    interactive_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
+    idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
-    ports: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_ros_install: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_ros_src: ArgumentParser = field(default_factory=gen_flag_parser)
-    #local_setup: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -104,14 +100,6 @@ class Flag:
             default=options.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {options.architecture}',
-        )
-
-        # FIXME make mutually exclusive with --bad-build or combine flags
-        self.bad_build_num.add_argument(
-            '--bad-build-num',
-            type=int,
-            default=options.bad_build_num,
-            help=f'Bad build number to compare. Supersedes --bad-build'
         )
 
         self.build_type.add_argument(
@@ -181,14 +169,6 @@ class Flag:
             help=f'Linux flavor. Currently: {options.flavor}'
         )
 
-        # FIXME make mutually exclusive with --good-build or combine flags
-        self.good_build_num.add_argument(
-            '--good-build-num',
-            type=int,
-            default=options.good_build_num,
-            help=f'Good build number to compare. Supersedes --good-build'
-        )
-
         enable_gui_group = self.enable_gui.add_mutually_exclusive_group()
         enable_gui_group.add_argument(
             '--enable-gui',
@@ -241,53 +221,12 @@ class Flag:
             dest=SUPPRESS,
             help='show this help message and exit',
         )
-
-        interactive_docker_container_group = (
-            self.interactive_docker_container.add_mutually_exclusive_group()
+        
+        self.idea_ide_name.add_argument(
+            '--idea-ide-name',
+            default=options.idea_base_name,
+            help=f'Name of IDEA IDE to use. Currently: {options.idea_base_name}'
         )
-        interactive_docker_container_group.add_argument(
-            '--interactive-docker-container',
-            action='store_true',
-            default=options.interactive_docker_container,
-            help=(
-                SUPPRESS if options.interactive_docker_container else
-                f'Make derived docker container interactive. '
-                f'Currently: {options.interactive_docker_container}'
-            )
-        )
-        interactive_docker_container_group.add_argument(
-            '--no-interactive-docker-container',
-            dest='interactive_docker_container',
-            action='store_false',
-            default=options.interactive_docker_container,
-            help=(
-                SUPPRESS if not options.interactive_docker_container else
-                f'Do not make derived docker container interactive. '
-                f'Currently: {options.interactive_docker_container}'
-            )
-        )
-
-        #local_setup_group = self.local_setup.add_mutually_exclusive_group()
-        #local_setup_group.add_argument(
-        #    '--local-setup',
-        #    default=options.local_setup,
-        #    help=(
-        #        f'Path to local setup.bash file to source. '
-        #        f'Currently: {options.local_setup}'
-        #    )
-        #)
-        #local_setup_group.add_argument(
-        #    '--no-local-setup',
-        #    action='store_const',
-        #    const=None,
-        #    dest='local_setup',
-        #    default=options.local_setup,
-        #    help=(
-        #        SUPPRESS if not options.local_setup else
-        #        f'Do not source a local setup.bash. '
-        #        f'Currently: {options.local_setup}'
-        #    )
-        #)
 
         self.log_level.add_argument(
             '--log-level',
@@ -297,13 +236,13 @@ class Flag:
         )
 
         # TODO add PortsAction to allow <host>:<container> mapping. See VolumesAction for reference.
-        self.ports.add_argument(
-            '--ports', '-p',
+        self.docker_container_ports.add_argument(
+            '--docker-container-ports',
             nargs='*',
             type=int,
-            default=sorted(options.ports),
+            default=options.docker_container_ports,
             help=f'List of ports to expose in docker container. '
-            f'Currently: {options.ports}'
+            f'Currently: {options.docker_container_ports}'
         )
         pull_docker_image_group = self.pull_docker_image.add_mutually_exclusive_group()
         pull_docker_image_group.add_argument(
@@ -626,9 +565,7 @@ parser = parser.merged_with(
         flag.enable_ccache,
         flag.enable_gui,
         flag.flavor,
-        #flag.global_setup,
-        #flag.local_setup,
-        flag.ports,
+        flag.docker_container_ports,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -644,10 +581,8 @@ parser = parser.merged_with(
     ),
     flags=frozenset({
         flag.architecture,
-        flag.bad_build_num,
         flag.build_type,
         flag.colcon_build_args,
-        flag.good_build_num,
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
@@ -660,8 +595,6 @@ parser = parser.merged_with(
         flag.architecture,
         flag.ros_build_num,
         flag.build_type,
-        #flag.global_setup,
-        #flag.local_setup,
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
@@ -681,22 +614,12 @@ parser = parser.merged_with(
         flag.architecture,
         flag.build_type,
         flag.colcon_build_args,
-        #flag.global_setup,
-        #flag.local_setup,
         flag.pull_docker_image,
         flag.release,
         flag.ros_build_num,
         flag.sanitizer,
     })
 )
-
-parser = parser.merged_with(sub_commands='gen clion cmake')
-parser = parser.merged_with(sub_commands='gen clion config')
-parser = parser.merged_with(sub_commands='gen clion ide')
-parser = parser.merged_with(sub_commands='gen clion keepass')
-# parser = parser.merged_with(sub_commands='gen clion overlay')
-parser = parser.merged_with(sub_commands='gen clion settings')
-parser = parser.merged_with(sub_commands='gen clion toolchain')
 
 parser = parser.merged_with(
     sub_commands='gen docker container',
@@ -705,10 +628,7 @@ parser = parser.merged_with(
     ),
     flags=frozenset({
         flag.architecture,
-        #flag.global_setup,
-        flag.interactive_docker_container,
-        #flag.local_setup,
-        flag.ports,
+        flag.docker_container_ports,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -726,15 +646,39 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
+    sub_commands='gen docker ssh connect',
+    flags=frozenset({
+        flag.architecture,
+        flag.pull_docker_image,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen docker ssh start',
+    flags=frozenset({
+        flag.architecture,
+        flag.pull_docker_image,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen idea',
+    flags=frozenset({
+        flag.idea_ide_name,
+    })
+)
+
+parser = parser.merged_with(sub_commands='gen idea clion toolchain')
+parser = parser.merged_with(sub_commands='gen idea ide')
+parser = parser.merged_with(sub_commands='gen idea keepass')
+parser = parser.merged_with(sub_commands='gen idea settings')
+
+parser = parser.merged_with(
     sub_commands='gen overrides',
     flags=frozenset(asdict(flag).values())
 )
-
-parser = parser.merged_with(sub_commands='gen pycharm config')
-parser = parser.merged_with(sub_commands='gen pycharm ide')
-parser = parser.merged_with(sub_commands='gen pycharm keepass')
-# parser = parser.merged_with(sub_commands='gen pycharm overlay')
-parser = parser.merged_with(sub_commands='gen pycharm settings')
 
 parser = parser.merged_with(
     sub_commands='gen ros build num',
@@ -742,6 +686,12 @@ parser = parser.merged_with(
         flag.architecture,
         flag.ros_build_num,
         flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen ros environment',
+    flags=frozenset({
     })
 )
 
@@ -792,19 +742,7 @@ parser = parser.merged_with(
     })
 )
 
-parser = parser.merged_with(
-    sub_commands='pycharm',
-    flags=frozenset({
-        flag.architecture,
-        flag.build_type,
-        #flag.global_setup,
-        #flag.local_setup,
-        flag.pull_docker_image,
-        flag.release,
-        flag.ros_build_num,
-        flag.sanitizer,
-    })
-)
+parser = parser.merged_with(sub_commands='pycharm')
 
 
 def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
@@ -831,9 +769,6 @@ def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
     del args.__dict__['rosdev_handler_module']
     del args.__dict__['rosdev_handler_class']
 
-    global options
-    options = replace(options, **args.__dict__)
-    import asyncio
-    options = asyncio.run(handler._resolve_all_options(options))
-
-    return handler.run(replace(options, **args.__dict__)), options
+    parsed_options = replace(options, **args.__dict__)
+    
+    return handler.run(parsed_options), parsed_options
