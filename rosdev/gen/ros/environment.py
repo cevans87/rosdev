@@ -1,9 +1,9 @@
-from dataclasses import dataclass, field, replace
+from atools import memoize
+from dataclasses import dataclass, field
 from frozendict import frozendict
 from logging import getLogger
-from typing import Tuple, Type
+from typing import Mapping, Tuple, Type
 
-from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -27,28 +27,26 @@ _ros_environment_required_keys = frozenset({
 @dataclass(frozen=True)
 class GenRosEnvironment(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerContainer,
         GenDockerEntrypointSh,
     ))
 
     @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        ros_container_environment = dict(options.ros_container_environment)
+    @memoize
+    async def get_ros_environment_container(cls, options: Options) -> Mapping[str, str]:
+        ros_environment_container = {}
         for line in await get_exec_lines(
                 f'docker exec {options.docker_container_name} '
                 f'{options.docker_entrypoint_sh_container_path} env'
         ):
             k, v = line.split('=', 1)
             if k in _ros_environment_required_keys:
-                ros_container_environment[k] = v
-        ros_container_environment = frozendict(ros_container_environment)
+                ros_environment_container[k] = v
+        ros_environment_container = frozendict(ros_environment_container)
 
-        return replace(options, ros_container_environment=ros_container_environment)
-
-    @classmethod
-    async def validate_options(cls, options: Options) -> None:
         # TODO py38 debug print
-        log.debug(f'ros_container_environment: {options.ros_container_environment}')
+        log.debug(f'ros_environment_container: {ros_environment_container}')
 
-        missing_keys = _ros_environment_required_keys - options.ros_container_environment.keys()
+        missing_keys = _ros_environment_required_keys - ros_environment_container.keys()
         assert not missing_keys, f'ros_environment missing required keys {missing_keys}'
+
+        return ros_environment_container

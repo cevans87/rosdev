@@ -39,7 +39,7 @@ class GenIdeaWorkspaceXml(Handler):
         )
 
     @classmethod
-    def get_element(cls, options: Options) -> _Element:
+    async def get_element(cls, options: Options) -> _Element:
         return etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
@@ -53,7 +53,10 @@ class GenIdeaWorkspaceXml(Handler):
                           <envs>
                             {''.join([
                                 f'<env name="{k}" value="{v}" />' 
-                                for k, v in options.ros_container_environment.items()
+                                for k, v
+                                in (
+                                    await GenRosEnvironment.get_ros_environment_container(options)
+                                ).items()
                             ])}
                           </envs>
                         </ADDITIONAL_GENERATION_ENVIRONMENT>
@@ -67,7 +70,7 @@ class GenIdeaWorkspaceXml(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         root_element = merge_elements(
-            from_element=cls.get_element(options),
+            from_element=await cls.get_element(options),
             into_element=get_root_element_from_path(options.idea_workspace_xml_workspace_path)
         )
 

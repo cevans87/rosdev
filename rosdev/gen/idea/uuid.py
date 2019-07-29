@@ -26,3 +26,5 @@ class GenIdeaUuid(Handler):
         log.debug(f'idea_uuid: {options.idea_uuid}')
 
         assert options.idea_uuid is not None, 'idea_uuid cannot be None'
+
+        # TODO save uuid to workspace and restore on subsequent runs

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
 from typing import Tuple, Type
@@ -15,7 +15,7 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerSshStart(Handler):
 
-    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenDockerContainer,
     ))
 

@@ -30,12 +30,19 @@ class GenIdeaWebserversXml(Handler):
         idea_webservers_xml_universal_path = options.resolve_path(
             options.idea_webservers_xml_universal_path
         )
-        
+
         return replace(
             options,
             idea_webservers_xml_universal_path=idea_webservers_xml_universal_path,
         )
-        
+
+    @classmethod
+    async def validate_options(cls, options: Options) -> None:
+        # TODO py38 debug string
+        log.debug(
+            f'idea_wbservers_xml_universal_path: {options.idea_webservers_xml_universal_path}'
+        )
+
     @classmethod
     def get_element(cls, options: Options) -> _Element:
         return etree.fromstring(
@@ -46,7 +53,7 @@ class GenIdeaWebserversXml(Handler):
                     <option name="servers">
                       <webServer
                           id="{options.idea_uuid}"
-                          name="rosdev_{options.idea_base_name} ({options.idea_uuid})" 
+                          name="rosdev_{options.idea_base_ide_name} ({options.idea_uuid})" 
                           url="http:///">
                         <fileTransfer
                             host="localhost"

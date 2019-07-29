@@ -10,6 +10,7 @@ from typing import Optional, Tuple, Type
 
 from rosdev.gen.base import GenBase
 from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.pam_environment import GenPamEnvironment
 from rosdev.gen.rosdev import GenRosdev
 from rosdev.gen.ros.install import GenRosInstall
 from rosdev.gen.ros.src import GenRosSrc
@@ -28,6 +29,9 @@ class GenDockerContainer(Handler):
         GenRosdev,
         GenRosInstall,
         GenRosSrc,
+    ))
+    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenPamEnvironment,
     ))
 
     @classmethod

@@ -44,9 +44,9 @@ class GenIdeaDeploymentXml(Handler):
                 <project version="4">
                   <component
                       name="PublishConfigData"
-                      serverName="rosdev_{options.idea_base_name} ({options.idea_uuid})">
+                      serverName="rosdev_{options.idea_base_ide_name} ({options.idea_uuid})">
                     <serverData>
-                      <paths name="rosdev_{options.idea_base_name} ({options.idea_uuid})">
+                      <paths name="rosdev_{options.idea_base_ide_name} ({options.idea_uuid})">
                         <serverdata>
                           <mappings>
                             <mapping deploy="/" local="/" web="/" />

@@ -9,6 +9,7 @@ from rosdev.gen.idea.deployment_xml import GenIdeaDeploymentXml
 from rosdev.gen.idea.ide import GenIdeaIde
 from rosdev.gen.docker.ssh.start import GenDockerSshStart
 from rosdev.gen.idea.keepass import GenIdeaKeepass
+from rosdev.gen.pam_environment import GenPamEnvironment
 from rosdev.util.handler import Handler
 
 
@@ -25,6 +26,7 @@ class Pycharm(Handler):
         GenIdeaSecurityXml,
         GenIdeaWebserversXml,
         GenIdeaWorkspaceXml,
+        GenPamEnvironment,
     ))
     post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenIdeaIde,

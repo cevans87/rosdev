@@ -26,11 +26,11 @@ class GenIdeaIde(Handler):
                 options.idea_base_executable_universal_path is not None
         ), 'idea_ide_executable_universal_path cannot be None'
         
-        assert options.idea_base_name is not None, 'idea_ide_name cannot be None'
+        assert options.idea_base_ide_name is not None, 'idea_ide_name cannot be None'
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(f'Starting {options.idea_base_name} IDE')
+        log.info(f'Starting {options.idea_base_ide_name} IDE')
         await shell(
             f'nohup {options.idea_base_executable_universal_path} {options.base_workspace_path} '
             f'< /dev/null > /dev/null 2>&1 &'

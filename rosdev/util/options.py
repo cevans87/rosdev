@@ -24,15 +24,15 @@ class Options:
     enable_gui: bool = False
     executable: Optional[str] = None
     flavor: str = 'ros-core'
-    ros_container_environment: Mapping[str, str] = frozendict()
-    
-    idea_base_name: Optional[str] = None
+
+    idea_base_ide_name: Optional[str] = None
     idea_base_executable_universal_path: Optional[Path] = None
 
     idea_base_universal_path: Optional[Path] = None
     idea_base_workspace_path: Optional[Path] = None
 
     idea_c_kdbx_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.kdbx')
+    idea_c_kdbx_decoded_data: Optional[bytes] = None
     idea_c_pwd_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.pwd')
     idea_clion_cpp_toolchains_xml_universal_path: Path = Path(
         '{idea_base_universal_path}', 'config', 'options', 'cpp.toolchains.xml'
@@ -45,6 +45,7 @@ class Options:
     idea_webservers_xml_universal_path: Path = Path(
         '{idea_base_universal_path}', 'config', 'options', 'webServers.xml'
     )
+    idea_webservers_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'webServers.xml')
 
     idea_uuid: Optional[UUID] = None
     local_setup: Optional[str] = None
@@ -108,7 +109,7 @@ class Options:
         '{home_container_path}', '.bashrc'
     )
     docker_bashrc_workspace_path: Path = Path(
-        '{home_workspace_path}', '.bashrc'
+        '{home_workspace_path}', 'bashrc'
     )
 
     docker_entrypoint_sh_container_path: Path = Path(
@@ -117,6 +118,9 @@ class Options:
     docker_entrypoint_sh_workspace_path: Path = Path(
         '{rosdev_workspace_path}', 'rosdev_docker_entrypoint.sh'
     )
+
+    pam_environment_container_path: Path = Path('{home_container_path}', '.pam_environemnt')
+    pam_environment_workspace_path: Path = Path('{rosdev_workspace_path}', 'pam_environment')
 
     ros_overlay_setup_bash_container_path: Path = Path(
         '{base_container_path}', 'install',  'setup.bash'

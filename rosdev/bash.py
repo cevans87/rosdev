@@ -3,8 +3,6 @@ from logging import getLogger
 import os
 from typing import Tuple, Type
 
-from rosdev.gen.ros.install import GenRosInstall
-from rosdev.gen.ros.src import GenRosSrc
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -17,8 +15,6 @@ log = getLogger(__name__)
 class Bash(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenDockerContainer,
-        GenRosInstall,
-        GenRosSrc,
     ))
 
     @classmethod

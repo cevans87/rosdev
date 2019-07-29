@@ -21,19 +21,21 @@ class GenIdeaBase(Handler):
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        idea_base_name = options.idea_base_name
-        if idea_base_name is None:
+        idea_base_ide_name = options.idea_base_ide_name
+        if idea_base_ide_name is None:
             if 'clion' in sys.argv:
-                idea_base_name = 'CLion'
+                idea_base_ide_name = 'CLion'
             elif 'pycharm' in sys.argv:
-                idea_base_name = 'PyCharm'
-        assert idea_base_name in {'CLion', 'PyCharm'}, 'idea_ide_name must be CLion or PyCharm'
+                idea_base_ide_name = 'PyCharm'
+        assert (
+            idea_base_ide_name in {'CLion', 'PyCharm'}
+        ), 'idea_base_ide_name must be CLion or PyCharm'
         
         idea_base_universal_executable_path = options.idea_base_executable_universal_path
         if idea_base_universal_executable_path is None:
-            if idea_base_name == 'PyCharm':
+            if idea_base_ide_name == 'PyCharm':
                 idea_base_universal_executable_path = Path((await get_exec_lines('which charm'))[0])
-            elif idea_base_name == 'CLion':
+            elif idea_base_ide_name == 'CLion':
                 idea_base_universal_executable_path = Path((await get_exec_lines('which clion'))[0])
         idea_base_universal_executable_path = options.resolve_path(
             idea_base_universal_executable_path
@@ -45,10 +47,10 @@ class GenIdeaBase(Handler):
                 search_path = Path(Path.home(), 'Library', 'Preferences')
             else:
                 search_path = Path.home()
-            ide_paths = sorted(search_path.glob(f'.{idea_base_name}*'))
+            ide_paths = sorted(search_path.glob(f'.{idea_base_ide_name}*'))
             assert (
                     ide_paths
-            ), f'Could not find any {idea_base_name} settings directories in {search_path}'
+            ), f'Could not find any {idea_base_ide_name} settings directories in {search_path}'
             idea_base_universal_path = ide_paths[-1]
         idea_base_universal_path = options.resolve_path(idea_base_universal_path)
 
@@ -59,7 +61,7 @@ class GenIdeaBase(Handler):
 
         return replace(
             options,
-            idea_base_name=idea_base_name,
+            idea_base_ide_name=idea_base_ide_name,
             idea_base_executable_universal_path=idea_base_universal_executable_path,
             idea_base_universal_path=idea_base_universal_path,
             idea_base_workspace_path=idea_base_workspace_path,
@@ -68,13 +70,13 @@ class GenIdeaBase(Handler):
     @classmethod
     async def validate_options(cls, options: Options) -> None:
         # FIXME py38 debug print
-        log.debug(f'idea_base_name: {options.idea_base_name}')
+        log.debug(f'idea_base_ide_name: {options.idea_base_ide_name}')
         log.debug(f'idea_base_universal_path: {options.idea_base_universal_path}')
         log.debug(f'idea_base_workspace_path: {options.idea_base_workspace_path}')
 
         assert (
-                options.idea_base_name in {'CLion', 'PyCharm'}
-        ), 'idea_ide_name must be CLion or PyCharm'
+                options.idea_base_ide_name in {'CLion', 'PyCharm'}
+        ), 'idea_base_ide_name must be CLion or PyCharm'
         assert (
                 options.idea_base_universal_path is not None
         ), 'idea_base_universal_path cannot be None'

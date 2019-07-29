@@ -59,6 +59,7 @@ class Choices:
     architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
     build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
     flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
+    idea_base_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
     ros_release = tuple(
@@ -82,7 +83,7 @@ class Flag:
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
-    idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    idea_base_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_ros_install: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -91,6 +92,8 @@ class Flag:
     replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
+    source_ros_overlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
+    source_ros_underlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
     uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
@@ -222,10 +225,11 @@ class Flag:
             help='show this help message and exit',
         )
         
-        self.idea_ide_name.add_argument(
-            '--idea-ide-name',
-            default=options.idea_base_name,
-            help=f'Name of IDEA IDE to use. Currently: {options.idea_base_name}'
+        self.idea_base_ide_name.add_argument(
+            '--idea-base-ide-name',
+            default=options.idea_base_ide_name,
+            choices=choices.idea_base_ide_name,
+            help=f'Name of IDEA IDE to use. Currently: {options.idea_base_ide_name}'
         )
 
         self.log_level.add_argument(
@@ -400,6 +404,56 @@ class Flag:
             )
         )
 
+        source_ros_overlay_setup_bash_group = (
+            self.source_ros_overlay_setup_bash.add_mutually_exclusive_group()
+        )
+        source_ros_overlay_setup_bash_group.add_argument(
+            '--source-ros-overlay-setup-bash',
+            action='store_true',
+            default=options.source_ros_overlay_setup_bash,
+            help=(
+                f'Source setup.bash from ROS install. '
+                f'Currently: {options.source_ros_overlay_setup_bash}'
+            )
+        )
+        source_ros_overlay_setup_bash_group.add_argument(
+            '--no-source-ros-overlay-setup-bash',
+            action='store_const',
+            const=None,
+            dest='source_ros_overlay_setup_bash',
+            default=options.source_ros_overlay_setup_bash,
+            help=(
+                SUPPRESS if options.source_ros_overlay_setup_bash is None else
+                f'Do not source setup.bash from ROS install. '
+                f'Currently: {options.source_ros_overlay_setup_bash}'
+            )
+        )
+
+        source_ros_underlay_setup_bash_group = (
+            self.source_ros_underlay_setup_bash.add_mutually_exclusive_group()
+        )
+        source_ros_underlay_setup_bash_group.add_argument(
+            '--source-ros-underlay-setup-bash',
+            action='store_true',
+            default=options.source_ros_underlay_setup_bash,
+            help=(
+                f'Source setup.bash from workspace install. '
+                f'Currently: {options.source_ros_underlay_setup_bash}'
+            )
+        )
+        source_ros_underlay_setup_bash_group.add_argument(
+            '--no-source-ros-underlay-setup-bash',
+            action='store_const',
+            const=None,
+            dest='source_ros_underlay_setup_bash',
+            default=options.source_ros_underlay_setup_bash,
+            help=(
+                SUPPRESS if options.source_ros_underlay_setup_bash is None else
+                f'Do not source setup.bash from workspace install. '
+                f'Currently: {options.source_ros_underlay_setup_bash}'
+            )
+        )
+
         class UuidAction(Action):
             def __call__(
                     self,
@@ -533,10 +587,12 @@ class Parser:
         argument_parser.set_defaults(rosdev_handler_module=rosdev_handler_module)
 
         if not self.sub_parser_by_sub_command:
-            rosdev_handler_class = ''.join(
-                sub_command.capitalize() for sub_command in
-                [*prev_sub_commands[1:], self.sub_command]
-            )
+            rosdev_handler_class_parts = []
+
+            for sub_command in [*prev_sub_commands[1:], self.sub_command]:
+                for sub_command_part in sub_command.split('_'):
+                    rosdev_handler_class_parts.append(sub_command_part.capitalize())
+            rosdev_handler_class = ''.join(rosdev_handler_class_parts)
             argument_parser.set_defaults(rosdev_handler_class=rosdev_handler_class)
         else:
             sub_argument_parser = argument_parser.add_subparsers(required=True)
@@ -598,6 +654,8 @@ parser = parser.merged_with(
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
+        flag.source_ros_overlay_setup_bash,
+        flag.source_ros_underlay_setup_bash,
     }),
 )
 
@@ -666,11 +724,12 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen idea',
     flags=frozenset({
-        flag.idea_ide_name,
+        flag.idea_base_ide_name,
     })
 )
 
 parser = parser.merged_with(sub_commands='gen idea clion toolchain')
+parser = parser.merged_with(sub_commands='gen idea deployment_xml')
 parser = parser.merged_with(sub_commands='gen idea ide')
 parser = parser.merged_with(sub_commands='gen idea keepass')
 parser = parser.merged_with(sub_commands='gen idea settings')
@@ -678,6 +737,14 @@ parser = parser.merged_with(sub_commands='gen idea settings')
 parser = parser.merged_with(
     sub_commands='gen overrides',
     flags=frozenset(asdict(flag).values())
+)
+
+parser = parser.merged_with(
+    sub_commands='gen pam_environment',
+    flags=frozenset({
+        flag.source_ros_overlay_setup_bash,
+        flag.source_ros_underlay_setup_bash,
+    })
 )
 
 parser = parser.merged_with(

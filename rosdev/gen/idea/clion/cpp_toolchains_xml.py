@@ -47,7 +47,7 @@ class GenIdeaClionCppToolchainsXml(Handler):
                   <component name="CPPToolchains" version="4">
                     <toolchains detectedVersion="5">
                       <toolchain
-                          name="rosdev_{options.idea_base_name}"
+                          name="rosdev_{options.idea_base_ide_name}"
                           toolSetKind="REMOTE"
                           customCMakePath="/usr/bin/cmake"
                           hostId="{options.idea_uuid}"

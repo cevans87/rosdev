@@ -15,7 +15,7 @@ setup(
         'docker>=3.7.0',
         'frozendict>=1.2',
         'lxml>=4.3.3',
-        'pycryptodome>=3.8.1',
+        'pycryptodome>=3.8.2',
         'pykeepass>=2.19',
         'pytest>=4.4.1',
         'python-jenkins>=1.4.0',
