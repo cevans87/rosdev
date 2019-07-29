@@ -1,7 +1,7 @@
 from asyncio import gather
 from dataclasses import dataclass, field, replace
 from logging import getLogger
-from platform import release
+from platform import machine
 from typing import Tuple, Type
 
 from rosdev.gen.rosdev import GenRosdev
@@ -24,7 +24,11 @@ class GenArchitecture(Handler):
     async def resolve_options(cls, options: Options) -> Options:
         architecture = options.architecture
         if architecture is None:
-            architecture = release().rsplit('-', 1)[-1]
+            architecture = {
+                'x86_64': 'amd64',
+                'arm': 'arm32v7',
+                'aarch64': 'arm64v8',
+            }[machine()]
 
         return replace(options, architecture=architecture)
 
