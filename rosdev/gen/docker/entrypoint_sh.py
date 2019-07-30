@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field, replace
-from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
 from textwrap import dedent
@@ -32,15 +31,8 @@ class GenDockerEntrypointSh(Handler):
             options.docker_entrypoint_sh_workspace_path
         )
 
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[docker_entrypoint_sh_workspace_path] = (
-            docker_entrypoint_sh_container_path
-        )
-        docker_container_volumes = frozendict(docker_container_volumes)
-
         return replace(
             options,
-            docker_container_volumes=docker_container_volumes,
             docker_entrypoint_sh_container_path=docker_entrypoint_sh_container_path,
             docker_entrypoint_sh_workspace_path=docker_entrypoint_sh_workspace_path,
         )
@@ -66,12 +58,10 @@ class GenDockerEntrypointSh(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(
-            f'Creating docker container entrypoint at {options.docker_entrypoint_sh_workspace_path}'
-        )
+        log.info(f'Creating docker_container_entrypoint_sh')
+
         with open(Path(options.docker_entrypoint_sh_workspace_path), 'w') as f_out:
             f_out.write(cls.get_docker_entrypoint_sh_contents(options))
         await exec(f'chmod +x {options.docker_entrypoint_sh_workspace_path}')
-        log.info(
-            f'Created docker container entrypoint at {options.docker_entrypoint_sh_workspace_path}'
-        )
+
+        log.info(f'Created docker_container_entrypoint_sh')

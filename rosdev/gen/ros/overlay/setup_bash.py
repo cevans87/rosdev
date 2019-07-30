@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field, replace
-from frozendict import frozendict
 from logging import getLogger
 from typing import Tuple, Type
 
@@ -27,15 +26,8 @@ class GenRosOverlaySetupBash(Handler):
             options.ros_overlay_setup_bash_workspace_path
         )
 
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[ros_overlay_setup_bash_workspace_path] = (
-            ros_overlay_setup_bash_container_path
-        )
-        docker_container_volumes = frozendict(docker_container_volumes)
-
         return replace(
             options,
-            docker_container_volumes=docker_container_volumes,
             ros_overlay_setup_bash_container_path=ros_overlay_setup_bash_container_path,
             ros_overlay_setup_bash_workspace_path=ros_overlay_setup_bash_workspace_path,
         )

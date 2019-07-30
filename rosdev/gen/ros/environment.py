@@ -4,6 +4,7 @@ from frozendict import frozendict
 from logging import getLogger
 from typing import Mapping, Tuple, Type
 
+from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -27,6 +28,7 @@ _ros_environment_required_keys = frozenset({
 @dataclass(frozen=True)
 class GenRosEnvironment(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenDockerContainer,
         GenDockerEntrypointSh,
     ))
 

@@ -6,6 +6,7 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
+from rosdev.gen.docker.ssh.port import GenDockerSshPort
 from rosdev.gen.idea.base import GenIdeaBase
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
@@ -21,6 +22,7 @@ log = getLogger(__name__)
 class GenIdeaWebserversXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenDockerSshPort,
         GenIdeaBase,
         GenIdeaUuid,
     ))
@@ -57,11 +59,11 @@ class GenIdeaWebserversXml(Handler):
                           url="http:///">
                         <fileTransfer
                             host="localhost"
-                            port="22"
+                            port="{options.docker_ssh_workspace_port}"
                             privateKey="$USER_HOME$/.ssh/id_rsa" 
                             accessType="SFTP"
                             keyPair="true">
-                          <option name="port" value="22" />
+                          <option name="port" value="{options.docker_ssh_workspace_port}" />
                         </fileTransfer>
                       </webServer>
                     </option>

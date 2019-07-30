@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Optional, Tuple, Type
 
 from rosdev.gen.base import GenBase
+from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.image import GenDockerImage
-from rosdev.gen.pam_environment import GenPamEnvironment
+from rosdev.gen.docker.ssh.port import GenDockerSshPort
 from rosdev.gen.rosdev import GenRosdev
 from rosdev.gen.ros.install import GenRosInstall
 from rosdev.gen.ros.src import GenRosSrc
@@ -25,18 +26,16 @@ log = getLogger(__name__)
 class GenDockerContainer(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
+        GenDockerGdbinit,
         GenDockerImage,
+        GenDockerSshPort,
         GenRosdev,
         GenRosInstall,
         GenRosSrc,
     ))
-    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenPamEnvironment,
-    ))
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-
         docker_container_name = options.resolve_str(options.docker_container_name)
 
         docker_container_environment = dict(options.docker_container_environment)

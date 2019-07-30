@@ -1,7 +1,9 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from logging import getLogger
 from pathlib import Path
+from typing import Tuple, Type
 
+from rosdev.gen.rosdev import GenRosdev
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -11,6 +13,10 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenHome(Handler):
+
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenRosdev,
+    ))
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
@@ -23,10 +29,13 @@ class GenHome(Handler):
         if home_container_path is None:
             home_container_path = home_universal_path
         home_container_path = options.resolve_path(home_container_path)
+        
+        home_workspace_path = options.resolve_path(options.home_workspace_path)
 
         return replace(
             options,
             home_container_path=home_container_path,
+            home_workspace_path=home_workspace_path,
             home_universal_path=home_universal_path,
         )
 

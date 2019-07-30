@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field, replace
-from frozendict import frozendict
 from logging import getLogger
 from typing import Tuple, Type
 
@@ -30,16 +29,9 @@ class GenPamEnvironment(Handler):
         pam_environment_workspace_path = options.resolve_path(
             options.pam_environment_workspace_path
         )
-        
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[pam_environment_workspace_path] = (
-            pam_environment_container_path
-        )
-        docker_container_volumes = frozendict(docker_container_volumes)
 
         return replace(
             options,
-            docker_container_volumes=docker_container_volumes,
             pam_environment_container_path=pam_environment_container_path,
             pam_environment_workspace_path=pam_environment_workspace_path,
         )
@@ -89,7 +81,13 @@ class GenPamEnvironment(Handler):
             #            f'lib{self.options.sanitizer}.so.0'
             #        )
 
+            await exec(f'mkdir -p {options.pam_environment_workspace_path.parent}', err_ok=True)
             with open(str(options.pam_environment_workspace_path), 'w') as f_out:
                 f_out.write('\n'.join(pam_environment_lines))
+            await exec(
+                f'docker exec {options.docker_container_name} '
+                f'ln -s {options.pam_environment_container_path} '
+                f'{options.home_container_path}/.pam_environment'
+            )
 
         log.info(f'Created pam_environment')

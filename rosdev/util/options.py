@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass
 from frozendict import frozendict
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Mapping, Optional
 from uuid import UUID
 
 
@@ -15,11 +15,16 @@ class Options:
     docker_container_environment: Mapping[str, str] = frozendict()
     docker_container_name: str = 'rosdev_{architecture}_{ros_build_num}_{base_workspace_hash}'
     # TODO expose ports
-    docker_container_ports: Mapping[int, int] = frozendict({22: 22})
+    # container:host
+    docker_container_ports: Mapping[int, int] = frozendict()
+    # host:container
     docker_container_volumes: Mapping[str, str] = frozendict()
     docker_image_base_tag: Optional[str] = None
     docker_image_tag: Optional[str] = None
     docker_ssh_workspace_port: Optional[int] = None
+    docker_ssh_workspace_port_path: Path = Path(
+        '{rosdev_workspace_path}', 'docker_ssh_workspace_port'
+    )
     enable_ccache: bool = True
     enable_gui: bool = False
     executable: Optional[str] = None
@@ -71,7 +76,11 @@ class Options:
     base_universal_path: Optional[Path] = None
 
     home_container_path: Optional[Path] = None
+    home_workspace_path: Path = Path('{rosdev_workspace_path}', 'home')
     home_universal_path: Optional[Path] = None
+    
+    docker_gdbinit_container_path: Path = Path('{rosdev_container_path}', '.gdbinit')
+    docker_gdbinit_workspace_path: Path = Path('{rosdev_workspace_path}', 'gdbinit')
 
     rosdev_container_path: Path = Path('{base_container_path}', '.rosdev')
     rosdev_workspace_path: Path = Path('{base_workspace_path}', '.rosdev')
@@ -105,21 +114,21 @@ class Options:
         '{rosdev_workspace_path}', 'docker_build_context'
     )
 
-    docker_bashrc_container_path: Path = Path(
-        '{home_container_path}', '.bashrc'
-    )
-    docker_bashrc_workspace_path: Path = Path(
-        '{home_workspace_path}', 'bashrc'
-    )
+    docker_bashrc_container_path: Path = Path('{rosdev_container_path}', 'bashrc')
+    docker_bashrc_ln_target_path: Path = Path('{home_container_path}', '.bashrc')
+    docker_bashrc_workspace_path: Path = Path('{rosdev_workspace_path}', 'bashrc')
+
+    docker_build_dockerfile_entrypoint_sh_ln_target_path: Path = Path('/', 'rosdev_entrypoint.sh')
 
     docker_entrypoint_sh_container_path: Path = Path(
-        '/', 'rosdev_docker_entrypoint.sh'
+        '{rosdev_container_path}', 'rosdev_docker_entrypoint.sh'
     )
     docker_entrypoint_sh_workspace_path: Path = Path(
         '{rosdev_workspace_path}', 'rosdev_docker_entrypoint.sh'
     )
 
-    pam_environment_container_path: Path = Path('{home_container_path}', '.pam_environemnt')
+    pam_environment_container_path: Path = Path('{rosdev_container_path}', 'pam_environment')
+    pam_environment_ln_target_path: Path = Path('{home_container_path}', '.pam_environment')
     pam_environment_workspace_path: Path = Path('{rosdev_workspace_path}', 'pam_environment')
 
     ros_overlay_setup_bash_container_path: Path = Path(

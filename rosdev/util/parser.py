@@ -720,6 +720,7 @@ parser = parser.merged_with(
         flag.release,
     })
 )
+parser = parser.merged_with(sub_commands='gen docker ssh port')
 
 parser = parser.merged_with(
     sub_commands='gen idea',
