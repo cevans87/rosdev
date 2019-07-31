@@ -100,6 +100,7 @@ class GenDockerContainer(Handler):
                     command=options.docker_container_command,
                     detach=True,
                     environment=dict(options.docker_container_environment),
+                    hostname=options.docker_container_name,
                     image=options.docker_image_tag,
                     ipc_mode='host',
                     name=options.docker_container_name,

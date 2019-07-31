@@ -8,6 +8,7 @@ from rosdev.gen.architecture import GenArchitecture
 from rosdev.util.build_farm import get_ros_build_num
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.subprocess import exec
 
 
 log = getLogger(__name__)
@@ -74,10 +75,11 @@ class GenRosBuildNum(Handler):
     async def main(cls, options: Options) -> None:
         try:
             with open(Path(options.ros_build_num_universal_path), 'r') as f_in:
-                old_ros_build_num = ast.literal_eval(f_in.read())
-        except FileNotFoundError:
-            old_ros_build_num = 0
+                old_ros_build_num = int(ast.literal_eval(f_in.read()))
+        except (FileNotFoundError, ValueError):
+            old_ros_build_num = None
 
-        if old_ros_build_num < options.ros_build_num:
+        if (old_ros_build_num is None) or (old_ros_build_num < options.ros_build_num):
+            await exec(f'mkdir -p {options.ros_build_num_universal_path.parent}')
             with open(Path(options.ros_build_num_universal_path), 'w') as f_out:
                 f_out.write(f'{options.ros_build_num}')

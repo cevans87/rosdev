@@ -60,6 +60,7 @@ class GenDockerEntrypointSh(Handler):
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_container_entrypoint_sh')
 
+        await exec(f'mkdir -p {options.docker_entrypoint_sh_workspace_path.parent}')
         with open(Path(options.docker_entrypoint_sh_workspace_path), 'w') as f_out:
             f_out.write(cls.get_docker_entrypoint_sh_contents(options))
         await exec(f'chmod +x {options.docker_entrypoint_sh_workspace_path}')
