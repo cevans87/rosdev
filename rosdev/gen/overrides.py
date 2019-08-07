@@ -1,36 +1,30 @@
-from atools import memoize
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from pprint import pformat
+from typing import Tuple, Type
 
-from rosdev.gen.rosdev.config import Config
+from rosdev.gen.base import GenBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
 
 
-@memoize
-class Overrides(Handler):
+@dataclass(frozen=True)
+class GenOverrides(Handler):
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenBase,
+    ))
 
-    @property
-    def local_path_base(self) -> str:
-        return Config(self.options).local_path
-    
-    @property
-    def local_path(self) -> str:
-        return f'{self.local_path_base}/overrides'
-
-    @memoize
-    async def _main(self) -> None:
-
-        # FIXME recursively include all directories until homedir
-
+    @classmethod
+    async def main(cls, options: Options) -> None:
         commit = {}
         default_options = Options()
 
-        for k, v in self.options.__dict__.items():
-            if getattr(default_options, k) != v:
+        for k, v in asdict(options).items():
+            if (not isinstance(v, Path)) and getattr(default_options, k) != v:
                 commit[k] = v
 
         if commit:
-            await exec(f'mkdir -p {self.local_path_base}')
-            with open(self.local_path, 'w') as defaults_f_out:
-                defaults_f_out.write(f'{pformat(commit)}\n')
+            options.write_text(
+                path=options.overrides_path,
+                text=f'{pformat(commit)}\n'
+            )

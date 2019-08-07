@@ -1,9 +1,7 @@
 from __future__ import annotations
 from argcomplete import autocomplete
 # noinspection PyProtectedMember
-from argparse import (
-    Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, SUPPRESS
-)
+from argparse import Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, SUPPRESS
 import ast
 from collections import ChainMap
 from dataclasses import asdict, dataclass, field, replace
@@ -24,8 +22,7 @@ def get_options_with_overrides() -> Options:
     overrides = []
     for path in [Path.cwd(), *Path.cwd().parents]:
         try:
-            with open(f'{path}/.rosdev/overrides', 'r') as overrides_f_in:
-                overrides.append(ast.literal_eval(overrides_f_in.read()))
+            overrides.append(ast.literal_eval(Path(path, '.rosdev', 'overrides').read_text()))
         except FileNotFoundError:
             pass
 
@@ -59,12 +56,10 @@ class Choices:
     architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
     build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
     flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
-    idea_base_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
+    idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    ros_release = tuple(
-        sorted({'ardent', 'bionic', 'crystal', 'dashing', 'kinetic', 'melodic'}) + ['latest']
-    )
+    release = tuple(sorted({'crystal', 'dashing', 'kinetic', 'melodic'}) + ['latest'])
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 
@@ -75,22 +70,23 @@ choices = Choices()
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
-    ros_build_num: ArgumentParser = field(default_factory=gen_flag_parser)
+    build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
-    docker_container_name: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ports: ArgumentParser = field(default_factory=gen_flag_parser)
+    dry_run: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
-    flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
+    flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
-    idea_base_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
+    pull_build: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
-    pull_ros_install: ArgumentParser = field(default_factory=gen_flag_parser)
-    pull_ros_src: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
+    run_main: ArgumentParser = field(default_factory=gen_flag_parser)
+    run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
     source_ros_overlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
     source_ros_underlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -99,10 +95,20 @@ class Flag:
 
     def __post_init__(self) -> None:
         self.architecture.add_argument(
-            '--architecture', '-a',
+            '--architecture',
             default=options.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {options.architecture}',
+        )
+
+        self.build_num.add_argument(
+            '--build-num',
+            type=int,
+            default=options.build_num,
+            help=(
+                f'Use specified build from OSRF build farm instead of {options.build_num}. '
+                f'Currently: {options.build_num}'
+            ),
         )
 
         self.build_type.add_argument(
@@ -134,14 +140,24 @@ class Flag:
             )
         )
 
-        self.docker_container_name.add_argument(
-            '--docker-container-name',
-            default=options.docker_container_name,
+        dry_run_group = self.dry_run.add_mutually_exclusive_group()
+        dry_run_group.add_argument(
+            '--dry-run',
+            default=options.dry_run,
             help=(
-                f'Name to assign to docker container. '
-                f'Existing container with name will be removed. '
-                f'Currently: {options.docker_container_name}'
-            ),
+                f'Avoid running actions with side effects. Currently: {options.dry_run}'
+            )
+        )
+        dry_run_group.add_argument(
+            '--no-dry-run',
+            action='store_const',
+            const=None,
+            dest='dry_run',
+            default=options.dry_run,
+            help=(
+                SUPPRESS if options.dry_run is None else
+                f'Do not avoid running actions with side effects. Currently: {options.dry_run}'
+            )
         )
 
         enable_ccache_group = self.enable_ccache.add_mutually_exclusive_group()
@@ -225,11 +241,11 @@ class Flag:
             help='show this help message and exit',
         )
         
-        self.idea_base_ide_name.add_argument(
-            '--idea-base-ide-name',
-            default=options.idea_base_ide_name,
-            choices=choices.idea_base_ide_name,
-            help=f'Name of IDEA IDE to use. Currently: {options.idea_base_ide_name}'
+        self.idea_ide_name.add_argument(
+            '--idea-ide-name',
+            default=options.idea_ide_name,
+            choices=choices.idea_ide_name,
+            help=f'Name of IDEA IDE to use. Currently: {options.idea_ide_name}'
         )
 
         self.log_level.add_argument(
@@ -260,7 +276,7 @@ class Flag:
             )
         )
         pull_docker_image_group.add_argument(
-            '--no-pull-docker-image',
+            '--keep-docker-image',
             action='store_false',
             dest='pull_docker_image',
             default=options.pull_docker_image,
@@ -271,69 +287,45 @@ class Flag:
             )
         )
 
-        pull_ros_install_group = self.pull_ros_install.add_mutually_exclusive_group()
-        pull_ros_install_group.add_argument(
-            '--pull-ros-install',
+        pull_build_group = self.pull_build.add_mutually_exclusive_group()
+        pull_build_group.add_argument(
+            '--pull-build',
             action='store_true',
-            default=options.pull_ros_install,
+            default=options.pull_build,
             help=(
-                SUPPRESS if options.pull_ros_install else
-                f'Pull newer ros install. '
-                f'Currently: {options.pull_ros_install}'
+                SUPPRESS if options.pull_build else
+                f'Pull newer ros build. Currently: {options.pull_build}'
             )
         )
-        pull_ros_install_group.add_argument(
-            '--no-pull-ros-install',
+        pull_build_group.add_argument(
+            '--keep-build',
             action='store_false',
-            dest='pull_ros_install',
-            default=options.pull_ros_install,
+            dest='pull_build',
+            default=options.pull_build,
             help=(
-                SUPPRESS if not options.pull_ros_install else
-                f'Do not pull newer ros install. '
-                f'Currently: {options.pull_ros_install}'
+                SUPPRESS if not options.pull_build else
+                f'Do not pull newer ros build. Currently: {options.pull_build}'
             )
         )
 
-        pull_ros_src_group = self.pull_ros_src.add_mutually_exclusive_group()
-        pull_ros_src_group.add_argument(
-            '--pull-ros-src',
-            action='store_true',
-            default=options.pull_ros_src,
+        release_group = self.release.add_mutually_exclusive_group()
+        release_group.add_argument(
+            '--release',
+            default=options.release,
+            choices=choices.release,
             help=(
-                SUPPRESS if options.pull_ros_src else
-                f'Pull newer ros src. '
-                f'Currently: {options.pull_ros_src}'
+                f'ROS release to build. Currently: {options.release}'
             )
         )
-        pull_ros_src_group.add_argument(
-            '--no-pull-ros-src',
-            action='store_false',
-            dest='pull_ros_src',
-            default=options.pull_ros_src,
+        release_group.add_argument(
+            '--no-release',
+            default=options.release,
+            action='store_const',
+            const=None,
+            dest='release',
             help=(
-                SUPPRESS if not options.pull_ros_src else
-                f'Do not pull newer ros src. '
-                f'Currently: {options.pull_ros_src}'
-            )
-        )
-
-        self.ros_build_num.add_argument(
-            '--ros-build-num',
-            type=int,
-            default=options.ros_build_num,
-            help=(
-                f'Use specified build from OSRF build farm instead of {options.ros_release}. '
-                f'Currently: {options.ros_build_num}'
-            ),
-        )
-
-        self.release.add_argument(
-            '--ros-release', '-r', '--release',
-            default=options.ros_release,
-            choices=choices.ros_release,
-            help=(
-                f'ROS release to build. '
-                f'Currently: {options.ros_release}'
+                SUPPRESS if options.release is None else
+                f'ROS release to build. Currently: {options.release}'
             )
         )
 
@@ -351,7 +343,7 @@ class Flag:
             )
         )
         replace_docker_container_group.add_argument(
-            '--no-replace-docker-container',
+            '--keep-docker-container',
             action='store_false',
             dest='replace_docker_container',
             default=options.replace_docker_container,
@@ -381,6 +373,50 @@ class Flag:
                 SUPPRESS if options.rosdep_install_args is None else
                 f'Do not pass additional args to rosdep install. '
                 f'Currently: {options.rosdep_install_args}'
+            )
+        )
+
+        run_main_group = self.run_main.add_mutually_exclusive_group()
+        run_main_group.add_argument(
+            '--run-main',
+            default=options.run_main,
+            action='store_true',
+            help=(
+                SUPPRESS if options.run_main else
+                f'Run main part of program. Currently: {options.run_main}'
+            )
+        )
+        run_main_group.add_argument(
+            '--skip-main',
+            dest='run_main',
+            default=options.run_main,
+            action='store_false',
+            help=(
+                SUPPRESS if not options.run_main else
+                f'Do not run main part of program. Currently: {options.run_main}'
+            )
+        )
+
+        run_validate_options_group = self.run_validate_options.add_mutually_exclusive_group()
+        run_validate_options_group.add_argument(
+            '--run-validate-options',
+            default=options.run_validate_options,
+            action='store_true',
+            help=(
+                SUPPRESS if options.run_validate_options else
+                f'Run validate options part of program. '
+                f'Currently: {options.run_validate_options}'
+            )
+        )
+        run_validate_options_group.add_argument(
+            '--skip-validate-options',
+            dest='run_validate_options',
+            default=options.run_validate_options,
+            action='store_false',
+            help=(
+                SUPPRESS if not options.run_validate_options else
+                f'Do not run validate optionspart of program. '
+                f'Currently: {options.run_validate_options}'
             )
         )
 
@@ -610,7 +646,10 @@ parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
         flag.help,
+        flag.dry_run,
         flag.log_level,
+        flag.run_main,
+        flag.run_validate_options,
     })
 )
 
@@ -618,6 +657,7 @@ parser = parser.merged_with(
     sub_commands='bash',
     flags=frozenset({
         flag.architecture,
+        flag.build_num,
         flag.enable_ccache,
         flag.enable_gui,
         flag.flavor,
@@ -625,7 +665,6 @@ parser = parser.merged_with(
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
-        flag.ros_build_num,
         flag.volumes,
     }),
 )
@@ -649,7 +688,7 @@ parser = parser.merged_with(
     sub_commands='clion',
     flags=frozenset({
         flag.architecture,
-        flag.ros_build_num,
+        flag.build_num,
         flag.build_type,
         flag.pull_docker_image,
         flag.release,
@@ -667,23 +706,37 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
+    sub_commands='gen base',
+    flags=frozenset({
+        flag.architecture
+    })
+)
+
+parser = parser.merged_with(
     sub_commands='gen colcon build',
     flags=frozenset({
         flag.architecture,
+        flag.build_num,
         flag.build_type,
         flag.colcon_build_args,
         flag.pull_docker_image,
         flag.release,
-        flag.ros_build_num,
         flag.sanitizer,
     })
 )
 
 parser = parser.merged_with(
-    sub_commands='gen docker container',
-    positionals=(
-        positional.command,
-    ),
+    sub_commands='gen core',
+    flags=frozenset({
+        flag.architecture,
+        flag.build_num,
+        flag.pull_build,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen docker',
     flags=frozenset({
         flag.architecture,
         flag.docker_container_ports,
@@ -694,45 +747,28 @@ parser = parser.merged_with(
     })
 )
 
-parser = parser.merged_with(
-    sub_commands='gen docker image',
-    flags=frozenset({
-        flag.architecture,
-        flag.pull_docker_image,
-        flag.release,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen docker ssh connect',
-    flags=frozenset({
-        flag.architecture,
-        flag.pull_docker_image,
-        flag.release,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen docker ssh start',
-    flags=frozenset({
-        flag.architecture,
-        flag.pull_docker_image,
-        flag.release,
-    })
-)
+parser = parser.merged_with(sub_commands='gen docker base')
+parser = parser.merged_with(sub_commands='gen docker core')
+parser = parser.merged_with(sub_commands='gen docker image')
+parser = parser.merged_with(sub_commands='gen docker install')
+parser = parser.merged_with(sub_commands='gen docker ssh connect')
+parser = parser.merged_with(sub_commands='gen docker ssh start')
 parser = parser.merged_with(sub_commands='gen docker ssh port')
 
 parser = parser.merged_with(
     sub_commands='gen idea',
     flags=frozenset({
-        flag.idea_base_ide_name,
+        flag.idea_ide_name,
     })
 )
 
+parser = parser.merged_with(sub_commands='gen idea base')
 parser = parser.merged_with(sub_commands='gen idea clion toolchain')
+parser = parser.merged_with(sub_commands='gen idea core')
 parser = parser.merged_with(sub_commands='gen idea deployment_xml')
 parser = parser.merged_with(sub_commands='gen idea ide')
 parser = parser.merged_with(sub_commands='gen idea keepass')
+parser = parser.merged_with(sub_commands='gen idea security_xml')
 parser = parser.merged_with(sub_commands='gen idea settings')
 
 parser = parser.merged_with(
@@ -749,10 +785,10 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
-    sub_commands='gen ros build num',
+    sub_commands='gen ros build_num',
     flags=frozenset({
         flag.architecture,
-        flag.ros_build_num,
+        flag.build_num,
         flag.release,
     })
 )
@@ -767,9 +803,10 @@ parser = parser.merged_with(
     sub_commands='gen ros install',
     flags=frozenset({
         flag.architecture,
+        flag.build_num,
         flag.pull_docker_image,
+        flag.pull_build,
         flag.release,
-        flag.ros_build_num,
     })
 )
 
@@ -777,9 +814,10 @@ parser = parser.merged_with(
     sub_commands='gen ros src',
     flags=frozenset({
         flag.architecture,
+        flag.build_num,
         flag.pull_docker_image,
+        flag.pull_build,
         flag.release,
-        flag.ros_build_num,
     })
 )
 
@@ -804,9 +842,9 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
+        flag.build_num,
         flag.pull_docker_image,
         flag.release,
-        flag.ros_build_num,
     })
 )
 

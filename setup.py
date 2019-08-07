@@ -17,15 +17,18 @@ setup(
         'lxml>=4.3.3',
         'pycryptodome>=3.8.2',
         'pykeepass>=2.19',
-        'pytest>=4.4.1',
         'python-jenkins>=1.4.0',
         'vcstool>=0.1.38',
+    ],
+    tests_require=[
+        'pytest',
+        'pytest-asyncio'
     ],
     license='mit',
     name='rosdev',
     packages=find_packages(),
     python_requires='>=3.7',
-    test_suite='tests',
+    test_suite='pytest',
     url='https://github.com/cevans87/rosdev',
     version='0.1.0',
 )

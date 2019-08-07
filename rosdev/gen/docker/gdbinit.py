@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from logging import getLogger
 from typing import Tuple, Type
 
-from rosdev.gen.home import GenHome
+from rosdev.gen.base import GenBase
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_operating_system
 from rosdev.util.options import Options
@@ -16,20 +16,8 @@ log = getLogger(__name__)
 class GenDockerGdbinit(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenHome,
+        GenBase,
     ))
-
-    @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        docker_gdbinit_container_path = options.resolve_path(options.docker_gdbinit_container_path)
-
-        docker_gdbinit_workspace_path = options.resolve_path(options.docker_gdbinit_workspace_path)
-
-        return replace(
-            options,
-            docker_gdbinit_container_path=docker_gdbinit_container_path,
-            docker_gdbinit_workspace_path=docker_gdbinit_workspace_path
-        )
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
@@ -48,12 +36,12 @@ class GenDockerGdbinit(Handler):
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
                 f'packaging_{get_operating_system(options.architecture)}/ws/src/ '
-                f'{options.ros_src_workspace_path}\n'
+                f'{options.src_workspace_path}\n'
             )
             f_out.write(
                 f'set substitute-path '
                 f'/home/rosbuild/ci_scripts/ws/src/ '
-                f'{options.ros_src_workspace_path}\n'
+                f'{options.src_workspace_path}\n'
             )
         #await exec(
         #    f'docker container exec {options.docker_container_name} '

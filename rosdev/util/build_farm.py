@@ -20,8 +20,8 @@ class _Jenkins:
         return f'packaging_{get_operating_system(architecture)}'
 
     @memoize
-    async def get_ros_build_num(self, architecture: str, ros_release: str) -> int:
-        if ros_release != 'latest':
+    async def get_build_num(self, architecture: str, release: str) -> int:
+        if release != 'latest':
             return {
                 'amd64': {
                     'dashing': 1482,
@@ -34,29 +34,29 @@ class _Jenkins:
                     'dashing': 825,
                     'crystal': 651,
                 },
-            }[architecture][ros_release]
+            }[architecture][release]
         else:
-            def get_ros_build_num_inner() -> int:
+            def get_build_num_inner() -> int:
                 return self._external_jenkins.get_job_info(
                     name=self.get_job_name(architecture=architecture),
                     depth=1,
                     fetch_all_builds=False,
                 )['lastSuccessfulBuild']['number']
 
-            return await get_event_loop().run_in_executor(None, get_ros_build_num_inner)
+            return await get_event_loop().run_in_executor(None, get_build_num_inner)
 
     async def get_build_console_output(
-            self, architecture: str, ros_build_num: Optional[int], ros_release: str
+            self, architecture: str, build_num: Optional[int], release: str
     ) -> Tuple[str]:
-        if ros_build_num is None:
-            ros_build_num = await self.get_ros_build_num(
+        if build_num is None:
+            build_num = await self.get_build_num(
                 architecture=architecture,
-                ros_release=ros_release
+                release=release
             )
 
         def get_build_console_output_inner() -> Tuple[str]:
             return tuple(self._external_jenkins.get_build_console_output(
-                f'packaging_{get_operating_system(architecture)}', ros_build_num
+                f'packaging_{get_operating_system(architecture)}', build_num
             ).splitlines())
 
         return await get_event_loop().run_in_executor(None, get_build_console_output_inner)
@@ -78,10 +78,10 @@ class _JenkinsContext:
 
 
 @memoize
-async def get_ros2_repos(architecture: str, ros_build_num: Optional[int], ros_release: str) -> str:
+async def get_ros2_repos(architecture: str, build_num: Optional[int], release: str) -> str:
     async with _JenkinsContext() as jenkins:
         lines = await jenkins.get_build_console_output(
-            architecture=architecture, ros_build_num=ros_build_num, ros_release=ros_release
+            architecture=architecture, build_num=build_num, release=release
         )
 
     remaining_lines = iter(lines)
@@ -102,23 +102,21 @@ async def get_ros2_repos(architecture: str, ros_build_num: Optional[int], ros_re
 
 
 @memoize
-async def get_artifacts_url(
-        architecture: str, ros_build_num: Optional[int], ros_release: str
-) -> str:
-    if ros_build_num is None:
+async def get_artifacts_url(architecture: str, build_num: Optional[int], release: str) -> str:
+    if build_num is None:
         async with _JenkinsContext() as jenkins:
-            ros_build_num = await jenkins.get_ros_build_num(
-                architecture=architecture, ros_release=ros_release
+            build_num = await jenkins.get_build_num(
+                architecture=architecture, release=release
             )
 
     return (
         f'https://ci.ros2.org/view/packaging/job/'
-        f'packaging_{get_operating_system(architecture)}/{ros_build_num}/artifact/'
+        f'packaging_{get_operating_system(architecture)}/{build_num}/artifact/'
         f'ws/ros2-package-linux-{get_machine(architecture)}.tar.bz2'
     )
 
 
 @memoize
-async def get_ros_build_num(architecture: str, ros_release: str) -> int:
+async def get_build_num(architecture: str, release: str) -> int:
     async with _JenkinsContext() as jenkins:
-        return await jenkins.get_ros_build_num(architecture=architecture, ros_release=ros_release)
+        return await jenkins.get_build_num(architecture=architecture, release=release)

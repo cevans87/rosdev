@@ -7,7 +7,7 @@ from lxml import etree
 from lxml.etree import Element, _Element
 from pathlib import Path
 import re
-from typing import Dict, Mapping, Optional
+from typing import Dict, Mapping, NewType, Optional
 
 
 log = getLogger(__name__)
@@ -28,11 +28,12 @@ class _ElementKey:
     attrib: Mapping[str, str] = frozendict()
 
     @staticmethod
-    def new(tag: str, attrib: Mapping[str, str] = frozendict()) -> _ElementKey:
+    def new(element: _Element) -> _ElementKey:
         return _ElementKey(
-            tag=tag,
+            tag=element.tag,
             attrib=frozendict({
-                k: _FIND_UUID_REGEX.sub('XXXX', v) for k, v in attrib.items()
+                k: _FIND_UUID_REGEX.sub('XXXX', v) for k, v in element.attrib.items()
+                if k not in {'value'}
             })
         )
 
@@ -47,16 +48,6 @@ def get_root_element_from_path(path: Path) -> Optional[_Element]:
     return root_element
 
 
-def _make_element_key(element: _Element) -> _ElementKey:
-    return _ElementKey(
-        tag=element.tag,
-        attrib=frozendict({
-            k: _FIND_UUID_REGEX.sub('XXXX', v) for k, v in element.attrib.items()
-            if k not in {'value'}
-        })
-    )
-
-
 def merge_elements(from_element: Optional[_Element], into_element: Optional[_Element]) -> _Element:
     assert from_element is not None or into_element is not None
 
@@ -65,19 +56,24 @@ def merge_elements(from_element: Optional[_Element], into_element: Optional[_Ele
     elif into_element is None:
         into_element = Element(from_element.tag, from_element.attrib)
 
-    assert _make_element_key(from_element) == _make_element_key(into_element)
+    assert _ElementKey.new(from_element) == _ElementKey.new(into_element)
+
+    # If we're merging a from_element and a to_element that are both associated with a
+    # rosdev-generated uuid, only keep the from_element.
+    if any(_FIND_UUID_REGEX.match(k) is not None for k in into_element.attrib.keys()):
+        into_element = Element(from_element.tag, from_element.attrib)
 
     element: _Element = Element(from_element.tag, from_element.attrib)
 
     from_child_element_by_key: Dict[_ElementKey, _Element] = {}
     for from_child_element in from_element:
-        from_child_element_by_key[_make_element_key(from_child_element)] = (
+        from_child_element_by_key[_ElementKey.new(from_child_element)] = (
             from_child_element
         )
 
     into_child_element_by_key: Dict[_ElementKey, _Element] = {}
     for into_child_element in into_element:
-        into_child_element_by_key[_make_element_key(into_child_element)] = (
+        into_child_element_by_key[_ElementKey.new(into_child_element)] = (
             into_child_element
         )
 

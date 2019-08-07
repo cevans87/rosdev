@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
@@ -6,13 +6,13 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
-from rosdev.gen.idea.base import GenIdeaBase
+from rosdev.gen.idea.ide.name import GenIdeaIdeName
+from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
-from rosdev.gen.ros.environment import GenRosEnvironment
+from rosdev.gen.docker.environment import GenDockerEnvironment
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
-from rosdev.util.subprocess import exec
 
 
 log = getLogger(__name__)
@@ -22,21 +22,15 @@ log = getLogger(__name__)
 class GenIdeaWorkspaceXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenIdeaBase,
+        GenDockerEnvironment,
+        GenIdeaIdeName,
+        GenIdeaUniversal,
         GenIdeaUuid,
-        GenRosEnvironment,
     ))
 
     @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        idea_workspace_xml_workspace_path = options.resolve_path(
-            options.idea_workspace_xml_workspace_path
-        )
-        
-        return replace(
-            options,
-            idea_workspace_xml_workspace_path=idea_workspace_xml_workspace_path,
-        )
+    async def validate_options(cls, options: Options) -> None:
+        log.debug(f'idea_workspace_xml_workspace_path: {options.idea_workspace_xml_workspace_path}')
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
@@ -55,7 +49,9 @@ class GenIdeaWorkspaceXml(Handler):
                                 f'<env name="{k}" value="{v}" />' 
                                 for k, v
                                 in (
-                                    await GenRosEnvironment.get_ros_environment_container(options)
+                                    await GenDockerEnvironment.get_ros_environment_container(
+                                        options
+                                    )
                                 ).items()
                             ])}
                           </envs>
@@ -74,10 +70,9 @@ class GenIdeaWorkspaceXml(Handler):
             into_element=get_root_element_from_path(options.idea_workspace_xml_workspace_path)
         )
 
-        await exec(f'mkdir -p {options.idea_workspace_xml_workspace_path.parent}')
-        with open(str(options.idea_workspace_xml_workspace_path), 'wb') as f_out:
-            f_out.write(
-                etree.tostring(
-                    root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
-                )
+        options.write_bytes(
+            path=options.idea_workspace_xml_workspace_path,
+            text=etree.tostring(
+                root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
             )
+        )

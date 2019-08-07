@@ -1,149 +1,282 @@
 from dataclasses import asdict, dataclass
 from frozendict import frozendict
+from logging import getLogger
 from pathlib import Path
 from typing import Mapping, Optional
 from uuid import UUID
 
 
+log = getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class Options:
     architecture: Optional[str] = None
+    build_num: Optional[int] = None
     build_type: str = 'Debug'
 
     colcon_build_args: Optional[str] = None
     docker_container_command: str = '/sbin/init'
     docker_container_environment: Mapping[str, str] = frozendict()
-    docker_container_name: str = 'rosdev_{architecture}_{ros_build_num}_{base_workspace_hash}'
-    # TODO expose ports
-    # container:host
-    docker_container_ports: Mapping[int, int] = frozendict()
-    # host:container
-    docker_container_volumes: Mapping[str, str] = frozendict()
+    docker_container_ports: Mapping[int, int] = frozendict()  # container:host
+    docker_container_volumes: Mapping[str, str] = frozendict()  # host:container
     docker_image_base_tag: Optional[str] = None
-    docker_image_tag: Optional[str] = None
-    docker_ssh_workspace_port: Optional[int] = None
-    docker_ssh_workspace_port_path: Path = Path(
-        '{rosdev_workspace_path}', 'docker_ssh_workspace_port'
-    )
+
+    docker_ssh_port: Optional[int] = None
+    dry_run: bool = False
     enable_ccache: bool = True
     enable_gui: bool = False
     executable: Optional[str] = None
     flavor: str = 'ros-core'
 
-    idea_base_ide_name: Optional[str] = None
-    idea_base_executable_universal_path: Optional[Path] = None
+    idea_ide_name: Optional[str] = None
+    idea_ide_start_universal_path: Optional[Path] = None
 
-    idea_base_universal_path: Optional[Path] = None
-    idea_base_workspace_path: Optional[Path] = None
-
-    idea_c_kdbx_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.kdbx')
-    idea_c_kdbx_decoded_data: Optional[bytes] = None
-    idea_c_pwd_universal_path: Path = Path('{idea_base_universal_path}', 'config', 'c.pwd')
-    idea_clion_cpp_toolchains_xml_universal_path: Path = Path(
-        '{idea_base_universal_path}', 'config', 'options', 'cpp.toolchains.xml'
-    )
-    idea_deployment_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'deployment.xml')
-    idea_workspace_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'workspace.xml')
-    idea_security_xml_universal_path: Path = Path(
-        '{idea_base_universal_path}', 'config', 'options', 'security.xml'
-    )
-    idea_webservers_xml_universal_path: Path = Path(
-        '{idea_base_universal_path}', 'config', 'options', 'webServers.xml'
-    )
-    idea_webservers_xml_workspace_path: Path = Path('{idea_base_workspace_path}', 'webServers.xml')
+    idea_universal_path: Optional[Path] = None
 
     idea_uuid: Optional[UUID] = None
     local_setup: Optional[str] = None
     log_level: str = 'INFO'
     package: Optional[str] = None
+    pull_build: bool = False
     pull_docker_image: bool = False
-    pull_ros_src: bool = False
-    pull_ros_install: bool = False
-    ros_build_num: Optional[int] = None
-    # TODO make ros_release an enum
-    ros_release: str = 'latest'
+    release: Optional[str] = None
     replace_docker_container: bool = False
     rosdep_install_args: Optional[str] = None
+    run_main: bool = True
+    run_validate_options: bool = True
     sanitizer: Optional[str] = None
     source_ros_overlay_setup_bash: bool = False
     source_ros_underlay_setup_bash: bool = True
+    stage: Optional[str] = None
     uuid: Optional[str] = None
-    base_workspace_hash: Optional[str] = None
+    workspace_hash: Optional[str] = None
 
-    # FIXME allow these to reference eachother out of order
-    base_container_path: Optional[Path] = None
-    base_workspace_path: Optional[Path] = None
-    base_universal_path: Optional[Path] = None
+    container_path: Optional[Path] = None
+    workspace_path: Optional[Path] = None
+    universal_path: Optional[Path] = None
 
     home_container_path: Optional[Path] = None
-    home_workspace_path: Path = Path('{rosdev_workspace_path}', 'home')
     home_universal_path: Optional[Path] = None
+
+    @property
+    def docker_image_tag(self) -> str:
+        return f'rosdev:{self.architecture}_{self.release}'
+
+    @property
+    def docker_container_name(self) -> str:
+        return f'rosdev_{self.workspace_hash}_{self.architecture}_{self.release}_{self.build_num}'
+
+    @property
+    def build_num_universal_path(self) -> Path:
+        return self.resolve_path(
+            Path(
+                self.rosdev_universal_path, 
+                f'{self.architecture}',
+                f'{self.release}',
+                'build_num'
+            )
+        )
     
-    docker_gdbinit_container_path: Path = Path('{rosdev_container_path}', '.gdbinit')
-    docker_gdbinit_workspace_path: Path = Path('{rosdev_workspace_path}', 'gdbinit')
+    @property
+    def docker_ssh_port_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'docker_ssh_port'))
 
-    rosdev_container_path: Path = Path('{base_container_path}', '.rosdev')
-    rosdev_workspace_path: Path = Path('{base_workspace_path}', '.rosdev')
-    rosdev_universal_path: Path = Path('{base_universal_path}', '.rosdev')
+    @property
+    def idea_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.workspace_path, '.idea'))
 
-    ros_build_num_universal_path: Path = Path(
-        '{rosdev_universal_path}', '{architecture}', 'ros_build_num'
-    )
+    @property
+    def idea_c_kdbx_universal_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_universal_path, 'config', 'c.kdbx'))
+    
+    @property
+    def idea_c_pwd_universal_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_universal_path, 'config', 'c.pwd'))
+    
+    @property
+    def idea_clion_cpp_toolchains_xml_universal_path(self) -> Path: 
+        return self.resolve_path(
+            Path(self.idea_universal_path, 'config', 'options', 'cpp.toolchains.xml')
+        )
 
-    ros_install_container_path: Path = Path(
-        '{rosdev_container_path}', 'install'
-    )
-    ros_install_universal_path: Path = Path(
-        '{rosdev_universal_path}', '{architecture}', '{ros_build_num}', 'install'
-    )
-    ros_install_workspace_path: Path = Path(
-        '{rosdev_workspace_path}', 'install'
-    )
+    @property
+    def idea_clion_webservers_xml_universal_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.idea_universal_path, 'config', 'options', 'webServers.xml')
+        )
 
-    ros_src_container_path: Path = Path(
-        '{rosdev_container_path}', 'src'
-    )
-    ros_src_universal_path: Path = Path(
-        '{rosdev_universal_path}', '{architecture}', '{ros_build_num}', 'src'
-    )
-    ros_src_workspace_path: Path = Path(
-        '{rosdev_workspace_path}', 'src'
-    )
+    @property
+    def idea_pycharm_project_jdk_name(self) -> str:
+        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash}'
 
-    docker_build_context_workspace_path: Path = Path(
-        '{rosdev_workspace_path}', 'docker_build_context'
-    )
+    @property
+    def idea_pycharm_misc_xml_workspace_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.idea_workspace_path, 'misc.xml')
+        )
 
-    docker_bashrc_container_path: Path = Path('{rosdev_container_path}', 'bashrc')
-    docker_bashrc_ln_target_path: Path = Path('{home_container_path}', '.bashrc')
-    docker_bashrc_workspace_path: Path = Path('{rosdev_workspace_path}', 'bashrc')
+    @property
+    def idea_pycharm_webservers_xml_workspace_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.idea_workspace_path, 'webServers.xml')
+        )
 
-    docker_build_dockerfile_entrypoint_sh_ln_target_path: Path = Path('/', 'rosdev_entrypoint.sh')
+    @property
+    def idea_clion_deployment_xml_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_workspace_path, 'deployment.xml'))
 
-    docker_entrypoint_sh_container_path: Path = Path(
-        '{rosdev_container_path}', 'rosdev_docker_entrypoint.sh'
-    )
-    docker_entrypoint_sh_workspace_path: Path = Path(
-        '{rosdev_workspace_path}', 'rosdev_docker_entrypoint.sh'
-    )
+    @property
+    def idea_pycharm_deployment_xml_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_workspace_path, 'deployment.xml'))
 
-    pam_environment_container_path: Path = Path('{rosdev_container_path}', 'pam_environment')
-    pam_environment_ln_target_path: Path = Path('{home_container_path}', '.pam_environment')
-    pam_environment_workspace_path: Path = Path('{rosdev_workspace_path}', 'pam_environment')
+    @property
+    def idea_pycharm_jdk_table_xml_universal_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.idea_universal_path, 'config', 'options', '.jdk.table.xml')
+        )
 
-    ros_overlay_setup_bash_container_path: Path = Path(
-        '{base_container_path}', 'install',  'setup.bash'
-    )
-    ros_overlay_setup_bash_workspace_path: Path = Path(
-        '{base_workspace_path}', 'install', 'setup.bash'
-    )
+    @property
+    def idea_workspace_xml_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_workspace_path, 'workspace.xml'))
+    
+    @property
+    def idea_security_xml_universal_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.idea_universal_path, 'config', 'options', 'security.xml')
+        )
 
-    ros_underlay_setup_bash_container_path: Path = Path(
-        '{ros_install_container_path}', 'setup.bash'
-    )
-    ros_underlay_setup_bash_workspace_path: Path = Path(
-        '{base_workspace_path}', 'install', 'setup.bash'
-    )
+    @property
+    def idea_clion_webservers_name(self) -> str:
+        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash} ({self.idea_uuid})'
+
+    @property
+    def idea_pycharm_webservers_name(self) -> str:
+        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash}'
+    
+    @property
+    def idea_uuid_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'idea_uuid'))
+
+    @property
+    def idea_webservers_xml_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
+
+    @property
+    def docker_gdbinit_container_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_container_path, '.gdbinit'))
+
+    @property
+    def docker_gdbinit_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'gdbinit'))
+
+    @property
+    def rosdev_container_path(self) -> Path:
+        return self.resolve_path(Path(self.container_path, '.rosdev'))
+
+    @property
+    def rosdev_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.workspace_path, '.rosdev'))
+    
+    @property
+    def rosdev_universal_path(self) -> Path:
+        return self.resolve_path(Path(self.universal_path, '.rosdev'))
+
+    @property
+    def install_container_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_container_path, 'install'))
+
+    @property
+    def install_universal_path(self) -> Path:
+        return self.resolve_path(
+            Path(
+                self.rosdev_universal_path,
+                f'{self.architecture}',
+                f'{self.release}',
+                f'{self.build_num}',
+                'install'
+            )
+        )
+
+    @property
+    def install_workspace_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'install'))
+
+    @property
+    def src_container_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_container_path, 'src'))
+    
+    @property
+    def src_universal_path(self) -> Path: 
+        return self.resolve_path(
+            Path(
+                self.rosdev_universal_path, 
+                f'{self.architecture}',
+                f'{self.release}',
+                f'{self.build_num}',
+                'src'
+            )
+        )
+
+    @property
+    def src_workspace_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'src'))
+    
+    @property
+    def overrides_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'overrides'))
+
+    @property
+    def docker_bashrc_container_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_container_path, 'bashrc'))
+    
+    @property
+    def docker_bashrc_symlinked_path(self) -> Path: 
+        return self.resolve_path(Path(self.home_container_path, '.bashrc'))
+    
+    @property
+    def docker_bashrc_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'bashrc'))
+
+    @property
+    def docker_dockerfile_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'Dockerfile'))
+
+    @property
+    def docker_entrypoint_sh_container_path(self) -> Path:
+        return self.resolve_path(Path('/', 'rosdev_docker_entrypoint.sh'))
+    
+    @property
+    def docker_entrypoint_sh_workspace_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'rosdev_docker_entrypoint.sh'))
+
+    @property
+    def docker_pam_environment_container_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
+
+    @property
+    def docker_pam_environment_ln_target_path(self) -> Path:
+        return self.resolve_path(Path(self.home_container_path, '.pam_environment'))
+
+    @property
+    def docker_pam_environment_workspace_path(self) -> Path: 
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'pam_environment'))
+
+    @property
+    def ros_overlay_setup_bash_container_path(self) -> Path: 
+        return self.resolve_path(Path(f'{self.container_path}', 'install',  'setup.bash'))
+    
+    @property
+    def ros_overlay_setup_bash_workspace_path(self) -> Path:
+        return self.resolve_path(Path(f'{self.workspace_path}', 'install', 'setup.bash'))
+
+    @property
+    def ros_underlay_setup_bash_container_path(self) -> Path:
+        return self.resolve_path(Path(f'{self.install_container_path}', 'setup.bash'))
+    
+    @property
+    def ros_underlay_setup_bash_workspace_path(self) -> Path:
+        return self.resolve_path(Path('{workspace_path}', 'install', 'setup.bash'))
 
     # TODO move these properties to handler as "def get_machine(options)" etc.
     @property
@@ -178,13 +311,27 @@ class Options:
             path = Path(str(path).format(**{
                 k: v for k, v in asdict(self).items() if v is not None
             })).expanduser().absolute()
-        
+
         return path
     
-    #def __getattribute__(self, item: str) -> Any:
-    #    result = object.__getattribute__(self, item)
+    @staticmethod
+    def read_text(*, path: Path) -> str:
+        return path.read_text()
 
-    #    if isinstance(result, Path):
-    #        result = self.resolve_path(result)
-    #
-    #    return result
+    @staticmethod
+    def read_bytes(*, path: Path) -> bytes:
+        return path.read_bytes()
+
+    def write_text(self, *, path: Path, text: str) -> None:
+        assert self.stage == 'main', 'Cannot write files outside of main'
+
+        if not self.dry_run:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+
+    def write_bytes(self, *, path: Path, text: bytes) -> None:
+        assert self.stage == 'main', 'Cannot write files outside of main'
+
+        if not self.dry_run:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(text)

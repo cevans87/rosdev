@@ -17,53 +17,49 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenIdeaClionCppToolchainsXml(Handler):
+class GenIdeaPycharmMiscXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenIdeaBase,
-        GenIdeaUuid,
     ))
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
         # FIXME py38 debug print
         log.debug(
-            f'idea_clion_cpp_toolchains_xml_universal_path: '
-            f'{options.idea_clion_cpp_toolchains_xml_universal_path}'
+            f'idea_pycharm_misc_xml_workspace_path: '
+            f'{options.idea_pycharm_misc_xml_workspace_path}'
         )
 
     @classmethod
-    def get_element(cls, options: Options) -> _Element:
+    async def get_element(cls, options: Options) -> _Element:
         return etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
-                <application>
-                  <component name="CPPToolchains" version="4">
-                    <toolchains detectedVersion="5">
-                      <toolchain
-                          name="rosdev_{options.idea_ide_name}"
-                          toolSetKind="REMOTE"
-                          customCMakePath="/usr/bin/cmake"
-                          hostId="{options.idea_uuid}"
-                          debuggerKind="CUSTOM_GDB"
-                          customGDBPath="/usr/bin/gdb"
-                      />
-                    </toolchains>
+                <project version="4">
+                  <component name="JavaScriptSettings">
+                    <option name="languageLevel" value="ES6" />
                   </component>
-                </application>
+                  <component
+                      name="ProjectRootManager"
+                      version="2"
+                      project-jdk-name="{options.idea_pycharm_project_jdk_name}"
+                      project-jdk-type="Python SDK" />
+                </project>
             ''').lstrip()
         )
 
     @classmethod
     async def main(cls, options: Options) -> None:
         root_element = merge_elements(
-            from_element=cls.get_element(options),
+            from_element=await cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_clion_cpp_toolchains_xml_universal_path
+                options.idea_pycharm_misc_xml_workspace_path
             )
         )
 
-        options.write_text(
-            path=options.idea_clion_cpp_toolchains_xml_universal_path,
-            text=etree.tostring(root_element, pretty_print=True, encoding=str)
+        options.write_bytes(
+            path=options.idea_pycharm_misc_xml_workspace_path,
+            text=etree.tostring(
+                root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
         )

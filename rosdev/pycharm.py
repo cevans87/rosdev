@@ -1,16 +1,11 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from logging import getLogger
 from typing import Tuple, Type
 
-from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
-from rosdev.gen.idea.webservers_xml import GenIdeaWebserversXml
-from rosdev.gen.idea.workspace_xml import GenIdeaWorkspaceXml
-from rosdev.gen.idea.deployment_xml import GenIdeaDeploymentXml
-from rosdev.gen.idea.ide import GenIdeaIde
-from rosdev.gen.docker.ssh.start import GenDockerSshStart
-from rosdev.gen.idea.keepass import GenIdeaKeepass
-from rosdev.gen.pam_environment import GenPamEnvironment
+from rosdev.gen.idea.pycharm.core import GenIdeaPycharmCore
+from rosdev.gen.idea.core import GenIdeaCore
 from rosdev.util.handler import Handler
+from rosdev.util.options import Options
 
 
 log = getLogger(__name__)
@@ -20,14 +15,13 @@ log = getLogger(__name__)
 class Pycharm(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerSshStart,
-        GenIdeaDeploymentXml,
-        GenIdeaKeepass,
-        GenIdeaSecurityXml,
-        GenIdeaWebserversXml,
-        GenIdeaWorkspaceXml,
-        GenPamEnvironment,
+        GenIdeaPycharmCore,
     ))
+
     post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenIdeaIde,
+        GenIdeaCore,
     ))
+
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        return replace(options, idea_ide_name='PyCharm')

@@ -1,13 +1,9 @@
-from asyncio import gather
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, replace
 from logging import getLogger
 from platform import machine
-from typing import Tuple, Type
 
-from rosdev.gen.rosdev import GenRosdev
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
 
 
 log = getLogger(__name__)
@@ -15,10 +11,6 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenArchitecture(Handler):
-
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenRosdev,
-    ))
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:

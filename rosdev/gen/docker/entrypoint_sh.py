@@ -1,11 +1,8 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
 from textwrap import dedent
-from typing import Tuple, Type
 
-from rosdev.gen.ros.overlay.setup_bash import GenRosOverlaySetupBash
-from rosdev.gen.ros.underlay.setup_bash import GenRosUnderlaySetupBash
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.subprocess import exec
@@ -16,26 +13,6 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenDockerEntrypointSh(Handler):
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenRosOverlaySetupBash,
-        GenRosUnderlaySetupBash,
-    ))
-
-    @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        docker_entrypoint_sh_container_path = options.resolve_path(
-            options.docker_entrypoint_sh_container_path
-        )
-
-        docker_entrypoint_sh_workspace_path = options.resolve_path(
-            options.docker_entrypoint_sh_workspace_path
-        )
-
-        return replace(
-            options,
-            docker_entrypoint_sh_container_path=docker_entrypoint_sh_container_path,
-            docker_entrypoint_sh_workspace_path=docker_entrypoint_sh_workspace_path,
-        )
 
     @classmethod
     def get_docker_entrypoint_sh_contents(cls, options: Options) -> str:
@@ -60,9 +37,11 @@ class GenDockerEntrypointSh(Handler):
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_container_entrypoint_sh')
 
-        await exec(f'mkdir -p {options.docker_entrypoint_sh_workspace_path.parent}')
-        with open(Path(options.docker_entrypoint_sh_workspace_path), 'w') as f_out:
-            f_out.write(cls.get_docker_entrypoint_sh_contents(options))
-        await exec(f'chmod +x {options.docker_entrypoint_sh_workspace_path}')
+        options.write_text(
+            path=options.docker_entrypoint_sh_workspace_path,
+            text=cls.get_docker_entrypoint_sh_contents(options)
+        )
+        # Make executable
+        options.docker_entrypoint_sh_workspace_path.chmod(0o755)
 
         log.info(f'Created docker_container_entrypoint_sh')

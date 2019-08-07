@@ -8,13 +8,13 @@ import os
 from pathlib import Path
 from typing import Optional, Tuple, Type
 
-from rosdev.gen.base import GenBase
+from rosdev.gen.core import GenCore
+from rosdev.gen.docker.base import GenDockerBase
 from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.docker.ssh.port import GenDockerSshPort
-from rosdev.gen.rosdev import GenRosdev
-from rosdev.gen.ros.install import GenRosInstall
-from rosdev.gen.ros.src import GenRosSrc
+from rosdev.gen.install import GenInstall
+from rosdev.gen.src import GenSrc
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -25,21 +25,19 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerContainer(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenBase,
+        GenCore,
+        GenDockerBase,
         GenDockerGdbinit,
         GenDockerImage,
         GenDockerSshPort,
-        GenRosdev,
-        GenRosInstall,
-        GenRosSrc,
+        GenInstall,
+        GenSrc,
     ))
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        docker_container_name = options.resolve_str(options.docker_container_name)
-
         docker_container_environment = dict(options.docker_container_environment)
-        docker_container_environment['ROSDEV_DOCKER_CONTAINER_NAME'] = docker_container_name
+        docker_container_environment['ROSDEV_DOCKER_CONTAINER_NAME'] = options.docker_container_name
         if options.enable_gui:
             docker_container_environment['DISPLAY'] = os.environ['DISPLAY']
         if options.enable_ccache:
@@ -47,16 +45,20 @@ class GenDockerContainer(Handler):
             docker_container_environment['CXX'] = '/usr/lib/ccache/g++'
         docker_container_environment = frozendict(docker_container_environment)
 
+        docker_container_ports = dict(options.docker_container_ports)
+        docker_container_ports[22] = options.docker_ssh_port
+        docker_container_ports = frozendict(docker_container_ports)
+
         docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.ros_install_universal_path] = (
-            options.ros_install_container_path
+        docker_container_volumes[options.install_universal_path] = (
+            options.install_container_path
         )
         # FIXME move to gen.docker.container.ssh.start
         docker_container_volumes[Path(options.home_universal_path, '.ssh')] = (
             Path(options.home_container_path, '.ssh')
         )
-        docker_container_volumes[options.ros_src_universal_path] = options.ros_src_container_path
-        docker_container_volumes[options.base_workspace_path] = options.base_container_path
+        docker_container_volumes[options.src_universal_path] = options.src_container_path
+        docker_container_volumes[options.workspace_path] = options.container_path
         if options.enable_gui:
             docker_container_volumes['/tmp/.X11-unix'] = '/tmp/.X11-unix'
         docker_container_volumes = frozendict(docker_container_volumes)
@@ -64,7 +66,7 @@ class GenDockerContainer(Handler):
         return replace(
             options,
             docker_container_environment=docker_container_environment,
-            docker_container_name=docker_container_name,
+            docker_container_ports=docker_container_ports,
             docker_container_volumes=docker_container_volumes,
         )
 
@@ -114,7 +116,7 @@ class GenDockerContainer(Handler):
                         for host_path, container_path
                         in options.docker_container_volumes.items()
                     },
-                    working_dir=str(options.base_container_path),
+                    working_dir=str(options.container_path),
                 )
 
             log.info(f'Started docker container {options.docker_container_name}')
