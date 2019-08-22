@@ -7,7 +7,7 @@ from rosdev.gen.base import GenBase
 from rosdev.util.build_farm import get_artifacts_url
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -48,19 +48,19 @@ class GenInstall(Handler):
             artifacts_path = f'{temp_dir}/artifacts.tar.bz2'
 
             log.info(f'Downloading install artifacts to {artifacts_path}')
-            await exec(f'wget {artifacts_url} -O {artifacts_path}')
+            await execute_command(f'wget {artifacts_url} -O {artifacts_path}')
 
             log.info(f'Staging install at {staging_path}')
-            await exec(f'mkdir -p {staging_path}')
-            await exec(f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1')
+            await execute_command(f'mkdir -p {staging_path}')
+            await execute_command(f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1')
 
             log.info(f'Caching install at {options.install_universal_path}')
-            await exec(f'mkdir -p {options.install_universal_path.parent}')
+            await execute_command(f'mkdir -p {options.install_universal_path.parent}')
             # FIXME this fails if the universal path already exists since we recursively made it
             #  read-only
-            await exec(f'mv {staging_path} {options.install_universal_path}')
+            await execute_command(f'mv {staging_path} {options.install_universal_path}')
 
-        await exec(f'chmod -R -w {options.install_universal_path}')
+        await execute_command(f'chmod -R -w {options.install_universal_path}')
 
         log.info(f'Universal install at {options.install_universal_path}')
 

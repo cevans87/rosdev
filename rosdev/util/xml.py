@@ -7,7 +7,8 @@ from lxml import etree
 from lxml.etree import Element, _Element
 from pathlib import Path
 import re
-from typing import Dict, Mapping, NewType, Optional
+from textwrap import dedent
+from typing import Dict, FrozenSet, List, Mapping, Optional
 
 
 log = getLogger(__name__)
@@ -26,17 +27,23 @@ _FIND_UUID_REGEX = re.compile(
 class _ElementKey:
     tag: str
     attrib: Mapping[str, str] = frozendict()
+    child_keys: FrozenSet[_ElementKey] = frozenset()
 
     @staticmethod
     def new(element: _Element) -> _ElementKey:
+        if element.getparent() is not None and element.getparent().tag == 'component':
+            child_keys = frozenset({_ElementKey.new(child_element) for child_element in element})
+        else:
+            child_keys = frozenset()
+
         return _ElementKey(
             tag=element.tag,
             attrib=frozendict({
                 k: _FIND_UUID_REGEX.sub('XXXX', v) for k, v in element.attrib.items()
-                if k not in {'value'}
-            })
+            }),
+            child_keys=child_keys,
         )
-
+    
 
 def get_root_element_from_path(path: Path) -> Optional[_Element]:
     parser = etree.XMLParser(remove_blank_text=True)
@@ -48,13 +55,32 @@ def get_root_element_from_path(path: Path) -> Optional[_Element]:
     return root_element
 
 
+def get_element_from_text(text: str) -> Optional[_Element]:
+    text = dedent(text).strip()
+    parser = etree.XMLParser(remove_blank_text=True)
+    try:
+        root_element: Optional[_Element] = etree.fromstring(text, parser)
+    except OSError:
+        root_element: Optional[_Element] = None
+
+    return root_element
+
+
+def get_text_from_element(element: _Element) -> str:
+    return etree.tostring(element, pretty_print=True, encoding=str)
+
+
+def get_text_from_text(text: str) -> str:
+    return get_text_from_element(get_element_from_text(text))
+
+
 def merge_elements(from_element: Optional[_Element], into_element: Optional[_Element]) -> _Element:
     assert from_element is not None or into_element is not None
 
     if from_element is None:
-        from_element = Element(into_element.tag, into_element.attrib)
+        from_element = into_element
     elif into_element is None:
-        into_element = Element(from_element.tag, from_element.attrib)
+        into_element = from_element
 
     assert _ElementKey.new(from_element) == _ElementKey.new(into_element)
 
@@ -76,18 +102,26 @@ def merge_elements(from_element: Optional[_Element], into_element: Optional[_Ele
         into_child_element_by_key[_ElementKey.new(into_child_element)] = (
             into_child_element
         )
+        
+    ordered_keys: List[_ElementKey] = []
+    for key in from_child_element_by_key:
+        if key not in into_child_element_by_key:
+            ordered_keys.append(key)
 
-    for keys in (
-            from_child_element_by_key.keys() - into_child_element_by_key.keys(),
-            from_child_element_by_key.keys() & into_child_element_by_key.keys(),
-            into_child_element_by_key.keys() - from_child_element_by_key.keys()
-    ):
-        for key in keys:
-            element.append(
-                merge_elements(
-                    from_element=from_child_element_by_key.get(key),
-                    into_element=into_child_element_by_key.get(key)
-                )
+    for key in from_child_element_by_key:
+        if key in into_child_element_by_key:
+            ordered_keys.append(key)
+
+    for key in into_child_element_by_key:
+        if key not in from_child_element_by_key:
+            ordered_keys.append(key)
+
+    for key in ordered_keys:
+        element.append(
+            merge_elements(
+                from_element=from_child_element_by_key.get(key),
+                into_element=into_child_element_by_key.get(key)
             )
+        )
 
     return element

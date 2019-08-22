@@ -63,8 +63,8 @@ class GenIdeaClionDeploymentXml(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         root_element = merge_elements(
-            from_element=cls.get_element(options),
-            into_element=get_root_element_from_path(options.idea_clion_deployment_xml_workspace_path)
+            from_elements=cls.get_element(options),
+            into_elements=get_root_element_from_path(options.idea_clion_deployment_xml_workspace_path)
         )
 
         options.write_bytes(

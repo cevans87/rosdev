@@ -7,7 +7,7 @@ from textwrap import dedent
 from typing import Tuple, Type
 
 from rosdev.gen.idea.base import GenIdeaBase
-from rosdev.gen.idea.uuid import GenIdeaUuid
+from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -21,6 +21,7 @@ class GenIdeaPycharmMiscXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenIdeaBase,
+        GenIdeaPycharmJdkTableXml,
     ))
 
     @classmethod
@@ -43,7 +44,7 @@ class GenIdeaPycharmMiscXml(Handler):
                   <component
                       name="ProjectRootManager"
                       version="2"
-                      project-jdk-name="{options.idea_pycharm_project_jdk_name}"
+                      project-jdk-name="{await GenIdeaPycharmJdkTableXml.get_name(options)}"
                       project-jdk-type="Python SDK" />
                 </project>
             ''').lstrip()

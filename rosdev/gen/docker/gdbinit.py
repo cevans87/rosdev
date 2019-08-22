@@ -6,7 +6,7 @@ from rosdev.gen.base import GenBase
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_operating_system
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -28,7 +28,7 @@ class GenDockerGdbinit(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_gdbinit')
-        await exec(f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True)
+        await execute_command(f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True)
         with open(str(options.docker_gdbinit_workspace_path), 'w') as f_out:
             # FIXME these are two common paths from ci.ro2.org builds. Find a way to
             #  programmatically find the paths, probably through jenkins.

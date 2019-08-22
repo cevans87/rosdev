@@ -7,7 +7,7 @@ from rosdev.gen.base import GenBase
 from rosdev.gen.idea.base import GenIdeaBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import get_exec_lines, shell
+from rosdev.util.subprocess import get_exec_lines, execute_shell
 
 log = getLogger(__name__)
 
@@ -44,7 +44,7 @@ class GenIdeaIdeStart(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Starting {options.idea_ide_name} IDE')
-        await shell(
+        await execute_shell(
             f'nohup {options.idea_ide_start_universal_path} {options.workspace_path} '
             f'< /dev/null > /dev/null 2>&1 &'
         )

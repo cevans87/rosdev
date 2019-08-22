@@ -10,7 +10,7 @@ from rosdev.gen.colcon.build import Build
 from rosdev.gen.install import Install
 from rosdev.util.handler import Handler
 from rosdev.util.lookup import get_operating_system
-from rosdev.util.subprocess import shell
+from rosdev.util.subprocess import execute_shell
 
 
 log = getLogger(__name__)
@@ -38,7 +38,7 @@ class Bisect(Handler):
 
             log.info(f'testing build {test_build_num}')
 
-            await shell('rm -rf build install log')
+            await execute_shell('rm -rf build install log')
 
             await Install(options)
 

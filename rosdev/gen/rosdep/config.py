@@ -8,7 +8,7 @@ from typing import Mapping
 from rosdev.gen.rosdev.config import Config as RosdevConfig
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -45,4 +45,4 @@ class Config(Handler):
         return self._options.volumes
 
     async def _main(self) -> None:
-        await exec(f'mkdir -p {self.local_path}')
+        await execute_command(f'mkdir -p {self.local_path}')

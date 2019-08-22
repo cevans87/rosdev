@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Tuple, Type
 
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import get_exec_lines
 
 
 log = getLogger(__name__)
@@ -107,13 +107,19 @@ class Handler:
         await cls.__post_main(options)
 
     @classmethod
-    async def exec_container(cls, options: Options, cmd: str, err_ok: bool = False) -> int:
-        return await exec(f'docker exec {options.docker_container_name} {cmd}', err_ok=err_ok)
+    async def exec_container(cls, options: Options, cmd: str, err_ok: bool = False) -> Tuple[str]:
+        return await get_exec_lines(
+            command=f'docker exec {options.docker_container_name} {cmd}',
+            err_ok=err_ok
+        )
 
     # noinspection PyUnusedLocal
     @classmethod
-    async def exec_workspace(cls, options: Options, cmd: str, err_ok: bool = False) -> int:
-        return await exec(cmd, err_ok=err_ok)
+    async def exec_workspace(cls, options: Options, cmd: str, err_ok: bool = False) -> Tuple[str]:
+        return await get_exec_lines(
+            command=cmd,
+            err_ok=err_ok
+        )
 
     # noinspection PyUnusedLocal
     @classmethod

@@ -5,7 +5,7 @@ from textwrap import dedent
 
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)

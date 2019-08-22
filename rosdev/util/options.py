@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass
 from frozendict import frozendict
 from logging import getLogger
+import os
 from pathlib import Path
 from typing import Mapping, Optional
 from uuid import UUID
@@ -107,9 +108,13 @@ class Options:
         )
 
     @property
-    def idea_pycharm_project_jdk_name(self) -> str:
-        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash}'
+    def idea_pycharm_jdk_table_xml_sftp_uri(self) -> str:
+        return f'sftp://{os.getlogin()}@localhost:{self.docker_ssh_port}/usr/bin/python'
 
+    @property
+    def idea_pycharm_jdk_table_xml_ssh_uri(self) -> str:
+        return f'ssh://{os.getlogin()}@localhost:{self.docker_ssh_port}/usr/bin/python'
+    
     @property
     def idea_pycharm_misc_xml_workspace_path(self) -> Path:
         return self.resolve_path(

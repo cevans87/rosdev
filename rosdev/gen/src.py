@@ -7,7 +7,7 @@ from rosdev.gen.base import GenBase
 from rosdev.util.build_farm import get_ros2_repos
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import exec
+from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -49,16 +49,16 @@ class GenSrc(Handler):
                 ros2_repos_f_out.write(ros2_repos)
 
             log.info(f'Staging src at {staging_path}')
-            await exec(f'mkdir -p {staging_path}')
-            await exec(f'vcs import --input {ros2_repos_path} {staging_path}')
+            await execute_command(f'mkdir -p {staging_path}')
+            await execute_command(f'vcs import --input {ros2_repos_path} {staging_path}')
 
             log.info(f'Caching src at {options.src_universal_path}')
-            await exec(f'mkdir -p {options.src_universal_path.parent}')
+            await execute_command(f'mkdir -p {options.src_universal_path.parent}')
             # FIXME this fails if the universal path already exists since we recursively made it
             #  read-only
-            await exec(f'mv {staging_path} {options.src_universal_path}')
+            await execute_command(f'mv {staging_path} {options.src_universal_path}')
 
-        await exec(f'chmod -R -w {options.src_universal_path}')
+        await execute_command(f'chmod -R -w {options.src_universal_path}')
 
         log.info(f'Universal src at {options.src_universal_path}')
 
