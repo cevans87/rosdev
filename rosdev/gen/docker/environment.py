@@ -42,9 +42,13 @@ class GenDockerEnvironment(Handler):
                 f'docker exec {options.docker_container_name} '
                 f'{options.docker_entrypoint_sh_container_path} env'
         ):
-            k, v = line.split('=', 1)
-            if k in _ros_environment_required_keys:
-                ros_container_environment[k] = v
+            try:
+                k, v = line.split('=', 1)
+            except ValueError:
+                continue
+            else:
+                if k in _ros_environment_required_keys:
+                    ros_container_environment[k] = v
         ros_container_environment = frozendict(ros_container_environment)
 
         # TODO py38 debug print
