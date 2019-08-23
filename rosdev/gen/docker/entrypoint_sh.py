@@ -15,6 +15,18 @@ log = getLogger(__name__)
 class GenDockerEntrypointSh(Handler):
 
     @classmethod
+    async def validate_options(cls, options: Options) -> None:
+        # TODO py38 debug print
+        log.debug(
+            f'docker_entrypoint_sh_container_path: '
+            f'{options.docker_entrypoint_sh_container_path}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_workspace_path: '
+            f'{options.docker_entrypoint_sh_workspace_path}'
+        )
+
+    @classmethod
     def get_docker_entrypoint_sh_contents(cls, options: Options) -> str:
         return dedent(fr'''
             #!/bin/bash

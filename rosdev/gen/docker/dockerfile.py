@@ -106,8 +106,8 @@ class GenDockerDockerfile(Handler):
 
             USER {os.getlogin()}
             
-            COPY {options.docker_entrypoint_sh_workspace_path.parts[-1]} \
-                {options.docker_entrypoint_sh_container_path}
+            #COPY {options.docker_entrypoint_sh_workspace_path.parts[-1]} \
+            #    {options.docker_entrypoint_sh_container_path}
 
             ENTRYPOINT ["{options.docker_entrypoint_sh_container_path}"]
         ''').lstrip()

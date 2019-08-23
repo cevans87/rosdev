@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from frozendict import frozendict
 from logging import getLogger
 from typing import Tuple, Type
 
@@ -18,6 +19,16 @@ class GenDockerPamEnvironment(Handler):
         GenDockerBase,
         GenDockerEnvironment,
     ))
+
+    @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        docker_container_volumes = dict(options.docker_container_volumes)
+        docker_container_volumes[options.docker_pam_environment_workspace_path] = (
+            options.docker_pam_environment_container_path
+        )
+        docker_container_volumes = frozendict(options.docker_container_volumes)
+
+        return replace(options, docker_container_volumes=docker_container_volumes)
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:

@@ -169,7 +169,7 @@ class Options:
 
     @property
     def docker_gdbinit_container_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_container_path, '.gdbinit'))
+        return self.resolve_path(Path(self.home_container_path, '.gdbinit'))
 
     @property
     def docker_gdbinit_workspace_path(self) -> Path:
@@ -249,7 +249,7 @@ class Options:
 
     @property
     def docker_entrypoint_sh_container_path(self) -> Path:
-        return self.resolve_path(Path('/', 'rosdev_docker_entrypoint.sh'))
+        return self.resolve_path(Path(self.rosdev_container_path, 'rosdev_docker_entrypoint.sh'))
     
     @property
     def docker_entrypoint_sh_workspace_path(self) -> Path: 
@@ -258,10 +258,6 @@ class Options:
     @property
     def docker_pam_environment_container_path(self) -> Path: 
         return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
-
-    @property
-    def docker_pam_environment_ln_target_path(self) -> Path:
-        return self.resolve_path(Path(self.home_container_path, '.pam_environment'))
 
     @property
     def docker_pam_environment_workspace_path(self) -> Path: 
