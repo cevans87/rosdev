@@ -31,7 +31,7 @@ class GenWorkspace(Handler):
         workspace_hash = options.workspace_hash
         if workspace_hash is None:
             workspace_relative_path = workspace_path.relative_to(Path.home())
-            workspace_hash = re.sub(r"[^\w.]", "-", str(workspace_relative_path))
+            workspace_hash = re.sub(r"[^\w.]", "_", str(workspace_relative_path))
 
         return replace(
             options,
