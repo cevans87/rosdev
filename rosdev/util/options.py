@@ -37,6 +37,7 @@ class Options:
 
     idea_ide_name: Optional[str] = None
     idea_ide_start_universal_path: Optional[Path] = None
+    idea_universal_path: Optional[Path] = None
 
     idea_uuid: Optional[UUID] = None
     log_level: str = 'INFO'
@@ -89,49 +90,24 @@ class Options:
         return self.resolve_path(Path(self.rosdev_workspace_path, 'docker_ssh_port'))
 
     @property
-    def idea_universal_path(self) -> Path:
-        if sys.platform == 'darwin':
-            return self.resolve_path(
-                Path(self.home_universal_path, 'Library', 'Preferences', f'{self.idea_ide_name}')
-            )
-        else:
-            return self.resolve_path(
-                Path(self.home_universal_path, f'.{self.idea_ide_name}')
-            )
-
-    @property
     def idea_workspace_path(self) -> Path:
         return self.resolve_path(Path(self.workspace_path, '.idea'))
 
     @property
     def idea_c_kdbx_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'config', 'c.kdbx'))
+        return self.resolve_path(Path(self.idea_universal_path, 'c.kdbx'))
     
     @property
     def idea_c_pwd_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'config', 'c.pwd'))
+        return self.resolve_path(Path(self.idea_universal_path, 'c.pwd'))
     
     @property
     def idea_clion_cpp_toolchains_xml_universal_path(self) -> Path: 
-        if sys.platform == 'darwin':
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'options', 'cpp.toolchains.xml')
-            )
-        else:
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'config', 'options', 'cpp.toolchains.xml')
-            )
+        return self.resolve_path(Path(self.idea_universal_path, 'options', 'cpp.toolchains.xml'))
 
     @property
     def idea_clion_webservers_xml_universal_path(self) -> Path:
-        if sys.platform == 'darwin':
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'options', 'webServers.xml')
-            )
-        else:
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'config', 'options', 'webServers.xml')
-            )
+        return self.resolve_path(Path(self.idea_universal_path, 'options', 'webServers.xml'))
 
     @property
     def idea_pycharm_jdk_table_xml_sftp_uri(self) -> str:
@@ -143,9 +119,7 @@ class Options:
     
     @property
     def idea_pycharm_misc_xml_workspace_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.idea_workspace_path, 'misc.xml')
-        )
+        return self.resolve_path(Path(self.idea_workspace_path, 'misc.xml'))
 
     @property
     def idea_pycharm_webservers_xml_workspace_path(self) -> Path:
@@ -161,14 +135,7 @@ class Options:
 
     @property
     def idea_pycharm_jdk_table_xml_universal_path(self) -> Path:
-        if sys.platform == 'darwin':
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'options', 'jdk.table.xml')
-            )
-        else:
-            return self.resolve_path(
-                Path(self.idea_universal_path, 'config', 'options', 'jdk.table.xml')
-            )
+        return self.resolve_path(Path(self.idea_universal_path, 'options', 'jdk.table.xml'))
 
     @property
     def idea_workspace_xml_workspace_path(self) -> Path:
@@ -176,9 +143,7 @@ class Options:
     
     @property
     def idea_security_xml_universal_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.idea_universal_path, 'config', 'options', 'security.xml')
-        )
+        return self.resolve_path(Path(self.idea_universal_path, 'options', 'security.xml'))
 
     @property
     def idea_clion_webservers_name(self) -> str:

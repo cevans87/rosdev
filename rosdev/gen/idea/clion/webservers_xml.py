@@ -8,6 +8,7 @@ from typing import Tuple, Type
 
 from rosdev.gen.docker.ssh.port import GenDockerSshPort
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
+from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -23,6 +24,7 @@ class GenIdeaClionWebserversXml(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenDockerSshPort,
         GenIdeaIdeName,
+        GenIdeaUniversal,
         GenIdeaUuid,
     ))
 
