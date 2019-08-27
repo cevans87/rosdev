@@ -32,7 +32,7 @@ class GenIdeaClionWebserversXml(Handler):
     async def validate_options(cls, options: Options) -> None:
         # TODO py38 debug print
         log.debug(
-            f'idea_webservers_xml_universal_path: {options.idea_clion_webservers_xml_universal_path}'
+            f'idea_webservers_xml_universal_path: {options.idea_clion_webservers_xml_workspace_path}'
         )
         log.debug(
             f'idea_webservers_xml_workspace_path: {options.idea_webservers_xml_workspace_path}'
@@ -70,11 +70,11 @@ class GenIdeaClionWebserversXml(Handler):
         root_element = merge_elements(
             from_element=cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_clion_webservers_xml_universal_path
+                options.idea_clion_webservers_xml_workspace_path
             )
         )
 
         options.write_text(
-            path=options.idea_clion_webservers_xml_universal_path,
+            path=options.idea_clion_webservers_xml_workspace_path,
             text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

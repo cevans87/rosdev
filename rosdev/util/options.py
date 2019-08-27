@@ -108,10 +108,8 @@ class Options:
         )
 
     @property
-    def idea_clion_webservers_xml_universal_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.idea_universal_path, 'config', 'options', 'webServers.xml')
-        )
+    def idea_clion_webservers_xml_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
 
     @property
     def idea_pycharm_jdk_table_xml_sftp_uri(self) -> str:
@@ -129,9 +127,7 @@ class Options:
 
     @property
     def idea_pycharm_webservers_xml_workspace_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.idea_workspace_path, 'webServers.xml')
-        )
+        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
 
     @property
     def idea_clion_deployment_xml_workspace_path(self) -> Path:
