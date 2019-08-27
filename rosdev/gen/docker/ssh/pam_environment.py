@@ -4,7 +4,7 @@ from logging import getLogger
 from typing import Tuple, Type
 
 from rosdev.gen.docker.base import GenDockerBase
-from rosdev.gen.docker.environment import GenDockerEnvironment
+from rosdev.gen.environment import GenEnvironment
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -17,7 +17,7 @@ class GenDockerSshPamEnvironment(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenDockerBase,
-        GenDockerEnvironment,
+        GenEnvironment,
     ))
 
     @classmethod
@@ -47,7 +47,7 @@ class GenDockerSshPamEnvironment(Handler):
         log.info(f'Creating pam_environment')
 
         docker_ssh_pam_environment_lines = []
-        for k, v in (await GenDockerEnvironment.get_environment_container(options)).items():
+        for k, v in (await GenEnvironment.get_environment_container(options)).items():
             i = 0
             while len(v) > 512:
                 docker_ssh_pam_environment_lines.append(f'{k}_{i} DEFAULT="{v[:512]}"')
