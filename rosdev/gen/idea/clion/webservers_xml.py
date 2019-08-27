@@ -8,7 +8,6 @@ from typing import Tuple, Type
 
 from rosdev.gen.docker.ssh.port import GenDockerSshPort
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
-from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -24,7 +23,6 @@ class GenIdeaClionWebserversXml(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenDockerSshPort,
         GenIdeaIdeName,
-        GenIdeaUniversal,
         GenIdeaUuid,
     ))
 
@@ -32,7 +30,7 @@ class GenIdeaClionWebserversXml(Handler):
     async def validate_options(cls, options: Options) -> None:
         # TODO py38 debug print
         log.debug(
-            f'idea_webservers_xml_universal_path: {options.idea_clion_webservers_xml_workspace_path}'
+            f'idea_webservers_xml_universal_path: {options.idea_clion_webservers_xml_universal_path}'
         )
         log.debug(
             f'idea_webservers_xml_workspace_path: {options.idea_webservers_xml_workspace_path}'
@@ -70,11 +68,11 @@ class GenIdeaClionWebserversXml(Handler):
         root_element = merge_elements(
             from_element=cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_clion_webservers_xml_workspace_path
+                options.idea_clion_webservers_xml_universal_path
             )
         )
 
         options.write_text(
-            path=options.idea_clion_webservers_xml_workspace_path,
+            path=options.idea_clion_webservers_xml_universal_path,
             text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

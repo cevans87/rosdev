@@ -14,11 +14,9 @@ from textwrap import dedent
 from typing import Tuple, Type
 
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
-from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -29,7 +27,6 @@ class GenIdeaKeepass(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenIdeaIdeName,
-        GenIdeaUniversal,
         GenIdeaUuid,
     ))
 
@@ -72,7 +69,10 @@ class GenIdeaKeepass(Handler):
         ).decode()
 
         if not options.idea_c_kdbx_universal_path.is_file():
-            await execute_command(f'cp {Path(__file__).parent}/c.kdbx {options.idea_c_kdbx_universal_path}')
+            await cls.exec_workspace(
+                options=options,
+                command=f'cp {Path(__file__).parent}/c.kdbx {options.idea_c_kdbx_universal_path}'
+            )
         with PyKeePass(str(options.idea_c_kdbx_universal_path), password=password) as db:
             # TODO remove stale entries
             group = db.find_groups(first=True, name='IntelliJ Platform')

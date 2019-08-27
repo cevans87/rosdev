@@ -7,7 +7,6 @@ from textwrap import dedent
 from typing import Tuple, Type
 
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
-from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -22,7 +21,6 @@ class GenIdeaClionDeploymentXml(Handler):
     
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenIdeaIdeName,
-        GenIdeaUniversal,
         GenIdeaUuid,
     ))
 

@@ -3,6 +3,7 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
+import sys
 from typing import Mapping, Optional
 from uuid import UUID
 
@@ -36,8 +37,6 @@ class Options:
 
     idea_ide_name: Optional[str] = None
     idea_ide_start_universal_path: Optional[Path] = None
-
-    idea_universal_path: Optional[Path] = None
 
     idea_uuid: Optional[UUID] = None
     log_level: str = 'INFO'
@@ -90,6 +89,17 @@ class Options:
         return self.resolve_path(Path(self.rosdev_workspace_path, 'docker_ssh_port'))
 
     @property
+    def idea_universal_path(self) -> Path:
+        if sys.platform == 'darwin':
+            return self.resolve_path(
+                Path(self.home_universal_path, 'Library', 'Preferences', f'{self.idea_ide_name}')
+            )
+        else:
+            return self.resolve_path(
+                Path(self.home_universal_path, f'.{self.idea_ide_name}')
+            )
+
+    @property
     def idea_workspace_path(self) -> Path:
         return self.resolve_path(Path(self.workspace_path, '.idea'))
 
@@ -103,13 +113,25 @@ class Options:
     
     @property
     def idea_clion_cpp_toolchains_xml_universal_path(self) -> Path: 
-        return self.resolve_path(
-            Path(self.idea_universal_path, 'config', 'options', 'cpp.toolchains.xml')
-        )
+        if sys.platform == 'darwin':
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'options', 'cpp.toolchains.xml')
+            )
+        else:
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'config', 'options', 'cpp.toolchains.xml')
+            )
 
     @property
-    def idea_clion_webservers_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
+    def idea_clion_webservers_xml_universal_path(self) -> Path:
+        if sys.platform == 'darwin':
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'options', 'webServers.xml')
+            )
+        else:
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'config', 'options', 'webServers.xml')
+            )
 
     @property
     def idea_pycharm_jdk_table_xml_sftp_uri(self) -> str:
@@ -139,9 +161,14 @@ class Options:
 
     @property
     def idea_pycharm_jdk_table_xml_universal_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.idea_universal_path, 'config', 'options', '.jdk.table.xml')
-        )
+        if sys.platform == 'darwin':
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'options', 'jdk.table.xml')
+            )
+        else:
+            return self.resolve_path(
+                Path(self.idea_universal_path, 'config', 'options', 'jdk.table.xml')
+            )
 
     @property
     def idea_workspace_xml_workspace_path(self) -> Path:
