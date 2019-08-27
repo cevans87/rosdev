@@ -6,10 +6,10 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
+from rosdev.gen.environment import GenEnvironment
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
 from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
-from rosdev.gen.docker.environment import GenDockerEnvironment
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -22,7 +22,7 @@ log = getLogger(__name__)
 class GenIdeaWorkspaceXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerEnvironment,
+        GenEnvironment,
         GenIdeaIdeName,
         GenIdeaUniversal,
         GenIdeaUuid,
@@ -48,11 +48,7 @@ class GenIdeaWorkspaceXml(Handler):
                             {''.join([
                                 f'<env name="{k}" value="{v}" />' 
                                 for k, v
-                                in (
-                                    await GenDockerEnvironment.get_ros_environment_container(
-                                        options
-                                    )
-                                ).items()
+                                in (await GenEnvironment.get_environment_container(options)).items()
                             ])}
                           </envs>
                         </ADDITIONAL_GENERATION_ENVIRONMENT>

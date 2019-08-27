@@ -17,17 +17,21 @@ class Options:
     build_type: str = 'Debug'
 
     colcon_build_args: Optional[str] = None
+    container_path: Optional[Path] = None
     docker_container_command: str = '/sbin/init'
     docker_container_environment: Mapping[str, str] = frozendict()
     docker_container_ports: Mapping[int, int] = frozendict()  # container:host
     docker_container_volumes: Mapping[str, str] = frozendict()  # host:container
     docker_image_base_tag: Optional[str] = None
-
     docker_ssh_port: Optional[int] = None
+
     dry_run: bool = False
+    # TODO rename to enable_docker_container_ccache
     enable_ccache: bool = True
+    # TODO rename to enable_docker_container_gui
     enable_gui: bool = False
     executable: Optional[str] = None
+    # TODO find a better name for this
     flavor: str = 'ros-core'
 
     idea_ide_name: Optional[str] = None
@@ -36,7 +40,6 @@ class Options:
     idea_universal_path: Optional[Path] = None
 
     idea_uuid: Optional[UUID] = None
-    local_setup: Optional[str] = None
     log_level: str = 'INFO'
     package: Optional[str] = None
     pull_build: bool = False
@@ -47,15 +50,18 @@ class Options:
     run_main: bool = True
     run_validate_options: bool = True
     sanitizer: Optional[str] = None
+
+    reuse_environment: bool = True
+    reuse_docker_ssh_pam_environment: bool = True
+
     source_ros_overlay_setup_bash: bool = False
     source_ros_underlay_setup_bash: bool = True
+
     stage: Optional[str] = None
-    uuid: Optional[str] = None
+    universal_path: Optional[Path] = None
     workspace_hash: Optional[str] = None
 
-    container_path: Optional[Path] = None
     workspace_path: Optional[Path] = None
-    universal_path: Optional[Path] = None
 
     home_container_path: Optional[Path] = None
     home_universal_path: Optional[Path] = None
@@ -256,11 +262,15 @@ class Options:
         return self.resolve_path(Path(self.rosdev_workspace_path, 'rosdev_docker_entrypoint.sh'))
 
     @property
-    def docker_pam_environment_container_path(self) -> Path: 
+    def environment_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'environment'))
+
+    @property
+    def docker_ssh_pam_environment_container_path(self) -> Path: 
         return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
 
     @property
-    def docker_pam_environment_workspace_path(self) -> Path: 
+    def docker_ssh_pam_environment_workspace_path(self) -> Path: 
         return self.resolve_path(Path(self.rosdev_workspace_path, 'pam_environment'))
 
     @property

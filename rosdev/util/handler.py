@@ -30,10 +30,7 @@ class Handler:
             log.warning('Skipping validate options')
 
         options = replace(options, stage='main')
-        if options.run_main:
-            await cls.__main_all(options)
-        else:
-            log.warning('Skipping main')
+        await cls.__main_all(options)
 
     @classmethod
     async def __pre_resolve_options(cls, options: Options) -> Options:
@@ -102,22 +99,31 @@ class Handler:
         await cls.__pre_main(options)
         # TODO debug print main's dockstring
         log.debug(f'Starting {cls.__name__}.main: {cls.main.__doc__ or "description unavailable"}')
-        await cls.main(options)
+        if options.run_main:
+            await cls.main(options)
+        else:
+            log.warning(f'Skipping {cls.__name__}.main')
         log.debug(f'Finished {cls.__name__}.main')
         await cls.__post_main(options)
 
     @classmethod
-    async def exec_container(cls, options: Options, cmd: str, err_ok: bool = False) -> Tuple[str]:
+    async def exec_container(
+            cls, options: Options, command: str, err_ok: bool = False
+    ) -> Tuple[str]:
+        log.debug(f'exec_container err_ok={err_ok} "{command}"')
         return await get_exec_lines(
-            command=f'docker exec {options.docker_container_name} {cmd}',
+            command=f'docker exec {options.docker_container_name} {command}',
             err_ok=err_ok
         )
 
     # noinspection PyUnusedLocal
     @classmethod
-    async def exec_workspace(cls, options: Options, cmd: str, err_ok: bool = False) -> Tuple[str]:
+    async def exec_workspace(
+            cls, options: Options, command: str, err_ok: bool = False
+    ) -> Tuple[str]:
+        log.debug(f'exec_workspace err_ok={err_ok} "{command}"')
         return await get_exec_lines(
-            command=cmd,
+            command=command,
             err_ok=err_ok
         )
 

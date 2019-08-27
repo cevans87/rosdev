@@ -42,7 +42,7 @@ class GenDockerInstall(Handler):
             ]:
                 await cls.exec_workspace(
                     options=options,
-                    cmd=(
+                    command=(
                         f'docker run --rm -v '
                         f'{options.install_universal_path.parent}:'
                         f'{options.install_universal_path.parent} '

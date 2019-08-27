@@ -79,6 +79,7 @@ class Flag:
     flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
+    idea_uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_build: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -90,7 +91,6 @@ class Flag:
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
     source_ros_overlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
     source_ros_underlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
-    uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
@@ -246,6 +246,27 @@ class Flag:
             default=options.idea_ide_name,
             choices=choices.idea_ide_name,
             help=f'Name of IDEA IDE to use. Currently: {options.idea_ide_name}'
+        )
+
+        class UuidAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                setattr(namespace, self.dest, f'{UUID(values[0])}')
+
+        self.idea_uuid.add_argument(
+            '--idea-uuid',
+            default=options.idea_uuid,
+            action=UuidAction,
+            type=str,
+            help=(
+                f'UUID to use for generated idea settings. '
+                f' Currently: {options.idea_uuid}'
+            )
         )
 
         self.log_level.add_argument(
@@ -454,12 +475,11 @@ class Flag:
         )
         source_ros_overlay_setup_bash_group.add_argument(
             '--no-source-ros-overlay-setup-bash',
-            action='store_const',
-            const=None,
+            action='store_false',
             dest='source_ros_overlay_setup_bash',
             default=options.source_ros_overlay_setup_bash,
             help=(
-                SUPPRESS if options.source_ros_overlay_setup_bash is None else
+                SUPPRESS if not options.source_ros_overlay_setup_bash else
                 f'Do not source setup.bash from ROS install. '
                 f'Currently: {options.source_ros_overlay_setup_bash}'
             )
@@ -479,35 +499,13 @@ class Flag:
         )
         source_ros_underlay_setup_bash_group.add_argument(
             '--no-source-ros-underlay-setup-bash',
-            action='store_const',
-            const=None,
+            action='store_false',
             dest='source_ros_underlay_setup_bash',
             default=options.source_ros_underlay_setup_bash,
             help=(
-                SUPPRESS if options.source_ros_underlay_setup_bash is None else
+                SUPPRESS if not options.source_ros_underlay_setup_bash else
                 f'Do not source setup.bash from workspace install. '
                 f'Currently: {options.source_ros_underlay_setup_bash}'
-            )
-        )
-
-        class UuidAction(Action):
-            def __call__(
-                    self,
-                    _parser: ArgumentParser,
-                    namespace: Namespace,
-                    values: List[str],
-                    _option_string: Optional[str] = None
-            ) -> None:
-                setattr(namespace, self.dest, f'{UUID(values[0])}')
-
-        self.uuid.add_argument(
-            '--uuid',
-            default=options.uuid,
-            action=UuidAction,
-            type=str,
-            help=(
-                f'UUID to use for generated settings. '
-                f' Currently: {options.uuid}'
             )
         )
 
@@ -662,6 +660,8 @@ parser = parser.merged_with(
         flag.enable_gui,
         flag.flavor,
         flag.docker_container_ports,
+        flag.source_ros_overlay_setup_bash,
+        flag.source_ros_underlay_setup_bash,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -746,14 +746,15 @@ parser = parser.merged_with(
         flag.volumes,
     })
 )
-
 parser = parser.merged_with(sub_commands='gen docker base')
 parser = parser.merged_with(sub_commands='gen docker core')
 parser = parser.merged_with(sub_commands='gen docker image')
 parser = parser.merged_with(sub_commands='gen docker install')
-parser = parser.merged_with(sub_commands='gen docker pam_environment')
-parser = parser.merged_with(sub_commands='gen docker ssh connect')
+
+parser = parser.merged_with(sub_commands='gen docker ssh base')
+parser = parser.merged_with(sub_commands='gen docker ssh core')
 parser = parser.merged_with(sub_commands='gen docker ssh start')
+parser = parser.merged_with(sub_commands='gen docker ssh pam_environment')
 parser = parser.merged_with(sub_commands='gen docker ssh port')
 
 parser = parser.merged_with(
@@ -764,68 +765,29 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(sub_commands='gen idea base')
-parser = parser.merged_with(sub_commands='gen idea clion toolchain')
 parser = parser.merged_with(sub_commands='gen idea core')
 parser = parser.merged_with(sub_commands='gen idea deployment_xml')
 parser = parser.merged_with(sub_commands='gen idea ide')
 parser = parser.merged_with(sub_commands='gen idea keepass')
+parser = parser.merged_with(sub_commands='gen idea security_xml')
+parser = parser.merged_with(sub_commands='gen idea settings')
+
+parser = parser.merged_with(sub_commands='gen idea clion base')
+parser = parser.merged_with(sub_commands='gen idea clion core')
+parser = parser.merged_with(sub_commands='gen idea clion cpp_toolchains_xml')
+parser = parser.merged_with(sub_commands='gen idea clion deployment_xml')
+parser = parser.merged_with(sub_commands='gen idea clion webservers_xml')
+
 parser = parser.merged_with(sub_commands='gen idea pycharm base')
 parser = parser.merged_with(sub_commands='gen idea pycharm core')
 parser = parser.merged_with(sub_commands='gen idea pycharm deployment_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm jdk_table_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm misc_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
-parser = parser.merged_with(sub_commands='gen idea security_xml')
-parser = parser.merged_with(sub_commands='gen idea settings')
 
 parser = parser.merged_with(
     sub_commands='gen overrides',
     flags=frozenset(asdict(flag).values())
-)
-
-parser = parser.merged_with(
-    sub_commands='gen pam_environment',
-    flags=frozenset({
-        flag.source_ros_overlay_setup_bash,
-        flag.source_ros_underlay_setup_bash,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen ros build_num',
-    flags=frozenset({
-        flag.architecture,
-        flag.build_num,
-        flag.release,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen ros environment',
-    flags=frozenset({
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen ros install',
-    flags=frozenset({
-        flag.architecture,
-        flag.build_num,
-        flag.pull_docker_image,
-        flag.pull_build,
-        flag.release,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen ros src',
-    flags=frozenset({
-        flag.architecture,
-        flag.build_num,
-        flag.pull_docker_image,
-        flag.pull_build,
-        flag.release,
-    })
 )
 
 parser = parser.merged_with(

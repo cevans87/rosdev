@@ -2,20 +2,16 @@ from dataclasses import dataclass, field
 from logging import getLogger
 from typing import Tuple, Type
 
-from rosdev.gen.docker.ssh.core import GenDockerSshCore
-from rosdev.gen.idea.base import GenIdeaBase
-from rosdev.gen.idea.ide.start import GenIdeaIdeStart
+from rosdev.gen.docker.ssh.base import GenDockerSshBase
+from rosdev.gen.docker.ssh.start import GenDockerSshStart
 from rosdev.util.handler import Handler
-
 
 log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenIdeaCore(Handler):
-
+class GenDockerSshCore(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerSshCore,
-        GenIdeaBase,
-        GenIdeaIdeStart,
+        GenDockerSshBase,
+        GenDockerSshStart,
     ))

@@ -5,11 +5,9 @@ from typing import Tuple, Type
 from rosdev.gen.core import GenCore
 from rosdev.gen.docker.base import GenDockerBase
 from rosdev.gen.docker.container import GenDockerContainer
-from rosdev.gen.docker.environment import GenDockerEnvironment
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.docker.install import GenDockerInstall
-from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
-from rosdev.gen.docker.ssh.start import GenDockerSshStart
+from rosdev.gen.docker.ssh.base import GenDockerSshBase
 from rosdev.util.handler import Handler
 
 
@@ -23,9 +21,7 @@ class GenDockerCore(Handler):
         GenCore,
         GenDockerBase,
         GenDockerContainer,
-        GenDockerEnvironment,
         GenDockerImage,
         GenDockerInstall,
-        GenDockerPamEnvironment,
-        GenDockerSshStart,
+        GenDockerSshBase,
     ))

@@ -12,7 +12,7 @@ from rosdev.gen.core import GenCore
 from rosdev.gen.docker.base import GenDockerBase
 from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.image import GenDockerImage
-from rosdev.gen.docker.ssh.port import GenDockerSshPort
+from rosdev.gen.docker.ssh.base import GenDockerSshBase
 from rosdev.gen.install import GenInstall
 from rosdev.gen.src import GenSrc
 from rosdev.util.handler import Handler
@@ -29,7 +29,7 @@ class GenDockerContainer(Handler):
         GenDockerBase,
         GenDockerGdbinit,
         GenDockerImage,
-        GenDockerSshPort,
+        GenDockerSshBase,
         GenInstall,
         GenSrc,
     ))
