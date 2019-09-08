@@ -52,7 +52,9 @@ class GenInstall(Handler):
 
             log.info(f'Staging install at {staging_path}')
             await execute_command(f'mkdir -p {staging_path}')
-            await execute_command(f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1')
+            await execute_command(
+                f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1'
+            )
 
             log.info(f'Caching install at {options.install_universal_path}')
             await execute_command(f'mkdir -p {options.install_universal_path.parent}')

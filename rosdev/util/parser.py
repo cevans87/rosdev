@@ -73,6 +73,8 @@ class Flag:
     build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ports: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_entrypoint_sh_setup_overlay: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_entrypoint_sh_setup_underlay: ArgumentParser = field(default_factory=gen_flag_parser)
     dry_run: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
     enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -89,8 +91,6 @@ class Flag:
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
-    source_ros_overlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
-    source_ros_underlay_setup_bash: ArgumentParser = field(default_factory=gen_flag_parser)
     volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
@@ -137,6 +137,54 @@ class Flag:
                 SUPPRESS if options.colcon_build_args is None else
                 f'Do not pass additional args to colcon build. '
                 f'Currently: {options.colcon_build_args}'
+            )
+        )
+
+        docker_entrypoint_sh_setup_overlay_group = (
+            self.docker_entrypoint_sh_setup_overlay.add_mutually_exclusive_group()
+        )
+        docker_entrypoint_sh_setup_overlay_group.add_argument(
+            '--docker-entrypoint-sh-setup-overlay',
+            action='store_true',
+            default=options.docker_entrypoint_sh_setup_overlay,
+            help=(
+                f'Source setup.bash from ROS install. '
+                f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
+            )
+        )
+        docker_entrypoint_sh_setup_overlay_group.add_argument(
+            '--no-docker-entrypoint-sh-setup-overlay',
+            action='store_false',
+            dest='docker_entrypoint_sh_setup_overlay',
+            default=options.docker_entrypoint_sh_setup_overlay,
+            help=(
+                SUPPRESS if not options.docker_entrypoint_sh_setup_overlay else
+                f'Do not source setup.bash from ROS install. '
+                f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
+            )
+        )
+
+        docker_entrypoint_sh_setup_underlay_group = (
+            self.docker_entrypoint_sh_setup_underlay.add_mutually_exclusive_group()
+        )
+        docker_entrypoint_sh_setup_underlay_group.add_argument(
+            '--docker-entrypoint-sh-setup-underlay',
+            action='store_true',
+            default=options.docker_entrypoint_sh_setup_underlay,
+            help=(
+                f'Source setup.bash from workspace install. '
+                f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
+            )
+        )
+        docker_entrypoint_sh_setup_underlay_group.add_argument(
+            '--no-docker-entrypoint-sh-setup-underlay',
+            action='store_false',
+            dest='docker_entrypoint_sh_setup_underlay',
+            default=options.docker_entrypoint_sh_setup_underlay,
+            help=(
+                SUPPRESS if not options.docker_entrypoint_sh_setup_underlay else
+                f'Do not source setup.bash from workspace install. '
+                f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
             )
         )
 
@@ -461,54 +509,6 @@ class Flag:
             )
         )
 
-        source_ros_overlay_setup_bash_group = (
-            self.source_ros_overlay_setup_bash.add_mutually_exclusive_group()
-        )
-        source_ros_overlay_setup_bash_group.add_argument(
-            '--source-ros-overlay-setup-bash',
-            action='store_true',
-            default=options.source_ros_overlay_setup_bash,
-            help=(
-                f'Source setup.bash from ROS install. '
-                f'Currently: {options.source_ros_overlay_setup_bash}'
-            )
-        )
-        source_ros_overlay_setup_bash_group.add_argument(
-            '--no-source-ros-overlay-setup-bash',
-            action='store_false',
-            dest='source_ros_overlay_setup_bash',
-            default=options.source_ros_overlay_setup_bash,
-            help=(
-                SUPPRESS if not options.source_ros_overlay_setup_bash else
-                f'Do not source setup.bash from ROS install. '
-                f'Currently: {options.source_ros_overlay_setup_bash}'
-            )
-        )
-
-        source_ros_underlay_setup_bash_group = (
-            self.source_ros_underlay_setup_bash.add_mutually_exclusive_group()
-        )
-        source_ros_underlay_setup_bash_group.add_argument(
-            '--source-ros-underlay-setup-bash',
-            action='store_true',
-            default=options.source_ros_underlay_setup_bash,
-            help=(
-                f'Source setup.bash from workspace install. '
-                f'Currently: {options.source_ros_underlay_setup_bash}'
-            )
-        )
-        source_ros_underlay_setup_bash_group.add_argument(
-            '--no-source-ros-underlay-setup-bash',
-            action='store_false',
-            dest='source_ros_underlay_setup_bash',
-            default=options.source_ros_underlay_setup_bash,
-            help=(
-                SUPPRESS if not options.source_ros_underlay_setup_bash else
-                f'Do not source setup.bash from workspace install. '
-                f'Currently: {options.source_ros_underlay_setup_bash}'
-            )
-        )
-
         class VolumesAction(Action):
             def __call__(
                     self,
@@ -656,12 +656,12 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.build_num,
+        flag.docker_entrypoint_sh_setup_overlay,
+        flag.docker_entrypoint_sh_setup_underlay,
         flag.enable_ccache,
         flag.enable_gui,
         flag.flavor,
         flag.docker_container_ports,
-        flag.source_ros_overlay_setup_bash,
-        flag.source_ros_underlay_setup_bash,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -690,11 +690,11 @@ parser = parser.merged_with(
         flag.architecture,
         flag.build_num,
         flag.build_type,
+        flag.docker_entrypoint_sh_setup_overlay,
+        flag.docker_entrypoint_sh_setup_underlay,
         flag.pull_docker_image,
         flag.release,
         flag.sanitizer,
-        flag.source_ros_overlay_setup_bash,
-        flag.source_ros_underlay_setup_bash,
     }),
 )
 

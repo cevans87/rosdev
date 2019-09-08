@@ -1,3 +1,4 @@
+# FIXME replace with options equivalent
 def get_machine(architecture: str) -> str:
     return {
         'amd64': 'x86_64',

@@ -3,7 +3,6 @@ from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
-import sys
 from typing import Mapping, Optional
 from uuid import UUID
 
@@ -16,6 +15,11 @@ class Options:
     architecture: Optional[str] = None
     build_num: Optional[int] = None
     build_type: str = 'Debug'
+
+    docker_entrypoint_sh_quick_overlay: bool = True
+    docker_entrypoint_sh_quick_underlay: bool = True
+    docker_entrypoint_sh_setup_overlay: bool = False
+    docker_entrypoint_sh_setup_underlay: bool = True
 
     colcon_build_args: Optional[str] = None
     container_path: Optional[Path] = None
@@ -250,48 +254,68 @@ class Options:
         return self.resolve_path(Path(self.rosdev_workspace_path, 'rosdev_docker_entrypoint.sh'))
 
     @property
-    def environment_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'environment'))
+    def docker_entrypoint_sh_overlay_sh_container_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.rosdev_container_path, 'docker_entrypoint_sh_overlay.sh')
+        )
 
     @property
-    def docker_ssh_pam_environment_container_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
+    def docker_entrypoint_sh_overlay_sh_workspace_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.rosdev_workspace_path, 'docker_entrypoint_sh_overlay.sh')
+        )
 
     @property
-    def docker_ssh_pam_environment_workspace_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'pam_environment'))
+    def docker_entrypoint_sh_underlay_sh_container_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.rosdev_container_path, 'docker_entrypoint_sh_underlay.sh')
+        )
 
     @property
-    def ros_overlay_setup_bash_container_path(self) -> Path: 
+    def docker_entrypoint_sh_underlay_sh_workspace_path(self) -> Path:
+        return self.resolve_path(
+            Path(self.rosdev_workspace_path, 'docker_entrypoint_sh_underlay.sh')
+        )
+
+    @property
+    def docker_entrypoint_sh_setup_overlay_container_path(self) -> Path:
         return self.resolve_path(Path(f'{self.container_path}', 'install',  'setup.bash'))
-    
+
     @property
-    def ros_overlay_setup_bash_workspace_path(self) -> Path:
+    def docker_entrypoint_sh_setup_overlay_workspace_path(self) -> Path:
         return self.resolve_path(Path(f'{self.workspace_path}', 'install', 'setup.bash'))
 
     @property
-    def ros_underlay_setup_bash_container_path(self) -> Path:
+    def docker_entrypoint_sh_setup_underlay_container_path(self) -> Path:
         return self.resolve_path(Path(f'{self.install_container_path}', 'setup.bash'))
-    
+
     @property
-    def ros_underlay_setup_bash_workspace_path(self) -> Path:
+    def docker_entrypoint_sh_setup_underlay_workspace_path(self) -> Path:
         return self.resolve_path(Path('{workspace_path}', 'install', 'setup.bash'))
 
-    # TODO move these properties to handler as "def get_machine(options)" etc.
     @property
-    def machine(self) -> Optional[str]:
+    def docker_ssh_pam_environment_container_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
+
+    @property
+    def docker_ssh_pam_environment_workspace_path(self) -> Path:
+        return self.resolve_path(Path(self.rosdev_workspace_path, 'pam_environment'))
+
+    @property
+    def machine(self) -> str:
         return {
             'amd64': 'x86_64',
             'arm32v7': 'arm',
             'arm64v8': 'aarch64'
-        }.get(self.architecture)
+        }[self.architecture]
 
     @property
-    def operating_system(self) -> Optional[str]:
+    def operating_system(self) -> str:
         return {
             'amd64': 'linux',
-            'arm64v8': f'linux-{self.machine}',
-        }.get(self.architecture)
+            'arm32v7': f'linux-armhf',
+            'arm64v8': f'linux-aarch64',
+        }[self.architecture]
 
     def resolve_str(self, _str: str) -> str:
         # TODO py38 walrus loop

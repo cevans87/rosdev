@@ -1,11 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from frozendict import frozendict
 from logging import getLogger
-from pathlib import Path
 from textwrap import dedent
 
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -15,15 +14,53 @@ log = getLogger(__name__)
 class GenDockerEntrypointSh(Handler):
 
     @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        docker_container_volumes = dict(options.docker_container_volumes)
+        docker_container_volumes[options.docker_entrypoint_sh_overlay_sh_workspace_path] = (
+            options.docker_entrypoint_sh_overlay_sh_container_path
+        )
+        docker_container_volumes[options.docker_entrypoint_sh_underlay_sh_workspace_path] = (
+            options.docker_entrypoint_sh_underlay_sh_container_path
+        )
+        docker_container_volumes[options.docker_entrypoint_sh_workspace_path] = (
+            options.docker_entrypoint_sh_container_path
+        )
+        docker_container_volumes[options.docker_entrypoint_sh_workspace_path] = (
+            options.docker_entrypoint_sh_container_path
+        )
+        docker_container_volumes = frozendict(docker_container_volumes)
+
+        return replace(options, docker_container_volumes=docker_container_volumes)
+
+    @classmethod
     async def validate_options(cls, options: Options) -> None:
         # TODO py38 debug print
         log.debug(
-            f'docker_entrypoint_sh_container_path: '
-            f'{options.docker_entrypoint_sh_container_path}'
+            f'docker_entrypoint_sh_quick_overlay: {options.docker_entrypoint_sh_quick_overlay}'
         )
         log.debug(
-            f'docker_entrypoint_sh_workspace_path: '
-            f'{options.docker_entrypoint_sh_workspace_path}'
+            f'docker_entrypoint_sh_quick_underlay: {options.docker_entrypoint_sh_quick_underlay}'
+        )
+
+        log.debug(
+            f'docker_entrypoint_sh_setup_overlay: {options.docker_entrypoint_sh_setup_overlay}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_setup_underlay: {options.docker_entrypoint_sh_setup_underlay}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_setup_underlay_container_path: '
+            f'{options.docker_entrypoint_sh_setup_underlay_container_path}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_setup_underlay_workspace_path: '
+            f'{options.docker_entrypoint_sh_setup_underlay_workspace_path}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_container_path: {options.docker_entrypoint_sh_container_path}'
+        )
+        log.debug(
+            f'docker_entrypoint_sh_workspace_path: {options.docker_entrypoint_sh_workspace_path}'
         )
 
     @classmethod
@@ -31,17 +68,61 @@ class GenDockerEntrypointSh(Handler):
         return dedent(fr'''
             #!/bin/bash
             set -e
+
+            docker_entrypoint_sh_quick_underlay="{options.docker_entrypoint_sh_quick_underlay}"
+            docker_entrypoint_sh_setup_underlay="{options.docker_entrypoint_sh_setup_underlay}"
             
-            {
-                f'source {options.ros_underlay_setup_bash_container_path}'
-                if options.source_ros_underlay_setup_bash else '# Not sourcing underlay'
-            }
-            
-            {
-                f'source {options.ros_overlay_setup_bash_container_path}' if 
-                options.source_ros_overlay_setup_bash else '# Not sourcing overlay'
-            }
-        
+            if [[ $docker_entrypoint_sh_setup_underlay = "False" ]]
+            then
+                echo "Not sourcing underlay."
+            elif
+                [[ $docker_entrypoint_sh_quick_underlay = "True" ]] && \
+                [[ -f "{options.docker_entrypoint_sh_underlay_sh_container_path}" ]] && \
+                [[ {options.docker_entrypoint_sh_underlay_sh_container_path} -nt \
+                   {options.docker_entrypoint_sh_setup_underlay_container_path} ]]
+            then
+                echo "Sourcing quick cached underlay."
+                source "{options.docker_entrypoint_sh_underlay_sh_container_path}"
+            elif [[ -f "{options.docker_entrypoint_sh_setup_underlay_container_path}" ]]
+            then
+                echo "Sourcing underlay setup."
+                source "{options.docker_entrypoint_sh_setup_underlay_container_path}"
+                if
+                    [[ $docker_entrypoint_sh_quick_underlay = "True" ]] && \
+                    [[ -d "{options.docker_entrypoint_sh_underlay_sh_container_path.parent}" ]]
+                then
+                    echo "Caching underlay to enable quick setup."
+                    declare -px > {options.docker_entrypoint_sh_underlay_sh_container_path}
+                fi
+            fi
+
+            docker_entrypoint_sh_quick_overlay="{options.docker_entrypoint_sh_quick_overlay}"
+            docker_entrypoint_sh_setup_overlay="{options.docker_entrypoint_sh_setup_overlay}"
+
+            if [[ docker_entrypoint_sh_setup_overlay = "False" ]]
+            then
+                echo "Not sourcing overlay."
+            elif
+                [[ $docker_entrypoint_sh_quick_overlay = "True" ]] && \
+                [[ -f "{options.docker_entrypoint_sh_overlay_sh_container_path}" ]] && \
+                [[ {options.docker_entrypoint_sh_overlay_sh_container_path} -nt \
+                   {options.docker_entrypoint_sh_setup_overlay_container_path} ]]
+            then
+                echo "Sourcing quick cached overlay."
+                source "{options.docker_entrypoint_sh_overlay_sh_container_path}"
+            elif [[ -f "{options.docker_entrypoint_sh_setup_overlay_container_path}" ]]
+            then
+                echo "Sourcing overlay setup."
+                source "{options.docker_entrypoint_sh_setup_overlay_container_path}"
+                if
+                    [[ $docker_entrypoint_sh_quick_overlay = "True" ]] && \
+                    [[ -d "{options.docker_entrypoint_sh_overlay_sh_container_path.parent}" ]]
+                then
+                    echo "Caching overlay to enable quick setup."
+                    declare -px > {options.docker_entrypoint_sh_overlay_sh_container_path}
+                fi
+            fi
+
             exec "$@"
         ''').lstrip()
 

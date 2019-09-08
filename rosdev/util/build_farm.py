@@ -46,7 +46,10 @@ class _Jenkins:
             return await get_event_loop().run_in_executor(None, get_build_num_inner)
 
     async def get_build_console_output(
-            self, architecture: str, build_num: Optional[int], release: str
+            self,
+            architecture: str,
+            build_num: Optional[int],
+            release: str
     ) -> Tuple[str]:
         if build_num is None:
             build_num = await self.get_build_num(
@@ -102,7 +105,11 @@ async def get_ros2_repos(architecture: str, build_num: Optional[int], release: s
 
 
 @memoize
-async def get_artifacts_url(architecture: str, build_num: Optional[int], release: str) -> str:
+async def get_artifacts_url(
+        architecture: str,
+        build_num: Optional[int],
+        release: str,
+) -> str:
     if build_num is None:
         async with _JenkinsContext() as jenkins:
             build_num = await jenkins.get_build_num(

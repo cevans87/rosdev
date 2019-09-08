@@ -46,7 +46,7 @@ class GenDockerGdbinit(Handler):
             f_out.write(
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
-                f'packaging_{get_operating_system(options.architecture)}/ws/src/ '
+                f'packaging_{options.operating_system}/ws/src/ '
                 f'{options.src_workspace_path}\n'
             )
             f_out.write(
