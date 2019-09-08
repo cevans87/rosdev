@@ -74,7 +74,7 @@ class GenDockerEntrypointSh(Handler):
             
             if [[ $docker_entrypoint_sh_setup_underlay = "False" ]]
             then
-                echo "Not sourcing underlay."
+                echo "Not sourcing underlay from ROS install."
             elif
                 [[ $docker_entrypoint_sh_quick_underlay = "True" ]] && \
                 [[ -f "{options.docker_entrypoint_sh_underlay_sh_container_path}" ]] && \
@@ -85,11 +85,9 @@ class GenDockerEntrypointSh(Handler):
                 source "{options.docker_entrypoint_sh_underlay_sh_container_path}"
             elif [[ -f "{options.docker_entrypoint_sh_setup_underlay_container_path}" ]]
             then
-                echo "Sourcing underlay setup."
+                echo "Sourcing underlay setup from ROS install."
                 source "{options.docker_entrypoint_sh_setup_underlay_container_path}"
-                if
-                    [[ $docker_entrypoint_sh_quick_underlay = "True" ]] && \
-                    [[ -d "{options.docker_entrypoint_sh_underlay_sh_container_path.parent}" ]]
+                if [[ -d "{options.docker_entrypoint_sh_underlay_sh_container_path.parent}" ]]
                 then
                     echo "Caching underlay to enable quick setup."
                     declare -px > {options.docker_entrypoint_sh_underlay_sh_container_path}
@@ -99,24 +97,22 @@ class GenDockerEntrypointSh(Handler):
             docker_entrypoint_sh_quick_overlay="{options.docker_entrypoint_sh_quick_overlay}"
             docker_entrypoint_sh_setup_overlay="{options.docker_entrypoint_sh_setup_overlay}"
 
-            if [[ docker_entrypoint_sh_setup_overlay = "False" ]]
+            if [[ $docker_entrypoint_sh_setup_overlay = "False" ]]
             then
-                echo "Not sourcing overlay."
+                echo "Not sourcing overlay from workspace install."
             elif
                 [[ $docker_entrypoint_sh_quick_overlay = "True" ]] && \
                 [[ -f "{options.docker_entrypoint_sh_overlay_sh_container_path}" ]] && \
                 [[ {options.docker_entrypoint_sh_overlay_sh_container_path} -nt \
                    {options.docker_entrypoint_sh_setup_overlay_container_path} ]]
             then
-                echo "Sourcing quick cached overlay."
+                echo "Sourcing quick cached overlay from workspace install."
                 source "{options.docker_entrypoint_sh_overlay_sh_container_path}"
             elif [[ -f "{options.docker_entrypoint_sh_setup_overlay_container_path}" ]]
             then
-                echo "Sourcing overlay setup."
+                echo "Sourcing overlay setup from workspace install."
                 source "{options.docker_entrypoint_sh_setup_overlay_container_path}"
-                if
-                    [[ $docker_entrypoint_sh_quick_overlay = "True" ]] && \
-                    [[ -d "{options.docker_entrypoint_sh_overlay_sh_container_path.parent}" ]]
+                if [[ -d "{options.docker_entrypoint_sh_overlay_sh_container_path.parent}" ]]
                 then
                     echo "Caching overlay to enable quick setup."
                     declare -px > {options.docker_entrypoint_sh_overlay_sh_container_path}

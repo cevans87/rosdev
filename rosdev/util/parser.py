@@ -148,7 +148,7 @@ class Flag:
             action='store_true',
             default=options.docker_entrypoint_sh_setup_overlay,
             help=(
-                f'Source setup.bash from ROS install. '
+                f'Source setup.bash from workspace install. '
                 f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
             )
         )
@@ -159,7 +159,7 @@ class Flag:
             default=options.docker_entrypoint_sh_setup_overlay,
             help=(
                 SUPPRESS if not options.docker_entrypoint_sh_setup_overlay else
-                f'Do not source setup.bash from ROS install. '
+                f'Do not source setup.bash from workspace install. '
                 f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
             )
         )
@@ -172,7 +172,7 @@ class Flag:
             action='store_true',
             default=options.docker_entrypoint_sh_setup_underlay,
             help=(
-                f'Source setup.bash from workspace install. '
+                f'Source setup.bash from ROS install. '
                 f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
             )
         )
@@ -183,7 +183,7 @@ class Flag:
             default=options.docker_entrypoint_sh_setup_underlay,
             help=(
                 SUPPRESS if not options.docker_entrypoint_sh_setup_underlay else
-                f'Do not source setup.bash from workspace install. '
+                f'Do not source setup.bash from ROS install. '
                 f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
             )
         )
