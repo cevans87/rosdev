@@ -16,15 +16,6 @@ class GenDockerEntrypointSh(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.docker_entrypoint_sh_overlay_sh_workspace_path] = (
-            options.docker_entrypoint_sh_overlay_sh_container_path
-        )
-        docker_container_volumes[options.docker_entrypoint_sh_underlay_sh_workspace_path] = (
-            options.docker_entrypoint_sh_underlay_sh_container_path
-        )
-        docker_container_volumes[options.docker_entrypoint_sh_workspace_path] = (
-            options.docker_entrypoint_sh_container_path
-        )
         docker_container_volumes[options.docker_entrypoint_sh_workspace_path] = (
             options.docker_entrypoint_sh_container_path
         )

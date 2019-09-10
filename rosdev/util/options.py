@@ -260,21 +260,9 @@ class Options:
         )
 
     @property
-    def docker_entrypoint_sh_overlay_sh_workspace_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.rosdev_workspace_path, 'docker_entrypoint_sh_overlay.sh')
-        )
-
-    @property
     def docker_entrypoint_sh_underlay_sh_container_path(self) -> Path:
         return self.resolve_path(
             Path(self.rosdev_container_path, 'docker_entrypoint_sh_underlay.sh')
-        )
-
-    @property
-    def docker_entrypoint_sh_underlay_sh_workspace_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.rosdev_workspace_path, 'docker_entrypoint_sh_underlay.sh')
         )
 
     @property
