@@ -5,7 +5,6 @@ from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
 from rosdev.util.handler import Handler
-from rosdev.util.lookup import get_operating_system
 from rosdev.util.options import Options
 from rosdev.util.subprocess import execute_command
 
@@ -39,7 +38,9 @@ class GenDockerGdbinit(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_gdbinit')
-        await execute_command(f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True)
+        await execute_command(
+            f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True
+        )
         with open(str(options.docker_gdbinit_workspace_path), 'w') as f_out:
             # FIXME these are two common paths from ci.ro2.org builds. Find a way to
             #  programmatically find the paths, probably through jenkins.
@@ -54,10 +55,5 @@ class GenDockerGdbinit(Handler):
                 f'/home/rosbuild/ci_scripts/ws/src/ '
                 f'{options.src_workspace_path}\n'
             )
-        #await exec(
-        #    f'docker container exec {options.docker_container_name} '
-        #    f'ln -s {options.docker_gdbinit_container_path} '
-        #    f'{options.home_container_path}/.gdbinit'
-        #)
 
         log.info(f'Created docker_gdbinit')

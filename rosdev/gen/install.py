@@ -1,12 +1,9 @@
-#from asyncio import get_event_loop
-#from atools import memoize
 from dataclasses import dataclass, field
 from logging import getLogger
 from tempfile import TemporaryDirectory
 from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
-from rosdev.util.build_farm import get_artifacts_url
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.subprocess import execute_command
@@ -20,49 +17,6 @@ class GenInstall(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
     ))
-
-    #@classmethod
-    #@memoize
-    #async def get_build_num(cls, architecture: str, release: str) -> int:
-    #    if release != 'latest':
-    #        return {
-    #            'amd64': {
-    #                'dashing': 1482,
-    #                'crystal': 1289,
-    #            },
-    #            'arm32v7': {
-    #                'dashing': 16,
-    #            },
-    #            'arm64v8': {
-    #                'dashing': 825,
-    #                'crystal': 651,
-    #            },
-    #        }[architecture][release]
-    #    else:
-    #        def get_build_num_inner() -> int:
-    #            return self._external_jenkins.get_job_info(
-    #                name=self.get_job_name(architecture=architecture),
-    #                depth=1,
-    #                fetch_all_builds=False,
-    #            )['lastSuccessfulBuild']['number']
-
-    #        return await get_event_loop().run_in_executor(None, get_build_num_inner)
-    #@memoize
-    #async def get_artifacts_url(
-    #        cls,
-    #        options: Options,
-    #) -> str:
-    #    if options.build_num is None:
-    #        async with _JenkinsContext() as jenkins:
-    #            build_num = await jenkins.get_build_num(
-    #                architecture=architecture, release=release
-    #            )
-
-    #    return (
-    #        f'https://ci.ros2.org/view/packaging/job/'
-    #        f'packaging_{get_operating_system(architecture)}/{build_num}/artifact/'
-    #        f'ws/ros2-package-linux-{get_machine(architecture)}.tar.bz2'
-    #    )
 
     @classmethod
     async def main(cls, options: Options) -> None:
@@ -80,10 +34,10 @@ class GenInstall(Handler):
             return
 
         log.info("Finding artifacts url from OSRF build farm")
-        artifacts_url = await get_artifacts_url(
-            architecture=options.architecture,
-            build_num=options.build_num,
-            release=options.release,
+        artifacts_url = (
+            f'https://ci.ros2.org/view/packaging/job/'
+            f'packaging_{options.operating_system}/{options.build_num}/artifact/'
+            f'ws/ros2-package-linux-{options.machine}.tar.bz2'
         )
 
         log.info('Installing from OSRF build farm')

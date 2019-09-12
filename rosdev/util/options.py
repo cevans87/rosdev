@@ -85,7 +85,6 @@ class Options:
                 self.rosdev_universal_path, 
                 f'{self.architecture}',
                 f'{self.release}',
-                'build_num'
             )
         )
     

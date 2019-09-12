@@ -1,10 +1,12 @@
+from asyncio import get_event_loop
 from dataclasses import dataclass, field
+from jenkins import Jenkins
 from logging import getLogger
+import re
 from tempfile import TemporaryDirectory
-from typing import Tuple, Type
+from typing import List, Tuple, Type
 
 from rosdev.gen.base import GenBase
-from rosdev.util.build_farm import get_ros2_repos
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.subprocess import execute_command
@@ -35,12 +37,8 @@ class GenSrc(Handler):
             log.info(f'Found src cached at {options.src_universal_path}')
             return
 
-        log.info("Finding src ros2.repos from OSRF build farm")
-        ros2_repos = await get_ros2_repos(
-            architecture=options.architecture,
-            build_num=options.build_num,
-            release=options.release,
-        )
+        ros2_repos = await cls._get_ros2_repos(options)
+
         with TemporaryDirectory() as temp_dir:
             # TODO use pathlib operations to manipulate filesystem
             staging_path = f'{temp_dir}/src'
@@ -75,3 +73,33 @@ class GenSrc(Handler):
         )
 
         log.info(f'Linked src at {options.src_workspace_path}')
+
+    @classmethod
+    async def _get_ros2_repos(cls, options: Options) -> str:
+        log.info("Finding src ros2.repos from OSRF build farm")
+
+        def get_build_console_output() -> Tuple[str]:
+            return tuple(
+                Jenkins('https://ci.ros2.org').get_build_console_output(
+                    name=f'packaging_{options.operating_system}',
+                    number=options.build_num,
+                ).splitlines()
+            )
+
+        remaining_lines = iter(
+            await get_event_loop().run_in_executor(None, get_build_console_output)
+        )
+        for line in remaining_lines:
+            if re.match(r'^# BEGIN SUBSECTION: vcs export --exact$', line) is not None:
+                break
+        for line in remaining_lines:
+            if re.match(r'^repositories:$', line) is not None:
+                break
+        ros2_repos_lines: List[str] = ['repositories:']
+        for line in remaining_lines:
+            if re.match(r'^# END SUBSECTION$', line) is not None:
+                break
+            elif re.match(r'\s+\S+:.*$', line) is not None:
+                ros2_repos_lines.append(line)
+
+        return '\n'.join(ros2_repos_lines)

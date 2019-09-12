@@ -101,12 +101,25 @@ class Flag:
             help=f'Architecture to build. Currently: {options.architecture}',
         )
 
-        self.build_num.add_argument(
+        build_num_group = self.build_num.add_mutually_exclusive_group()
+        build_num_group.add_argument(
             '--build-num',
             type=int,
             default=options.build_num,
             help=(
                 f'Use specified build from OSRF build farm instead of {options.build_num}. '
+                f'Currently: {options.build_num}'
+            ),
+        )
+        build_num_group = self.build_num.add_mutually_exclusive_group()
+        build_num_group.add_argument(
+            '--no-build-num',
+            action='store_const',
+            const=None,
+            dest='build_num',
+            help=(
+                SUPPRESS if options.build_num is None else
+                f'Determine build_num from architecture and release. '
                 f'Currently: {options.build_num}'
             ),
         )
@@ -662,6 +675,7 @@ parser = parser.merged_with(
         flag.enable_gui,
         flag.flavor,
         flag.docker_container_ports,
+        flag.pull_build,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -786,6 +800,17 @@ parser = parser.merged_with(sub_commands='gen idea pycharm misc_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
 
 parser = parser.merged_with(
+    sub_commands='gen install',
+    flags=frozenset({
+        flag.architecture,
+        flag.build_num,
+        flag.pull_build,
+        flag.pull_docker_image,
+        flag.release,
+    })
+)
+
+parser = parser.merged_with(
     sub_commands='gen overrides',
     flags=frozenset(asdict(flag).values())
 )
@@ -811,7 +836,9 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
+        flag.architecture,
         flag.build_num,
+        flag.pull_build,
         flag.pull_docker_image,
         flag.release,
     })
