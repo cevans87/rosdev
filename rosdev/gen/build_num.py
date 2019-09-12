@@ -60,7 +60,7 @@ class GenBuildNum(Handler):
                     build_num = int(path.name)
                     break
 
-        if (build_num is None) and options.pull_build:
+        if build_num is None:
             def get_build_num() -> int:
                 return Jenkins('https://ci.ros2.org').get_job_info(
                     name=f'packaging_{options.operating_system}',
