@@ -48,7 +48,7 @@ class Options:
     package: Optional[str] = None
     pull_build: bool = False
     pull_docker_image: bool = False
-    release: Optional[str] = None
+    release: str = 'latest'
     replace_docker_container: bool = False
     rosdep_install_args: Optional[str] = None
     run_main: bool = True

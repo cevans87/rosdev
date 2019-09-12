@@ -29,13 +29,10 @@ class GenDockerImage(Handler):
     async def resolve_options(cls, options: Options) -> Options:
         docker_image_base_tag = options.docker_image_base_tag
         if docker_image_base_tag is None:
-            if (options.release != 'latest') or (cls.get_profile(options) != 'amd64'):
-                docker_image_base_tag = (
-                    f'{cls.get_profile(options)}/ros:{options.release}-{options.flavor}'
-                )
-            else:
-                docker_image_base_tag = 'osrf/ros2:nightly'
-                
+            docker_image_base_tag = (
+                f'{cls.get_profile(options)}/ros:{options.release}-{options.flavor}'
+            )
+
         return replace(
             options,
             docker_image_base_tag=docker_image_base_tag,
