@@ -1,4 +1,3 @@
-import ast
 from asyncio import get_event_loop
 from dataclasses import dataclass, field, replace
 from jenkins import Jenkins

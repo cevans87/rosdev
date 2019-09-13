@@ -35,7 +35,7 @@ class GenIdeaUniversal(Handler):
             idea_universal_path = ide_paths[-1]
             if sys.platform != 'darwin':
                 idea_universal_path = Path(idea_universal_path, 'config')
-        idea_universal_path = options.resolve_path(idea_universal_path)
+        idea_universal_path = idea_universal_path.absolute()
 
         return replace(options, idea_universal_path=idea_universal_path)
 

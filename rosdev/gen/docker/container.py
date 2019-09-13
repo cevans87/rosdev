@@ -99,7 +99,7 @@ class GenDockerContainer(Handler):
             if container is None:
                 # TODO isolate docker network so multiple workspaces don't interfere with eachother.
                 client.containers.run(
-                    command=options.docker_container_command,
+                    command='sbin/init',
                     detach=True,
                     environment=dict(options.docker_container_environment),
                     hostname=options.docker_container_name,

@@ -41,14 +41,11 @@ class GenDockerInstall(Handler):
                 f'chmod -R -w {staging_path}',
             ]:
                 await cls.exec_workspace(
-                    options=options,
-                    command=(
-                        f'docker run --rm -v '
-                        f'{options.install_universal_path.parent}:'
-                        f'{options.install_universal_path.parent} '
-                        f'{options.docker_image_base_tag} '
-                        f'{cmd}'
-                    )
+                    f'docker run --rm -v '
+                    f'{options.install_universal_path.parent}:'
+                    f'{options.install_universal_path.parent} '
+                    f'{options.docker_image_base_tag} '
+                    f'{cmd}'
                 )
             staging_path.rename(options.install_universal_path)
 

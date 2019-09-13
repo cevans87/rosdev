@@ -16,7 +16,6 @@ class GenWorkspace(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         workspace_path = options.workspace_path
-
         if workspace_path is None:
             for path in [Path.cwd(), *Path.cwd().parents]:
                 if path == Path.home():
@@ -24,9 +23,9 @@ class GenWorkspace(Handler):
                 elif Path(path, '.rosdev').is_dir():
                     workspace_path = path
                     break
-
-        if workspace_path is None:
-            workspace_path = Path.cwd()
+            else:
+                workspace_path = Path.cwd()
+        workspace_path = workspace_path.absolute()
 
         workspace_hash = options.workspace_hash
         if workspace_hash is None:

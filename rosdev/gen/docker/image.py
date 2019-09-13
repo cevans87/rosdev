@@ -1,6 +1,6 @@
-import asyncio
+# import asyncio
 from dataclasses import dataclass, field, replace
-import docker
+# import docker
 from logging import getLogger
 from typing import Tuple, Type
 
@@ -46,21 +46,27 @@ class GenDockerImage(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        def main_internal() -> None:
-            log.info(
-                f'Creating docker image {options.docker_image_tag} '
-                f'from {options.docker_image_base_tag}'
-            )
-            client = docker.client.from_env()
-            client.images.build(
-                path=str(options.rosdev_workspace_path),
-                pull=options.pull_docker_image,
-                rm=True,
-                tag=options.docker_image_tag,
-            )
-            log.info(
-                f'Created docker image {options.docker_image_tag} '
-                f'from {options.docker_image_base_tag}'
-            )
+        # def main_internal() -> None:
+        #     log.info(
+        #         f'Creating docker image {options.docker_image_tag} '
+        #         f'from {options.docker_image_base_tag}'
+        #     )
+        #     client = docker.client.from_env()
+        #     client.images.build(
+        #         path=str(options.rosdev_workspace_path),
+        #         pull=options.pull_docker_image,
+        #         rm=True,
+        #         tag=options.docker_image_tag,
+        #     )
+        #     log.info(
+        #         f'Created docker image {options.docker_image_tag} '
+        #         f'from {options.docker_image_base_tag}'
+        #     )
 
-        await asyncio.get_event_loop().run_in_executor(None, main_internal)
+        # await asyncio.get_event_loop().run_in_executor(None, main_internal)
+
+        await cls.exec_workspace(
+            f'docker image build {options.docker_dockerfile_workspace_path.parent} '
+            f'--tag {options.docker_image_tag}'
+            f'{"--pull" if options.pull_docker_image else ""}'
+        )

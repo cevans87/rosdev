@@ -6,7 +6,6 @@ from typing import Tuple, Type
 from rosdev.gen.base import GenBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import execute_command
 
 
 log = getLogger(__name__)
@@ -38,7 +37,7 @@ class GenDockerGdbinit(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_gdbinit')
-        await execute_command(
+        await cls.exec_workspace(
             f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True
         )
         with open(str(options.docker_gdbinit_workspace_path), 'w') as f_out:

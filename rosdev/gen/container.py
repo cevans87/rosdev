@@ -19,11 +19,8 @@ class GenContainer(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         container_path = options.container_path
-
         if container_path is None:
             container_path = options.workspace_path
-
-        container_path = options.resolve_path(container_path)
 
         return replace(options, container_path=container_path)
 

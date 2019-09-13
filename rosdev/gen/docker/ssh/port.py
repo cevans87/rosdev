@@ -26,7 +26,7 @@ class GenDockerSshPort(Handler):
         if docker_ssh_port is None:
             try:
                 docker_ssh_port = int(
-                    literal_eval(options.read_text(path=options.docker_ssh_port_workspace_path))
+                    literal_eval(options.docker_ssh_port_workspace_path.read_text())
                 )
             except (FileNotFoundError, PermissionError, ValueError):
                 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

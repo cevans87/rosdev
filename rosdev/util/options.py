@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
 import os
@@ -23,7 +23,6 @@ class Options:
 
     colcon_build_args: Optional[str] = None
     container_path: Optional[Path] = None
-    docker_container_command: str = '/sbin/init'
     docker_container_environment: Mapping[str, str] = frozendict()
     docker_container_ports: Mapping[int, int] = frozendict()  # container:host
     docker_container_volumes: Mapping[str, str] = frozendict()  # host:container
@@ -80,37 +79,35 @@ class Options:
 
     @property
     def build_num_universal_path(self) -> Path:
-        return self.resolve_path(
-            Path(
-                self.rosdev_universal_path, 
-                f'{self.architecture}',
-                f'{self.release}',
-            )
-        )
+        return Path(
+            self.rosdev_universal_path, 
+            f'{self.architecture}',
+            f'{self.release}',
+        ).absolute()
     
     @property
     def docker_ssh_port_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'docker_ssh_port'))
+        return Path(self.rosdev_workspace_path, 'docker_ssh_port').absolute()
 
     @property
     def idea_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.workspace_path, '.idea'))
+        return Path(self.workspace_path, '.idea').absolute()
 
     @property
     def idea_c_kdbx_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'c.kdbx'))
+        return Path(self.idea_universal_path, 'c.kdbx').absolute()
     
     @property
     def idea_c_pwd_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'c.pwd'))
+        return Path(self.idea_universal_path, 'c.pwd').absolute()
     
     @property
     def idea_clion_cpp_toolchains_xml_universal_path(self) -> Path: 
-        return self.resolve_path(Path(self.idea_universal_path, 'options', 'cpp.toolchains.xml'))
+        return Path(self.idea_universal_path, 'options', 'cpp.toolchains.xml').absolute()
 
     @property
     def idea_clion_webservers_xml_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'options', 'webServers.xml'))
+        return Path(self.idea_universal_path, 'options', 'webServers.xml').absolute()
 
     @property
     def idea_pycharm_jdk_table_xml_sftp_uri(self) -> str:
@@ -122,31 +119,31 @@ class Options:
     
     @property
     def idea_pycharm_misc_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'misc.xml'))
+        return Path(self.idea_workspace_path, 'misc.xml').absolute()
 
     @property
     def idea_pycharm_webservers_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
+        return Path(self.idea_workspace_path, 'webServers.xml').absolute()
 
     @property
     def idea_clion_deployment_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'deployment.xml'))
+        return Path(self.idea_workspace_path, 'deployment.xml').absolute()
 
     @property
     def idea_pycharm_deployment_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'deployment.xml'))
+        return Path(self.idea_workspace_path, 'deployment.xml').absolute()
 
     @property
     def idea_pycharm_jdk_table_xml_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'options', 'jdk.table.xml'))
+        return Path(self.idea_universal_path, 'options', 'jdk.table.xml').absolute()
 
     @property
     def idea_workspace_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'workspace.xml'))
+        return Path(self.idea_workspace_path, 'workspace.xml').absolute()
     
     @property
     def idea_security_xml_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_universal_path, 'options', 'security.xml'))
+        return Path(self.idea_universal_path, 'options', 'security.xml').absolute()
 
     @property
     def idea_clion_webservers_name(self) -> str:
@@ -158,135 +155,127 @@ class Options:
     
     @property
     def idea_uuid_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'idea_uuid'))
+        return Path(self.rosdev_workspace_path, 'idea_uuid').absolute()
 
     @property
     def idea_webservers_xml_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.idea_workspace_path, 'webServers.xml'))
+        return Path(self.idea_workspace_path, 'webServers.xml').absolute()
 
     @property
     def docker_gdbinit_container_path(self) -> Path:
-        return self.resolve_path(Path(self.home_container_path, '.gdbinit'))
+        return Path(self.home_container_path, '.gdbinit').absolute()
 
     @property
     def docker_gdbinit_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'gdbinit'))
+        return Path(self.rosdev_workspace_path, 'gdbinit').absolute()
 
     @property
     def rosdev_container_path(self) -> Path:
-        return self.resolve_path(Path(self.container_path, '.rosdev'))
+        return Path(self.container_path, '.rosdev').absolute()
 
     @property
     def rosdev_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.workspace_path, '.rosdev'))
+        return Path(self.workspace_path, '.rosdev').absolute()
     
     @property
     def rosdev_universal_path(self) -> Path:
-        return self.resolve_path(Path(self.universal_path, '.rosdev'))
+        return Path(self.universal_path, '.rosdev').absolute()
 
     @property
     def install_container_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_container_path, 'install'))
+        return Path(self.rosdev_container_path, 'install').absolute()
 
     @property
     def install_universal_path(self) -> Path:
-        return self.resolve_path(
-            Path(
-                self.rosdev_universal_path,
-                f'{self.architecture}',
-                f'{self.release}',
-                f'{self.build_num}',
-                'install'
-            )
-        )
+        return Path(
+            self.rosdev_universal_path,
+            f'{self.architecture}',
+            f'{self.release}',
+            f'{self.build_num}',
+            'install'
+        ).absolute()
 
     @property
     def install_workspace_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'install'))
+        return Path(self.rosdev_workspace_path, 'install').absolute()
 
     @property
     def src_container_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_container_path, 'src'))
+        return Path(self.rosdev_container_path, 'src').absolute()
     
     @property
     def src_universal_path(self) -> Path: 
-        return self.resolve_path(
-            Path(
-                self.rosdev_universal_path, 
-                f'{self.architecture}',
-                f'{self.release}',
-                f'{self.build_num}',
-                'src'
-            )
-        )
+        return Path(
+            self.rosdev_universal_path, 
+            f'{self.architecture}',
+            f'{self.release}',
+            f'{self.build_num}',
+            'src'
+        ).absolute()
 
     @property
     def src_workspace_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'src'))
+        return Path(self.rosdev_workspace_path, 'src').absolute()
     
     @property
     def overrides_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'overrides'))
+        return Path(self.rosdev_workspace_path, 'overrides').absolute()
 
     @property
     def docker_bashrc_container_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_container_path, 'bashrc'))
+        return Path(self.rosdev_container_path, 'bashrc').absolute()
     
     @property
     def docker_bashrc_symlinked_path(self) -> Path: 
-        return self.resolve_path(Path(self.home_container_path, '.bashrc'))
+        return Path(self.home_container_path, '.bashrc').absolute()
     
     @property
     def docker_bashrc_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'bashrc'))
+        return Path(self.rosdev_workspace_path, 'bashrc').absolute()
 
     @property
     def docker_dockerfile_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'Dockerfile'))
+        return Path(self.rosdev_workspace_path, 'Dockerfile').absolute()
 
     @property
     def docker_entrypoint_sh_container_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_container_path, 'rosdev_docker_entrypoint.sh'))
+        return Path(self.rosdev_container_path, 'rosdev_docker_entrypoint.sh').absolute()
     
     @property
     def docker_entrypoint_sh_workspace_path(self) -> Path: 
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'rosdev_docker_entrypoint.sh'))
+        return Path(self.rosdev_workspace_path, 'rosdev_docker_entrypoint.sh').absolute()
 
     @property
     def docker_entrypoint_sh_overlay_sh_container_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.rosdev_container_path, 'docker_entrypoint_sh_overlay.sh')
-        )
+        return Path(self.rosdev_container_path, 'docker_entrypoint_sh_overlay.sh').absolute()
 
     @property
     def docker_entrypoint_sh_underlay_sh_container_path(self) -> Path:
-        return self.resolve_path(
-            Path(self.rosdev_container_path, 'docker_entrypoint_sh_underlay.sh')
-        )
+        return Path(self.rosdev_container_path, 'docker_entrypoint_sh_underlay.sh').absolute()
 
     @property
     def docker_entrypoint_sh_setup_overlay_container_path(self) -> Path:
-        return self.resolve_path(Path(f'{self.container_path}', 'install',  'setup.bash'))
+        return Path(f'{self.container_path}', 'install',  'setup.bash').absolute()
 
     @property
     def docker_entrypoint_sh_setup_overlay_workspace_path(self) -> Path:
-        return self.resolve_path(Path(f'{self.workspace_path}', 'install', 'setup.bash'))
+        return Path(f'{self.workspace_path}', 'install', 'setup.bash').absolute()
 
     @property
     def docker_entrypoint_sh_setup_underlay_container_path(self) -> Path:
-        return self.resolve_path(Path(f'{self.install_container_path}', 'setup.bash'))
+        return Path(f'{self.install_container_path}', 'setup.bash').absolute()
 
     @property
     def docker_entrypoint_sh_setup_underlay_workspace_path(self) -> Path:
-        return self.resolve_path(Path('{workspace_path}', 'install', 'setup.bash'))
+        return Path(self.workspace_path, 'install', 'setup.bash').absolute()
 
     @property
     def docker_ssh_pam_environment_container_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_container_path, 'pam_environment'))
+        return Path(self.rosdev_container_path, 'pam_environment').absolute()
 
     @property
     def docker_ssh_pam_environment_workspace_path(self) -> Path:
-        return self.resolve_path(Path(self.rosdev_workspace_path, 'pam_environment'))
+        return Path(self.rosdev_workspace_path, 'pam_environment').absolute()
 
     @property
     def machine(self) -> str:
@@ -304,26 +293,6 @@ class Options:
             'arm64v8': f'linux-aarch64',
         }[self.architecture]
 
-    def resolve_str(self, _str: str) -> str:
-        # TODO py38 walrus loop
-        old_str = ''
-        while old_str != _str:
-            old_str = _str
-            _str = _str.format(**{k: v for k, v in asdict(self).items() if v is not None})
-
-        return _str
-
-    def resolve_path(self, path: Path) -> Path:
-        # TODO py38 walrus loop
-        old_path = Path()
-        while old_path != path:
-            old_path = path
-            path = Path(str(path).format(**{
-                k: v for k, v in asdict(self).items() if v is not None
-            })).expanduser().absolute()
-
-        return path
-    
     @staticmethod
     def read_text(*, path: Path) -> str:
         return path.read_text()

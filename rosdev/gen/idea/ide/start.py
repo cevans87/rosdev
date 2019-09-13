@@ -7,7 +7,6 @@ from rosdev.gen.base import GenBase
 from rosdev.gen.idea.base import GenIdeaBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.subprocess import get_exec_lines, execute_shell
 
 log = getLogger(__name__)
 
@@ -24,12 +23,14 @@ class GenIdeaIdeStart(Handler):
         idea_ide_start_universal_path = options.idea_ide_start_universal_path
         if idea_ide_start_universal_path is None:
             if options.idea_ide_name == 'PyCharm':
-                idea_ide_start_universal_path = Path((await get_exec_lines('which charm'))[0])
+                idea_ide_start_universal_path = Path(
+                    (await cls.get_exec_workspace_lines('which charm'))[0]
+                )
             elif options.idea_ide_name == 'CLion':
-                idea_ide_start_universal_path = Path((await get_exec_lines('which clion'))[0])
-        idea_ide_start_universal_path = options.resolve_path(
-            idea_ide_start_universal_path
-        )
+                idea_ide_start_universal_path = Path(
+                    (await cls.get_exec_workspace_lines('which clion'))[0]
+                )
+        idea_ide_start_universal_path = idea_ide_start_universal_path.absolute()
 
         return replace(options, idea_ide_start_universal_path=idea_ide_start_universal_path)
 
@@ -44,7 +45,7 @@ class GenIdeaIdeStart(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Starting {options.idea_ide_name} IDE')
-        await execute_shell(
+        await cls.shell_workspace(
             f'nohup {options.idea_ide_start_universal_path} {options.workspace_path} '
             f'< /dev/null > /dev/null 2>&1 &'
         )

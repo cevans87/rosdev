@@ -15,11 +15,9 @@ class GenUniversal(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         universal_path = options.universal_path
-
         if universal_path is None:
             universal_path = Path.home()
-
-        universal_path = options.resolve_path(universal_path)
+        universal_path = universal_path.absolute()
 
         return replace(options, universal_path=universal_path)
 

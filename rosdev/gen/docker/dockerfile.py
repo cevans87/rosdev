@@ -71,7 +71,6 @@ class GenDockerDockerfile(Handler):
                 flake8-import-order \
                 flake8-quotes \
                 git+https://github.com/lark-parser/lark.git@0.7d \
-                numpy \
                 pytest \
                 pytest-cov \
                 pytest-repeat \
