@@ -23,8 +23,9 @@ class GenWorkspace(Handler):
                 elif Path(path, '.rosdev').is_dir():
                     workspace_path = path
                     break
-            else:
-                workspace_path = Path.cwd()
+        if workspace_path is None:
+            workspace_path = Path.cwd()
+
         workspace_path = workspace_path.absolute()
 
         workspace_hash = options.workspace_hash

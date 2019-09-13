@@ -22,11 +22,8 @@ class GenRelease(Handler):
         release = options.release
         # FIXME this does not account for ROS1
         # FIXME some of these numbers are wrong and the list is incomplete
-        if release == 'latest':
-            if options.build_num is None:
-                # FIXME programmatically find this.
-                release = 'dashing'
-            elif options.architecture == 'amd64':
+        if options.build_num is not None:
+            if options.architecture == 'amd64':
                 if 0 <= options.build_num < 1482:
                     release = 'crystal'
                 elif 1482 <= options.build_num:

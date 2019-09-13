@@ -3,15 +3,20 @@ from pathlib import Path
 from pprint import pformat
 from typing import Tuple, Type
 
-from rosdev.gen.base import GenBase
+from rosdev.gen.container import GenContainer
+from rosdev.gen.universal import GenUniversal
+from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
 
 @dataclass(frozen=True)
 class GenOverrides(Handler):
+
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenBase,
+        GenContainer,
+        GenUniversal,
+        GenWorkspace,
     ))
 
     @classmethod

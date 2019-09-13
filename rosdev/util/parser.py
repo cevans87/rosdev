@@ -761,6 +761,7 @@ parser = parser.merged_with(
     })
 )
 parser = parser.merged_with(sub_commands='gen docker base')
+parser = parser.merged_with(sub_commands='gen docker container')
 parser = parser.merged_with(sub_commands='gen docker core')
 parser = parser.merged_with(sub_commands='gen docker image')
 parser = parser.merged_with(sub_commands='gen docker install')

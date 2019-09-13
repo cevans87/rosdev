@@ -28,33 +28,44 @@ class GenBuildNum(Handler):
         GenWorkspace,
     ))
 
+    post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenRelease,
+    ))
+
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         build_num = options.build_num
-        if build_num is None:
-            if options.release != 'latest':
-                build_num = {
-                    'amd64': {
-                        'kinetic': 0,
-                        'melodic': 0,
-                        'dashing': 1482,
-                        'crystal': 1289,
-                    },
-                    'arm32v7': {
-                        'kinetic': 0,
-                        'melodic': 0,
-                        'crystal': 1,  # Note that this is just the first successful build.
-                        'dashing': 16,
-                    },
-                    'arm64v8': {
-                        'kinetic': 0,
-                        'melodic': 0,
-                        'dashing': 825,
-                        'crystal': 651,
-                    },
-                }[options.architecture][options.release]
+        if (build_num is None) and (options.release != 'latest'):
+            build_num = {
+                'amd64': {
+                    'kinetic': 0,
+                    'melodic': 0,
+                    'dashing': 1482,
+                    'crystal': 1289,
+                },
+                'arm32v7': {
+                    'kinetic': 0,
+                    'melodic': 0,
+                    'crystal': 1,  # Note that this is just the first successful build.
+                    'dashing': 16,
+                },
+                'arm64v8': {
+                    'kinetic': 0,
+                    'melodic': 0,
+                    'dashing': 825,
+                    'crystal': 651,
+                },
+            }[options.architecture][options.release]
         if (build_num is None) and (not options.pull_build):
-            for path in reversed(sorted(options.build_num_universal_path.glob('*'))):
+            for path in reversed(
+                    sorted(
+                        Path(
+                            options.rosdev_universal_path,
+                            options.architecture,
+                            # FIXME this will break when dashing isn't latest
+                            'dashing',
+                        ).glob('*'))
+            ):
                 if Path(path, 'src').is_dir() and Path(path, 'install').is_dir():
                     build_num = int(path.name)
                     break

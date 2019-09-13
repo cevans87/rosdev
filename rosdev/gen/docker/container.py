@@ -37,7 +37,6 @@ class GenDockerContainer(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_environment = dict(options.docker_container_environment)
-        docker_container_environment['ROSDEV_DOCKER_CONTAINER_NAME'] = options.docker_container_name
         if options.enable_gui:
             docker_container_environment['DISPLAY'] = os.environ['DISPLAY']
         if options.enable_ccache:
@@ -99,7 +98,7 @@ class GenDockerContainer(Handler):
             if container is None:
                 # TODO isolate docker network so multiple workspaces don't interfere with eachother.
                 client.containers.run(
-                    command='sbin/init',
+                    command='/sbin/init',
                     detach=True,
                     environment=dict(options.docker_container_environment),
                     hostname=options.docker_container_name,
