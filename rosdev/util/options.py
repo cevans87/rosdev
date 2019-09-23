@@ -281,7 +281,7 @@ class Options:
     def machine(self) -> str:
         return {
             'amd64': 'x86_64',
-            'arm32v7': 'arm',
+            'arm32v7': 'armhf',
             'arm64v8': 'aarch64'
         }[self.architecture]
 

@@ -152,7 +152,6 @@ class Handler:
             err_ok: bool,
             capture_output: bool,
     ) -> Optional[Tuple[str]]:
-        log.debug(f'exec_container err_ok={err_ok} "{command}"')
         process = await create_subprocess_exec(
             *command.split(),
             stdout=PIPE if capture_output else None,
