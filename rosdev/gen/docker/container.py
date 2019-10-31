@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, replace
 import docker
 from docker.models.containers import Container
 from frozendict import frozendict
+import json
 from logging import getLogger
 import os
 from pathlib import Path
@@ -10,7 +11,6 @@ from typing import Optional, Tuple, Type
 
 from rosdev.gen.core import GenCore
 from rosdev.gen.docker.base import GenDockerBase
-from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.docker.ssh.base import GenDockerSshBase
 from rosdev.gen.install import GenInstall
@@ -27,12 +27,18 @@ class GenDockerContainer(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenCore,
         GenDockerBase,
-        GenDockerGdbinit,
         GenDockerImage,
         GenDockerSshBase,
         GenInstall,
         GenSrc,
     ))
+
+    @classmethod
+    async def get_image_id(cls, options: Options) -> str:
+        lines = await cls.execute_host_and_get_lines(
+            command=f'docker container inspect {options.docker_container_name}'
+        )
+        return json.loads('\n'.join(lines))[0]['Image']
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
@@ -49,15 +55,10 @@ class GenDockerContainer(Handler):
         docker_container_ports = frozendict(docker_container_ports)
 
         docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.install_universal_path] = (
-            options.install_container_path
+        # FIXME move to gen.docker.container.ssh.config
+        docker_container_volumes[Path(options.home_path, '.ssh')] = (
+            Path(options.home_path, '.ssh')
         )
-        # FIXME move to gen.docker.container.ssh.start
-        docker_container_volumes[Path(options.home_universal_path, '.ssh')] = (
-            Path(options.home_container_path, '.ssh')
-        )
-        docker_container_volumes[options.src_universal_path] = options.src_container_path
-        docker_container_volumes[options.workspace_path] = options.container_path
         if options.enable_gui:
             docker_container_volumes['/tmp/.X11-unix'] = '/tmp/.X11-unix'
         docker_container_volumes = frozendict(docker_container_volumes)
@@ -71,6 +72,8 @@ class GenDockerContainer(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
+        image_id = await GenDockerImage.get_id(options)
+
         def main_internal() -> None:
             log.info(f'Starting docker container {options.docker_container_name}')
             client = docker.client.from_env()
@@ -84,16 +87,20 @@ class GenDockerContainer(Handler):
             except docker.errors.NotFound:
                 container = None
             else:
-                # TODO also remove if container is based on an old image or fails to restart
+                # TODO also remove if container fails to restart
                 if options.replace_docker_container:
-                    log.info(f'Replacing existing docker container')
+                    log.info(f'Replacing existing docker container.')
+                    container.remove(force=True)
+                    container = None
+                elif container.image.id != image_id:
+                    log.info(f'Replacing existing out-of-date docker container.')
                     container.remove(force=True)
                     container = None
                 elif container.status != 'running':
                     # TODO ensure it starts
                     container.start()
                 else:
-                    log.info('Docker container is already running')
+                    log.info('Docker container is already running.')
 
             if container is None:
                 # TODO isolate docker network so multiple workspaces don't interfere with eachother.
@@ -115,7 +122,7 @@ class GenDockerContainer(Handler):
                         for host_path, container_path
                         in options.docker_container_volumes.items()
                     },
-                    working_dir=str(options.container_path),
+                    working_dir=str(Path.cwd()),
                 )
 
             log.info(f'Started docker container {options.docker_container_name}')

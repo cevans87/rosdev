@@ -29,7 +29,7 @@ class GenIdeaPycharmMiscXml(Handler):
         # FIXME py38 debug print
         log.debug(
             f'idea_pycharm_misc_xml_workspace_path: '
-            f'{options.idea_pycharm_misc_xml_workspace_path}'
+            f'{options.idea_pycharm_misc_xml_path}'
         )
 
     @classmethod
@@ -55,12 +55,12 @@ class GenIdeaPycharmMiscXml(Handler):
         root_element = merge_elements(
             from_element=await cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_pycharm_misc_xml_workspace_path
+                options.idea_pycharm_misc_xml_path
             )
         )
 
         options.write_bytes(
-            path=options.idea_pycharm_misc_xml_workspace_path,
+            path=options.idea_pycharm_misc_xml_path,
             text=etree.tostring(
                 root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
         )

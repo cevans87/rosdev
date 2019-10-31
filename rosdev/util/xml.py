@@ -14,13 +14,8 @@ from typing import Dict, FrozenSet, List, Mapping, Optional
 log = getLogger(__name__)
 
 
-_FIND_UUID_REGEX = re.compile(
-    r'[\da-f]{8}-'
-    r'[\da-f]{4}-'
-    r'[\da-f]{4}-'
-    r'[\da-f]{4}-'
-    r'[\da-f]{12}'
-)
+_FIND_UUID_REGEX = re.compile(r'[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}')
+_FIND_NUMBER_REGEX = re.compile(r'\d+')
 
 
 @dataclass(frozen=True)
@@ -39,11 +34,17 @@ class _ElementKey:
         return _ElementKey(
             tag=element.tag,
             attrib=frozendict({
-                k: _FIND_UUID_REGEX.sub('XXXX', v) for k, v in element.attrib.items()
+                k: _FIND_UUID_REGEX.sub('XXXX', v)
+                for k, v in element.attrib.items()
+                if (
+                        (k != 'port') and
+                        ((element.tag, k) not in {('option', 'value'), ('env', 'value')}) and
+                        (_FIND_NUMBER_REGEX.match(v) is None)
+                )
             }),
             child_keys=child_keys,
         )
-    
+
 
 def get_root_element_from_path(path: Path) -> Optional[_Element]:
     parser = etree.XMLParser(remove_blank_text=True)
@@ -93,16 +94,12 @@ def merge_elements(from_element: Optional[_Element], into_element: Optional[_Ele
 
     from_child_element_by_key: Dict[_ElementKey, _Element] = {}
     for from_child_element in from_element:
-        from_child_element_by_key[_ElementKey.new(from_child_element)] = (
-            from_child_element
-        )
+        from_child_element_by_key[_ElementKey.new(from_child_element)] = from_child_element
 
     into_child_element_by_key: Dict[_ElementKey, _Element] = {}
     for into_child_element in into_element:
-        into_child_element_by_key[_ElementKey.new(into_child_element)] = (
-            into_child_element
-        )
-        
+        into_child_element_by_key[_ElementKey.new(into_child_element)] = into_child_element
+
     ordered_keys: List[_ElementKey] = []
     for key in from_child_element_by_key:
         if key not in into_child_element_by_key:
@@ -120,7 +117,7 @@ def merge_elements(from_element: Optional[_Element], into_element: Optional[_Ele
         element.append(
             merge_elements(
                 from_element=from_child_element_by_key.get(key),
-                into_element=into_child_element_by_key.get(key)
+                into_element=into_child_element_by_key.get(key),
             )
         )
 

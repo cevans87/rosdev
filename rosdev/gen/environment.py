@@ -4,7 +4,8 @@ from frozendict import frozendict
 from logging import getLogger
 from typing import Dict, Mapping, Tuple, Type
 
-from rosdev.gen.docker.core import GenDockerCore
+from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.install import GenInstall
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -26,14 +27,15 @@ _ros_environment_required_keys = frozenset({
 @dataclass(frozen=True)
 class GenEnvironment(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerCore,
+        GenDockerContainer,
+        GenInstall,
     ))
 
     @classmethod
     @memoize
     async def get_environment_container(cls, options: Options) -> Mapping[str, str]:
         environment: Dict[str, str] = {}
-        for line in await cls.exec_container(options=options, command='env'):
+        for line in await cls.execute_container_and_get_lines(command=f'env', options=options):
             try:
                 k, v = line.split('=', 1)
             except ValueError:
@@ -41,6 +43,11 @@ class GenEnvironment(Handler):
             else:
                 if k in _ros_environment_required_keys:
                     environment[k] = v
+        # Building with raw cmake will fail to find certain ros libraries unless it has correct
+        # path. AMENT_PREFIX_PATH will do the right thing. See
+        # https://answers.ros.org/question/296462/compilation-error-building-against-binary-bouncy-could-not-find-fastrtps/
+        if 'AMENT_PREFIX_PATH' in environment:
+            environment['CMAKE_PREFIX_PATH'] = environment['AMENT_PREFIX_PATH']
 
         # TODO py38 debug print
         log.debug(f'container_environment: {environment}')

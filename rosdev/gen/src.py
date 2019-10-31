@@ -1,7 +1,10 @@
 from asyncio import get_event_loop
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from frozendict import frozendict
 from jenkins import Jenkins
 from logging import getLogger
+import os
+from pathlib import Path
 import re
 from tempfile import TemporaryDirectory
 from typing import List, Tuple, Type
@@ -22,83 +25,56 @@ class GenSrc(Handler):
     ))
 
     @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        docker_container_volumes = dict(options.docker_container_volumes)
+        docker_container_volumes[options.src_path] = options.src_path
+        docker_container_volumes[options.src_symlink_path] = options.src_symlink_path
+        docker_container_volumes = frozendict(docker_container_volumes)
+
+        return replace(
+            options,
+            docker_container_volumes=docker_container_volumes,
+        )
+
+    @classmethod
     async def main(cls, options: Options) -> None:
-        if options.release in {'kinetic', 'melodic'}:
-            log.info(f'Bypassing ROS 1 src download')
-            return
+        # FIXME this only detects that src exists, but not the newest src. Associate the src with
+        #  the id of the image with which it was installed.
+        if not options.src_path.exists():
+            log.info(f'Installing src.')
+            release_name = options.release
+            if release_name == 'latest':
+                release_name = await cls.execute_shell_host_and_get_line(
+                    command=(
+                        f'docker run --rm {options.docker_image_base_tag} ls /opt/ros 2> /dev/null'
+                    ),
+                )
+            with TemporaryDirectory() as temp_dir:
+                staging_path = Path(temp_dir, 'src')
+                staging_path.mkdir(parents=True, exist_ok=True)
+                options.src_path.parent.mkdir(parents=True, exist_ok=True)
+                for command in [
+                    (
+                            f'wget https://raw.githubusercontent.com/ros2/ros2/'
+                            f'{release_name}/ros2.repos '
+                            f'-O {staging_path.parent / "ros2.repos"}'
+                    ),
+                    f'vcs import --input {staging_path.parent / "ros2.repos"} {staging_path}',
+                    f'sudo chmod -R -w {staging_path}',
+                    f'sudo mv {staging_path} {options.src_path}'
+                ]:
+                    await cls.execute_host(
+                        command=(
+                            f'docker run --rm '
+                            f'{options.docker_environment_flags} '
+                            f'-v {staging_path.parent}:{staging_path.parent} '
+                            f'-v {options.src_path.parent}:{options.src_path.parent} '
+                            f'{options.docker_image_tag} '
+                            f'{command}'
+                        )
+                    )
+            log.info(f'Installed src.')
 
-        await cls._create_src_universal(options)
-        await cls._create_src_workspace(options)
-
-    @classmethod
-    async def _create_src_universal(cls, options: Options) -> None:
-        if options.src_universal_path.exists():
-            log.info(f'Found src cached at {options.src_universal_path}')
-            return
-
-        ros2_repos = await cls._get_ros2_repos(options)
-
-        with TemporaryDirectory() as temp_dir:
-            # TODO use pathlib operations to manipulate filesystem
-            staging_path = f'{temp_dir}/src'
-            ros2_repos_path = f'{temp_dir}/ros2.repos'
-            with open(ros2_repos_path, 'w') as ros2_repos_f_out:
-                ros2_repos_f_out.write(ros2_repos)
-
-            log.info(f'Staging src at {staging_path}')
-            await cls.exec_workspace(f'mkdir -p {staging_path}')
-            await cls.exec_workspace(f'vcs import --input {ros2_repos_path} {staging_path}')
-
-            log.info(f'Caching src at {options.src_universal_path}')
-            await cls.exec_workspace(f'mkdir -p {options.src_universal_path.parent}')
-            # FIXME this fails if the universal path already exists since we recursively made it
-            #  read-only
-            await cls.exec_workspace(f'mv {staging_path} {options.src_universal_path}')
-
-        await cls.exec_workspace(f'chmod -R -w {options.src_universal_path}')
-
-        log.info(f'Universal src at {options.src_universal_path}')
-
-    @classmethod
-    async def _create_src_workspace(cls, options: Options) -> None:
-        log.info(f'Linking src at {options.src_workspace_path}')
-
-        options.src_workspace_path.parent.mkdir(parents=True, exist_ok=True)
-        if options.src_workspace_path.exists():
-            options.src_workspace_path.unlink()
-        options.src_workspace_path.symlink_to(
-            options.src_universal_path,
-            target_is_directory=True,
-        )
-
-        log.info(f'Linked src at {options.src_workspace_path}')
-
-    @classmethod
-    async def _get_ros2_repos(cls, options: Options) -> str:
-        log.info("Finding src ros2.repos from OSRF build farm")
-
-        def get_build_console_output() -> Tuple[str]:
-            return tuple(
-                Jenkins('https://ci.ros2.org').get_build_console_output(
-                    name=f'packaging_{options.operating_system}',
-                    number=options.build_num,
-                ).splitlines()
-            )
-
-        remaining_lines = iter(
-            await get_event_loop().run_in_executor(None, get_build_console_output)
-        )
-        for line in remaining_lines:
-            if re.match(r'^# BEGIN SUBSECTION: vcs export --exact$', line) is not None:
-                break
-        for line in remaining_lines:
-            if re.match(r'^repositories:$', line) is not None:
-                break
-        ros2_repos_lines: List[str] = ['repositories:']
-        for line in remaining_lines:
-            if re.match(r'^# END SUBSECTION$', line) is not None:
-                break
-            elif re.match(r'\s+\S+:.*$', line) is not None:
-                ros2_repos_lines.append(line)
-
-        return '\n'.join(ros2_repos_lines)
+        options.src_symlink_path.parent.mkdir(parents=True, exist_ok=True)
+        options.src_symlink_path.symlink_to(options.src_path, target_is_directory=True)
+        log.info(f'Linked src {options.src_symlink_path} -> {options.src_path}')

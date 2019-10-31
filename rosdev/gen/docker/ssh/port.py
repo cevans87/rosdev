@@ -26,7 +26,7 @@ class GenDockerSshPort(Handler):
         if docker_ssh_port is None:
             try:
                 docker_ssh_port = int(
-                    literal_eval(options.docker_ssh_port_workspace_path.read_text())
+                    literal_eval(options.docker_ssh_port_path.read_text())
                 )
             except (FileNotFoundError, PermissionError, ValueError):
                 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,13 +38,12 @@ class GenDockerSshPort(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # TODO py38 debug print
-        log.debug(f'docker_ssh_port: {options.docker_ssh_port}')
-        log.debug(f'docker_ssh_port_workspace_path: {options.docker_ssh_port_workspace_path}')
+        log.debug(f'{options.docker_ssh_port = }')
+        log.debug(f'{options.docker_ssh_port_path = }')
 
     @classmethod
     async def main(cls, options: Options) -> None:
         options.write_text(
-            path=options.docker_ssh_port_workspace_path,
+            path=options.docker_ssh_port_path,
             text=f'{options.docker_ssh_port}'
         )

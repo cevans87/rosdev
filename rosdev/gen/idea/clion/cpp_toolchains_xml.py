@@ -26,11 +26,7 @@ class GenIdeaClionCppToolchainsXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # FIXME py38 debug print
-        log.debug(
-            f'idea_clion_cpp_toolchains_xml_universal_path: '
-            f'{options.idea_clion_cpp_toolchains_xml_universal_path}'
-        )
+        log.debug(f'{options.idea_clion_cpp_toolchains_xml_path = }')
 
     @classmethod
     def get_element(cls, options: Options) -> _Element:
@@ -59,11 +55,11 @@ class GenIdeaClionCppToolchainsXml(Handler):
         root_element = merge_elements(
             from_element=cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_clion_cpp_toolchains_xml_universal_path
+                options.idea_clion_cpp_toolchains_xml_path
             )
         )
 
         options.write_text(
-            path=options.idea_clion_cpp_toolchains_xml_universal_path,
+            path=options.idea_clion_cpp_toolchains_xml_path,
             text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

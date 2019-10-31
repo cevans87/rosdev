@@ -25,6 +25,22 @@ def get_options_with_overrides() -> Options:
             overrides.append(ast.literal_eval(Path(path, '.rosdev', 'overrides').read_text()))
         except FileNotFoundError:
             pass
+        
+    for override in overrides:
+        for k, v in override.items():
+            annotation = Options.__annotations__.get(k)
+            if annotation is None:
+                continue
+            elif annotation in {Path, Optional[Path]}:
+                v = Path(v)
+            elif annotation == Mapping[int, int]:
+                v = frozendict(v)
+            elif annotation == Mapping[Path, Path]:
+                v_mod = {}
+                for k_inner, v_inner in v.items():
+                    v_mod[Path(k_inner)] = Path(v_inner)
+                v = v_mod
+            override[k] = v
 
     return Options(**ChainMap(*overrides))
 
@@ -70,7 +86,6 @@ choices = Choices()
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
-    build_num: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ports: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_entrypoint_sh_setup_overlay: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -99,29 +114,6 @@ class Flag:
             default=options.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {options.architecture}',
-        )
-
-        build_num_group = self.build_num.add_mutually_exclusive_group()
-        build_num_group.add_argument(
-            '--build-num',
-            type=int,
-            default=options.build_num,
-            help=(
-                f'Use specified build from OSRF build farm instead of {options.build_num}. '
-                f'Currently: {options.build_num}'
-            ),
-        )
-        build_num_group = self.build_num.add_mutually_exclusive_group()
-        build_num_group.add_argument(
-            '--no-build-num',
-            action='store_const',
-            const=None,
-            dest='build_num',
-            help=(
-                SUPPRESS if options.build_num is None else
-                f'Determine build_num from architecture and release. '
-                f'Currently: {options.build_num}'
-            ),
         )
 
         self.build_type.add_argument(
@@ -668,7 +660,6 @@ parser = parser.merged_with(
     sub_commands='bash',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
         flag.enable_ccache,
@@ -702,7 +693,6 @@ parser = parser.merged_with(
     sub_commands='clion',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.build_type,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
@@ -730,7 +720,6 @@ parser = parser.merged_with(
     sub_commands='gen colcon build',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.build_type,
         flag.colcon_build_args,
         flag.pull_docker_image,
@@ -743,7 +732,6 @@ parser = parser.merged_with(
     sub_commands='gen core',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.pull_build,
         flag.release,
     })
@@ -754,6 +742,8 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.docker_container_ports,
+        flag.docker_entrypoint_sh_setup_overlay,
+        flag.docker_entrypoint_sh_setup_underlay,
         flag.pull_docker_image,
         flag.release,
         flag.replace_docker_container,
@@ -775,6 +765,8 @@ parser = parser.merged_with(sub_commands='gen docker ssh port')
 parser = parser.merged_with(
     sub_commands='gen idea',
     flags=frozenset({
+        flag.docker_entrypoint_sh_setup_overlay,
+        flag.docker_entrypoint_sh_setup_underlay,
         flag.idea_ide_name,
     })
 )
@@ -786,6 +778,7 @@ parser = parser.merged_with(sub_commands='gen idea ide')
 parser = parser.merged_with(sub_commands='gen idea keepass')
 parser = parser.merged_with(sub_commands='gen idea security_xml')
 parser = parser.merged_with(sub_commands='gen idea settings')
+parser = parser.merged_with(sub_commands='gen idea workspace_xml')
 
 parser = parser.merged_with(sub_commands='gen idea clion base')
 parser = parser.merged_with(sub_commands='gen idea clion core')
@@ -804,7 +797,6 @@ parser = parser.merged_with(
     sub_commands='gen install',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.pull_build,
         flag.pull_docker_image,
         flag.release,
@@ -838,7 +830,6 @@ parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
         flag.architecture,
-        flag.build_num,
         flag.pull_build,
         flag.pull_docker_image,
         flag.release,

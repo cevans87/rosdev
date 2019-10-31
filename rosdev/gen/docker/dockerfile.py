@@ -29,15 +29,22 @@ class GenDockerDockerfile(Handler):
             FROM {options.docker_image_base_tag}
 
             # qemu static binaries
-            {f'VOLUME {cls.get_qemu_path(options)}' if platform.machine() != options.machine
+            #{f'VOLUME {cls.get_qemu_path(options)}' if platform.machine() != options.machine
              and platform.system() != 'Darwin' else '# not needed'}
-
-            # make ssh easier
-            #VOLUME /etc/ssh
-
+            
             # XXX arm32v8 and arm64v8 return error code 100 if we only apt-get update once.
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
-            RUN apt-get update && apt-get update && apt-get install -y \
+            RUN apt-get update && apt-get update
+
+            # Install debug symbols for all installed ros packages.
+            RUN apt list --installed "ros-$ROS_DISTRO*" | \
+                grep -o "ros-$ROS_DISTRO-[^/]*" | \
+                sed "s/$/-dbgsym/" | \
+                xargs -L1 apt-cache search | \
+                grep -o "ros-$ROS_DISTRO-.*-dbgsym" | \
+                xargs -d "\n" -- apt-get install -y
+
+            RUN apt-get install -y \
                 build-essential \
                 ccache \
                 cmake \
@@ -80,21 +87,21 @@ class GenDockerDockerfile(Handler):
                 setuptools \
                 vcstool
                 
-            RUN colcon mixin add default \
-                https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
-            RUN colcon mixin update default
+            #RUN colcon mixin add default \
+            #    https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
+            #RUN colcon mixin update default
                    
             # We won't use this entrypoint. We mount our entrypoint when we start the container.
             RUN rm /ros_entrypoint.sh
 
             RUN groupadd -r -g {os.getgid()} {os.getlogin()}
             RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> /dev/null
-            RUN usermod {os.getlogin()} -d {options.home_container_path}
-            RUN mkdir -p {options.home_container_path}
-            RUN chown {os.getlogin()}:{os.getlogin()} {options.home_container_path}
+            RUN usermod {os.getlogin()} -d {options.home_path}
+            RUN mkdir -p {options.home_path}
+            RUN chown {os.getlogin()}:{os.getlogin()} {options.home_path}
             RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
             # Stops annoying message about being a sudoer when you first log in.
-            RUN touch {options.home_container_path}/.sudo_as_admin_successful
+            RUN touch {options.home_path}/.sudo_as_admin_successful
             
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{os.getlogin()}:[^:]+:/{os.getlogin()}::/' /etc/passwd /etc/shadow
@@ -105,17 +112,17 @@ class GenDockerDockerfile(Handler):
 
             USER {os.getlogin()}
             
-            #COPY {options.docker_entrypoint_sh_workspace_path.parts[-1]} \
-            #    {options.docker_entrypoint_sh_container_path}
+            COPY {options.docker_entrypoint_sh_host_path.parts[-1]} \
+                {options.docker_entrypoint_sh_container_path}
 
             ENTRYPOINT ["{options.docker_entrypoint_sh_container_path}"]
         ''').lstrip()
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(f'Creating Dockerfile at {options.docker_dockerfile_workspace_path}')
+        log.info(f'Creating Dockerfile at {options.docker_dockerfile_path}')
         options.write_text(
-            path=options.docker_dockerfile_workspace_path,
+            path=options.docker_dockerfile_path,
             text=cls.get_dockerfile_contents(options)
         )
-        log.info(f'Created Dockerfile at {options.docker_dockerfile_workspace_path}')
+        log.info(f'Created Dockerfile at {options.docker_dockerfile_path}')

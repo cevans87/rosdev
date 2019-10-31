@@ -33,13 +33,15 @@ class GenIdeaPycharmJdkTableXml(Handler):
         # FIXME py38 debug print
         log.debug(
             f'pycharm_jdk_table_xml_universal_path: '
-            f'{options.idea_pycharm_jdk_table_xml_universal_path}'
+            f'{options.idea_pycharm_jdk_table_xml_path}'
         )
 
     @classmethod
     @memoize
     async def get_version(cls, options: Options) -> str:
-        return (await cls.exec_container(options, 'python --version'))[0]
+        return (
+            await cls.execute_host(f'docker exec {options.docker_container_name} python --version')
+        )[0]
 
     @classmethod
     @memoize
@@ -93,11 +95,11 @@ class GenIdeaPycharmJdkTableXml(Handler):
         root_element = merge_elements(
             from_element=await cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_pycharm_jdk_table_xml_universal_path
+                options.idea_pycharm_jdk_table_xml_path
             )
         )
 
         options.write_text(
-            path=options.idea_pycharm_jdk_table_xml_universal_path,
+            path=options.idea_pycharm_jdk_table_xml_path,
             text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

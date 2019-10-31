@@ -1,10 +1,9 @@
 from dataclasses import asdict, dataclass, field
+from frozendict import frozendict
 from pathlib import Path
 from pprint import pformat
 from typing import Tuple, Type
 
-from rosdev.gen.container import GenContainer
-from rosdev.gen.universal import GenUniversal
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -14,8 +13,6 @@ from rosdev.util.options import Options
 class GenOverrides(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenContainer,
-        GenUniversal,
         GenWorkspace,
     ))
 
@@ -25,8 +22,21 @@ class GenOverrides(Handler):
         default_options = Options()
 
         for k, v in asdict(options).items():
-            if (not isinstance(v, Path)) and getattr(default_options, k) != v:
-                commit[k] = v
+            if (k == 'stage') or (getattr(default_options, k) == v):
+                continue
+
+            if isinstance(v, Path):
+                v = str(v)
+            elif isinstance(v, frozendict):
+                v_mod = {}
+                for k_inner, v_inner in v.items():
+                    if isinstance(k_inner, Path):
+                        k_inner = str(k_inner)
+                    if isinstance(v_inner, Path):
+                        v_inner = str(v_inner)
+                    v_mod[k_inner] = str(v_inner)
+                v = v_mod
+            commit[k] = v
 
         if commit:
             options.write_text(

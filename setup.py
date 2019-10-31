@@ -27,7 +27,7 @@ setup(
     license='mit',
     name='rosdev',
     packages=find_packages(),
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     test_suite='pytest',
     url='https://github.com/cevans87/rosdev',
     version='0.1.0',

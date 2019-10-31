@@ -1,9 +1,13 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from frozendict import frozendict
 from logging import getLogger
+import os
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
+from rosdev.gen.docker.image import GenDockerImage
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -15,65 +19,55 @@ log = getLogger(__name__)
 class GenInstall(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
+        GenDockerImage,
     ))
 
     @classmethod
+    async def resolve_options(cls, options: Options) -> Options:
+        docker_container_volumes = dict(options.docker_container_volumes)
+        docker_container_volumes[options.install_path] = options.install_path
+        docker_container_volumes[options.install_symlink_path] = options.install_symlink_path
+        docker_container_volumes = frozendict(docker_container_volumes)
+
+        return replace(
+            options,
+            docker_container_volumes=docker_container_volumes,
+        )
+
+    @classmethod
     async def main(cls, options: Options) -> None:
-        if options.release in {'kinetic', 'melodic'}:
-            log.info(f'Bypassing ROS 1 install download')
-            return
+        # FIXME this only detects that install exists, but not the newest install. Associate the
+        #  install with the id of the image with which it was installed.
+        if not options.install_path.exists():
+            log.info(f'Installing install from {options.docker_image_base_tag} docker image')
+            release_name = options.release
+            if release_name == 'latest':
+                release_name = await cls.execute_shell_host_and_get_line(
+                    command=(
+                        f'docker run --rm {options.docker_image_base_tag} ls /opt/ros 2> /dev/null'
+                    ),
+                )
+            with TemporaryDirectory() as temp_dir:
+                staging_path = Path(temp_dir, 'install')
+                options.install_path.parent.mkdir(parents=True, exist_ok=True)
+                for command in [
+                    f'sudo mv /opt/ros/{release_name} {staging_path}',
+                    f'sudo chown -R {os.getuid()}:{os.getgid()} {staging_path}',
+                    f'sudo chmod -R -w {staging_path}',
+                    f'sudo mv {staging_path} {options.install_path}'
+                ]:
+                    await cls.execute_host(
+                        command=(
+                            f'docker run --rm '
+                            f'{options.docker_environment_flags} '
+                            f'-v {staging_path.parent}:{staging_path.parent} '
+                            f'-v {options.install_path.parent}:{options.install_path.parent} '
+                            f'{options.docker_image_tag} '
+                            f'{command}'
+                        )
+                    )
+            log.info(f'Installed install from {options.docker_image_base_tag} docker image')
 
-        await cls._create_install_universal(options)
-        await cls._create_install_workspace(options)
-
-    @classmethod
-    async def _create_install_universal(cls, options: Options) -> None:
-        if options.install_universal_path.exists():
-            log.info(f'Found install cached at {options.install_universal_path}')
-            return
-
-        log.info("Finding artifacts url from OSRF build farm")
-        artifacts_url = (
-            f'https://ci.ros2.org/view/packaging/job/'
-            f'packaging_{options.operating_system}/{options.build_num}/artifact/'
-            f'ws/ros2-package-linux-{options.machine}.tar.bz2'
-        )
-
-        log.info('Installing from OSRF build farm')
-        with TemporaryDirectory() as temp_dir:
-            # TODO use pathlib operations to manipulate filesystem
-            staging_path = f'{temp_dir}/install'
-            artifacts_path = f'{temp_dir}/artifacts.tar.bz2'
-
-            log.info(f'Downloading install artifacts to {artifacts_path}')
-            await cls.exec_workspace(f'wget {artifacts_url} -O {artifacts_path}')
-
-            log.info(f'Staging install at {staging_path}')
-            await cls.exec_workspace(f'mkdir -p {staging_path}')
-            await cls.exec_workspace(
-                f'tar -xf {artifacts_path} -C {staging_path} --strip-components 1'
-            )
-
-            log.info(f'Caching install at {options.install_universal_path}')
-            await cls.exec_workspace(f'mkdir -p {options.install_universal_path.parent}')
-            # FIXME this fails if the universal path already exists since we recursively made it
-            #  read-only
-            await cls.exec_workspace(f'mv {staging_path} {options.install_universal_path}')
-
-        await cls.exec_workspace(f'chmod -R -w {options.install_universal_path}')
-
-        log.info(f'Universal install at {options.install_universal_path}')
-
-    @classmethod
-    async def _create_install_workspace(cls, options: Options) -> None:
-        log.info(f'Linking install at {options.install_workspace_path}')
-
-        options.install_workspace_path.parent.mkdir(parents=True, exist_ok=True)
-        if options.install_workspace_path.exists():
-            options.install_workspace_path.unlink()
-        options.install_workspace_path.symlink_to(
-            options.install_universal_path,
-            target_is_directory=True,
-        )
-
-        log.info(f'Linked install at {options.install_workspace_path}')
+        options.install_symlink_path.parent.mkdir(parents=True, exist_ok=True)
+        options.install_symlink_path.symlink_to(options.install_path, target_is_directory=True)
+        log.info(f'Linked install {options.install_symlink_path} -> {options.install_path}')

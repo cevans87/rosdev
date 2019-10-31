@@ -30,7 +30,7 @@ class GenIdeaWorkspaceXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        log.debug(f'idea_workspace_xml_workspace_path: {options.idea_workspace_xml_workspace_path}')
+        log.debug(f'{options.idea_workspace_xml_path = }')
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
@@ -63,11 +63,11 @@ class GenIdeaWorkspaceXml(Handler):
     async def main(cls, options: Options) -> None:
         root_element = merge_elements(
             from_element=await cls.get_element(options),
-            into_element=get_root_element_from_path(options.idea_workspace_xml_workspace_path)
+            into_element=get_root_element_from_path(options.idea_workspace_xml_path)
         )
 
         options.write_bytes(
-            path=options.idea_workspace_xml_workspace_path,
+            path=options.idea_workspace_xml_path,
             text=etree.tostring(
                 root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
             )

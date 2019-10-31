@@ -23,7 +23,7 @@ class Handler:
     
     class SubprocessException(Exception):
         pass
-
+    
     @classmethod
     async def run(cls, options: Options) -> None:
         options = replace(options, stage='resolve_options')
@@ -113,20 +113,6 @@ class Handler:
         await cls._post_main(options)
 
     @classmethod
-    async def _process_lines(
-            cls, command: str, process: Process, err_ok: bool = False
-    ) -> Tuple[str]:
-        await process.wait()
-
-        if (process.returncode != 0) and (not err_ok):
-            raise cls.SubprocessException(f'Command "{command}" exited code: {process.returncode}')
-
-        stdout = await process.stdout.read()
-
-        # TODO return an async iterator that decodes lines as they come in
-        return tuple(stdout.decode().strip().splitlines())
-
-    @classmethod
     async def _finish_process(
             cls,
             process: Process,
@@ -141,17 +127,18 @@ class Handler:
             raise cls.SubprocessException(f'Command "{command}" exited code: {process.returncode}')
 
         if capture_output:
-            return tuple((await process.stdout.read()).decode().strip().splitlines())
+            return tuple(((await process.communicate())[0]).decode().strip().splitlines())
         else:
             return None
 
     @classmethod
-    async def _exec(
+    async def _execute(
             cls,
             command: str,
             err_ok: bool,
             capture_output: bool,
     ) -> Optional[Tuple[str]]:
+        log.debug(f'execute err_ok={err_ok} "{command}"')
         process = await create_subprocess_exec(
             *command.split(),
             stdout=PIPE if capture_output else None,
@@ -165,27 +152,72 @@ class Handler:
 
     @classmethod
     @memoize
-    async def exec_container(
+    async def execute_container(
             cls,
+            *,
+            options: Options,
             command: str,
             err_ok: bool = False,
     ) -> None:
-        log.debug(f'exec_container err_ok={err_ok} "{command}"')
-        await cls._exec(
-            command=f'docker exec {command}',
+        await cls._execute(
+            command=(
+                f'docker exec '
+                f'{options.docker_environment_flags} '
+                f'{options.docker_container_name} '
+                f'{options.docker_entrypoint_sh_container_path} '
+                f'{command}'
+            ),
             err_ok=err_ok,
             capture_output=False,
         )
 
     @classmethod
     @memoize
-    async def exec_workspace(
+    async def execute_container_and_get_lines(
             cls,
+            *,
+            options: Options,
+            command: str,
+            err_ok: bool = False,
+    ) -> Tuple[str]:
+        return await cls._execute(
+            command=(
+                f'docker exec '
+                f'{options.docker_environment_flags} '
+                f'{options.docker_container_name} '
+                f'{options.docker_entrypoint_sh_container_path} '
+                f'{command}'
+            ),
+            err_ok=err_ok,
+            capture_output=True,
+        )
+
+    @classmethod
+    async def execute_container_and_get_line(
+            cls,
+            *,
+            options: Options,
+            command: str,
+            err_ok: bool = False,
+    ) -> str:
+        lines = await cls.execute_container_and_get_lines(
+            options=options,
+            command=command,
+            err_ok=err_ok,
+        )
+        assert len(lines) == 1, f'Must contain one line: {lines = }'
+
+        return lines[0]
+
+    @classmethod
+    @memoize
+    async def execute_host(
+            cls,
+            *,
             command: str,
             err_ok: bool = False,
     ) -> None:
-        log.debug(f'exec_workspace err_ok={err_ok} "{command}"')
-        await cls._exec(
+        await cls._execute(
             command=command,
             err_ok=err_ok,
             capture_output=False,
@@ -193,39 +225,39 @@ class Handler:
 
     @classmethod
     @memoize
-    async def get_exec_container_lines(
+    async def execute_host_and_get_lines(
             cls,
+            *,
             command: str,
             err_ok: bool = False,
     ) -> Tuple[str]:
-        log.debug(f'get_exec_container_lines err_ok={err_ok} "{command}"')
-        return await cls._exec(
+        return await cls._execute(
             command=command,
             err_ok=err_ok,
             capture_output=True,
         )
     
     @classmethod
-    @memoize
-    async def get_exec_workspace_lines(
+    async def execute_host_and_get_line(
             cls,
+            *,
             command: str,
             err_ok: bool = False,
-    ) -> Tuple[str]:
-        log.debug(f'get_exec_workspace_lines err_ok={err_ok} "{command}"')
-        return await cls._exec(
-            command=command,
-            err_ok=err_ok,
-            capture_output=True,
-        )
+    ) -> str:
+        lines = await cls.execute_host_and_get_lines(command=command, err_ok=err_ok)
+        assert len(lines) == 1, f'Must contain one line: {lines = }'
+
+        return lines[0]
 
     @classmethod
-    async def _shell(
+    async def _execute_shell(
             cls,
+            *,
             command: str,
             err_ok: bool,
             capture_output: bool,
     ) -> Optional[Tuple[str]]:
+        log.debug(f'execute_shell err_ok={err_ok} "{command}"')
         process = await create_subprocess_shell(
             command,
             stdout=PIPE if capture_output else None,
@@ -239,13 +271,13 @@ class Handler:
 
     @classmethod
     @memoize
-    async def shell_workspace(
+    async def execute_shell_host(
             cls,
+            *,
             command: str,
             err_ok: bool = False,
     ) -> Tuple[str]:
-        log.debug(f'shell_workspace err_ok={err_ok} "{command}"')
-        return await cls._shell(
+        return await cls._execute_shell(
             command=command,
             err_ok=err_ok,
             capture_output=True,
@@ -253,17 +285,29 @@ class Handler:
     
     @classmethod
     @memoize
-    async def get_shell_workspace_lines(
+    async def execute_shell_host_and_get_lines(
             cls,
+            *,
             command: str,
             err_ok: bool = False,
     ) -> Tuple[str]:
-        log.debug(f'get_shell_workspace_lines err_ok={err_ok} "{command}"')
-        return await cls._shell(
+        return await cls._execute_shell(
             command=command,
             err_ok=err_ok,
             capture_output=True,
         )
+
+    @classmethod
+    async def execute_shell_host_and_get_line(
+            cls,
+            *,
+            command: str,
+            err_ok: bool = False,
+    ) -> str:
+        lines = await cls.execute_shell_host_and_get_lines(command=command, err_ok=err_ok)
+        assert len(lines) == 1, f'Must contain one line: {lines = }'
+
+        return lines[0]
 
     @classmethod
     def read_bytes(cls, path: Path) -> bytes:

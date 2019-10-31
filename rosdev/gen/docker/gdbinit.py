@@ -21,38 +21,41 @@ class GenDockerGdbinit(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.docker_gdbinit_workspace_path] = (
-            options.docker_gdbinit_container_path
-        )
+        docker_container_volumes[options.docker_gdbinit_path] = options.docker_gdbinit_path
         docker_container_volumes = frozendict(options.docker_container_volumes)
 
         return replace(options, docker_container_volumes=docker_container_volumes)
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # TODO py38 debug print
-        log.debug(f'docker_gdbinit_container_path: {options.docker_gdbinit_container_path}')
-        log.debug(f'docker_gdbinit_workspace_path: {options.docker_gdbinit_workspace_path}')
+        log.debug(f'{options.docker_gdbinit_symlink_container_path = }')
+        log.debug(f'{options.docker_gdbinit_path = }')
 
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_gdbinit')
-        await cls.exec_workspace(
-            f'mkdir -p {options.docker_gdbinit_workspace_path.parent}', err_ok=True
-        )
-        with open(str(options.docker_gdbinit_workspace_path), 'w') as f_out:
+        cls.write_text(
+            path=options.docker_gdbinit_path,
             # FIXME these are two common paths from ci.ro2.org builds. Find a way to
             #  programmatically find the paths, probably through jenkins.
-            f_out.write(
+            text=(
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
                 f'packaging_{options.operating_system}/ws/src/ '
-                f'{options.src_workspace_path}\n'
-            )
-            f_out.write(
+                f'{options.src_symlink_path}\n'
                 f'set substitute-path '
                 f'/home/rosbuild/ci_scripts/ws/src/ '
-                f'{options.src_workspace_path}\n'
+                f'{options.src_symlink_path}\n'
             )
+        )
+        await cls.execute_container(
+            command=(
+                f'ln -f -s '
+                f'{options.docker_gdbinit_path} '
+                f'{options.docker_gdbinit_symlink_container_path}'
+            ),
+            err_ok=True,
+            options=options,
+        )
 
         log.info(f'Created docker_gdbinit')

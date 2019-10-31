@@ -20,32 +20,29 @@ class GenIdeaIdeStart(Handler):
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        idea_ide_start_universal_path = options.idea_ide_start_universal_path
-        if idea_ide_start_universal_path is None:
+        idea_ide_start_path = options.idea_ide_start_path
+        if idea_ide_start_path is None:
             if options.idea_ide_name == 'PyCharm':
-                idea_ide_start_universal_path = Path(
-                    (await cls.get_exec_workspace_lines('which charm'))[0]
-                )
+                idea_ide_start_path = Path(await cls.execute_host_and_get_line(command='which charm'))
             elif options.idea_ide_name == 'CLion':
-                idea_ide_start_universal_path = Path(
-                    (await cls.get_exec_workspace_lines('which clion'))[0]
-                )
-        idea_ide_start_universal_path = idea_ide_start_universal_path.absolute()
+                idea_ide_start_path = Path(await cls.execute_host_and_get_line(command='which clion'))
+        idea_ide_start_path = idea_ide_start_path.absolute()
 
-        return replace(options, idea_ide_start_universal_path=idea_ide_start_universal_path)
+        return replace(options, idea_ide_start_path=idea_ide_start_path)
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        assert options.idea_ide_start_universal_path is not None, (
-            'idea_ide_executable_universal_path cannot be None'
+        assert options.idea_ide_start_path is not None, (
+            f'Cannot be None: {options.idea_ide_start_path = }'
         )
-
-        assert options.idea_ide_name is not None, 'idea_ide_name cannot be None'
+        assert options.idea_ide_name is not None, f'Cannot be None: {options.idea_ide_name = }'
 
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Starting {options.idea_ide_name} IDE')
-        await cls.shell_workspace(
-            f'nohup {options.idea_ide_start_universal_path} {options.workspace_path} '
-            f'< /dev/null > /dev/null 2>&1 &'
+        await cls.execute_shell_host(
+            command=(
+                f'nohup {options.idea_ide_start_path} {options.workspace_path} '
+                f'< /dev/null > /dev/null 2>&1 &'
+            )
         )

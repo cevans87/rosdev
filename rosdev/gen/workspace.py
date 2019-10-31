@@ -1,4 +1,5 @@
 from dataclasses import dataclass, replace
+from frozendict import frozendict
 from logging import getLogger
 from pathlib import Path
 import re
@@ -28,6 +29,10 @@ class GenWorkspace(Handler):
 
         workspace_path = workspace_path.absolute()
 
+        docker_container_volumes = dict(options.docker_container_volumes)
+        docker_container_volumes[workspace_path] = workspace_path
+        docker_container_volumes = frozendict(docker_container_volumes)
+
         workspace_hash = options.workspace_hash
         if workspace_hash is None:
             workspace_relative_path = workspace_path.relative_to(Path.home())
@@ -35,15 +40,15 @@ class GenWorkspace(Handler):
 
         return replace(
             options,
+            docker_container_volumes=docker_container_volumes,
             workspace_hash=workspace_hash,
             workspace_path=workspace_path,
         )
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # TODO py38 debug string
-        log.debug(f'workspace_hash: {options.workspace_hash}')
-        log.debug(f'workspace_path: {options.workspace_path}')
+        log.debug(f'{options.workspace_hash = }')
+        log.debug(f'{options.workspace_path = }')
 
-        assert options.workspace_hash is not None, 'workspace_hash cannot be None'
-        assert options.workspace_path is not None, 'workspace_path cannot be None'
+        assert options.workspace_hash is not None, f'Cannot be None: {options.workspace_hash = }'
+        assert options.workspace_path is not None, f'Cannot be None: {options.workspace_path = }'

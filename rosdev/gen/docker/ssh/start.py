@@ -22,9 +22,22 @@ class GenDockerSshStart(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        await cls.exec_workspace(
-            options=options,
-            command=f'ssh-keygen -f "{Path.home()}/.ssh/known_hosts" -R "localhost"',
-            err_ok=True
+        await cls.execute_host(
+            command=(
+                f'ssh-keygen '
+                f'-f "{Path.home()}/.ssh/known_hosts" '
+                f'-R "[localhost]:{options.docker_ssh_port}"'
+            ),
+            err_ok=True,
         )
-        await cls.exec_container(options=options, command='sudo service ssh start')
+        await cls.execute_shell_host(
+            command=(
+                f'ssh-keyscan '
+                f'-p {options.docker_ssh_port} '
+                f'localhost '
+                f'>> "{Path.home()}/.ssh/known_hosts"'
+            ),
+        )
+        await cls.execute_host(
+            command=f'docker exec {options.docker_container_name} sudo service ssh start'
+        )
