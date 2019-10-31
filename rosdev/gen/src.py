@@ -1,15 +1,12 @@
-from asyncio import get_event_loop
 from dataclasses import dataclass, field, replace
 from frozendict import frozendict
-from jenkins import Jenkins
 from logging import getLogger
-import os
 from pathlib import Path
-import re
 from tempfile import TemporaryDirectory
-from typing import List, Tuple, Type
+from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
+from rosdev.gen.docker.image import GenDockerImage
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -22,6 +19,7 @@ class GenSrc(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
+        GenDockerImage,
     ))
 
     @classmethod

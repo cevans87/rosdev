@@ -86,10 +86,6 @@ class GenDockerDockerfile(Handler):
                 rosdep \
                 setuptools \
                 vcstool
-                
-            #RUN colcon mixin add default \
-            #    https://raw.githubusercontent.com/colcon/colcon-mixin-repository/master/index.yaml
-            #RUN colcon mixin update default
                    
             # We won't use this entrypoint. We mount our entrypoint when we start the container.
             RUN rm /ros_entrypoint.sh
