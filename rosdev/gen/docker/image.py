@@ -32,9 +32,7 @@ class GenDockerImage(Handler):
                 assert options.architecture == 'amd64', f'Must be amd64: {options.architecture = }'
                 docker_image_base_tag = 'osrf/ros2:nightly'
             else:
-                docker_image_base_tag = (
-                    f'{options.architecture}/ros:{options.release}-{options.flavor}'
-                )
+                docker_image_base_tag = f'{options.architecture}/ros:{options.release}'
 
         return replace(
             options,

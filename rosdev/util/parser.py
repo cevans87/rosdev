@@ -71,7 +71,6 @@ positional = Positional()
 class Choices:
     architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
     build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
-    flavor = tuple(sorted({'desktop', 'desktop-full', 'ros-base' 'ros-core'}))
     idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
@@ -87,13 +86,13 @@ class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_gui: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ports: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_replace: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_container_volumes: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_entrypoint_sh_setup_overlay: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_entrypoint_sh_setup_underlay: ArgumentParser = field(default_factory=gen_flag_parser)
-    dry_run: ArgumentParser = field(default_factory=gen_flag_parser)
-    enable_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
-    enable_gui: ArgumentParser = field(default_factory=gen_flag_parser)
-    flavor: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_uuid: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -101,16 +100,14 @@ class Flag:
     pull_build: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
-    replace_docker_container: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
-    volumes: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
         self.architecture.add_argument(
-            '--architecture',
+            '--architecture', '-a',
             default=options.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {options.architecture}',
@@ -142,6 +139,116 @@ class Flag:
                 SUPPRESS if options.colcon_build_args is None else
                 f'Do not pass additional args to colcon build. '
                 f'Currently: {options.colcon_build_args}'
+            )
+        )
+
+        docker_container_ccache_group = self.docker_container_ccache.add_mutually_exclusive_group()
+        docker_container_ccache_group.add_argument(
+            '--docker-container-ccache',
+            action='store_true',
+            default=options.docker_container_ccache,
+            help=(
+                SUPPRESS if options.docker_container_ccache else
+                f'Enable ccache. Currently: {options.docker_container_ccache}'
+            )
+        )
+        docker_container_ccache_group.add_argument(
+            '--no-docker-container-ccache',
+            action='store_false',
+            dest='docker_container_ccache',
+            default=options.docker_container_ccache,
+            help=(
+                SUPPRESS if not options.docker_container_ccache else
+                f'Disable ccache. Currently: {options.docker_container_ccache}'
+            )
+        )
+
+        docker_container_gui_group = self.docker_container_gui.add_mutually_exclusive_group()
+        docker_container_gui_group.add_argument(
+            '--docker-container-gui',
+            default=options.docker_container_gui,
+            action='store_true',
+            help=(
+                SUPPRESS if options.docker_container_gui else
+                f'Allow container to use host X11 server. '
+                f'Currently: {options.docker_container_gui}'
+            )
+        )
+        docker_container_gui_group.add_argument(
+            '--no-docker-container-gui',
+            dest='docker_container_gui',
+            default=options.docker_container_gui,
+            action='store_false',
+            help=(
+                SUPPRESS if not options.docker_container_gui else
+                f'Do not allow container to use host X11 server. '
+                f'Currently: {options.docker_container_gui}'
+            )
+        )
+
+        # TODO add PortsAction to allow <host>:<container> mapping. See
+        #  DockerContainerVolumesAction for reference.
+        self.docker_container_ports.add_argument(
+            '--docker-container-ports',
+            nargs='*',
+            type=int,
+            default=options.docker_container_ports,
+            help=f'List of ports to expose in docker container. '
+                 f'Currently: {options.docker_container_ports}'
+        )
+
+        docker_container_replace_group = (
+            self.docker_container_replace.add_mutually_exclusive_group()
+        )
+        docker_container_replace_group.add_argument(
+            '--docker-container-replace',
+            action='store_true',
+            default=options.docker_container_replace,
+            help=(
+                SUPPRESS if options.docker_container_replace else
+                f'Replace docker containers that should only need to be built once. '
+                f'Currently: {options.docker_container_replace}'
+            )
+        )
+        docker_container_replace_group.add_argument(
+            '--no-docker-container-replace',
+            action='store_false',
+            dest='docker_container_replace',
+            default=options.docker_container_replace,
+            help=(
+                SUPPRESS if not options.docker_container_replace else
+                f'Do not replace docker containers that should only need to be built once. '
+                f'Currently: {options.docker_container_replace}'
+            )
+        )
+
+        class DockerContainerVolumesAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                docker_container_volumes = {}
+                for value in values:
+                    try:
+                        host_path, container_path = value.split(':')
+                    except ValueError:
+                        host_path, container_path = value, value
+
+                    docker_container_volumes[host_path] = container_path
+
+                setattr(namespace, self.dest, frozendict(docker_container_volumes))
+
+        self.docker_container_volumes.add_argument(
+            '--docker-container-volumes',
+            nargs='*',
+            default=options.docker_container_volumes,
+            action=DockerContainerVolumesAction,
+            help=(
+                f'Additional volumes to mount in docker container. '
+                f'Currently: {options.docker_container_volumes}'
             )
         )
 
@@ -190,75 +297,6 @@ class Flag:
                 SUPPRESS if not options.docker_entrypoint_sh_setup_underlay else
                 f'Do not source setup.bash from ROS install. '
                 f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
-            )
-        )
-
-        dry_run_group = self.dry_run.add_mutually_exclusive_group()
-        dry_run_group.add_argument(
-            '--dry-run',
-            default=options.dry_run,
-            help=(
-                f'Avoid running actions with side effects. Currently: {options.dry_run}'
-            )
-        )
-        dry_run_group.add_argument(
-            '--no-dry-run',
-            action='store_const',
-            const=None,
-            dest='dry_run',
-            default=options.dry_run,
-            help=(
-                SUPPRESS if options.dry_run is None else
-                f'Do not avoid running actions with side effects. Currently: {options.dry_run}'
-            )
-        )
-
-        enable_ccache_group = self.enable_ccache.add_mutually_exclusive_group()
-        enable_ccache_group.add_argument(
-            '--enable-ccache',
-            action='store_true',
-            default=options.enable_ccache,
-            help=(
-                SUPPRESS if options.enable_ccache else
-                f'Enable ccache. Currently: {options.enable_ccache}'
-            )
-        )
-        enable_ccache_group.add_argument(
-            '--disable-ccache',
-            action='store_false',
-            dest='enable_ccache',
-            default=options.enable_ccache,
-            help=(
-                SUPPRESS if not options.enable_ccache else
-                f'Disable ccache. Currently: {options.enable_ccache}'
-            )
-        )
-
-        self.flavor.add_argument(
-            '--flavor',
-            default=options.flavor,
-            choices=choices.flavor,
-            help=f'Linux flavor. Currently: {options.flavor}'
-        )
-
-        enable_gui_group = self.enable_gui.add_mutually_exclusive_group()
-        enable_gui_group.add_argument(
-            '--enable-gui',
-            default=options.enable_gui,
-            action='store_true',
-            help=(
-                SUPPRESS if options.enable_gui else
-                f'Allow container to use host X11 server. Currently: {options.enable_gui}'
-            )
-        )
-        enable_gui_group.add_argument(
-            '--disable-gui',
-            dest='enable_gui',
-            default=options.enable_gui,
-            action='store_false',
-            help=(
-                SUPPRESS if not options.enable_gui else
-                f'Do not allow container to use host X11 server. Currently: {options.enable_gui}'
             )
         )
 
@@ -329,15 +367,6 @@ class Flag:
             help=f'Currently: {options.log_level}',
         )
 
-        # TODO add PortsAction to allow <host>:<container> mapping. See VolumesAction for reference.
-        self.docker_container_ports.add_argument(
-            '--docker-container-ports',
-            nargs='*',
-            type=int,
-            default=options.docker_container_ports,
-            help=f'List of ports to expose in docker container. '
-            f'Currently: {options.docker_container_ports}'
-        )
         pull_docker_image_group = self.pull_docker_image.add_mutually_exclusive_group()
         pull_docker_image_group.add_argument(
             '--pull-docker-image',
@@ -382,50 +411,11 @@ class Flag:
             )
         )
 
-        release_group = self.release.add_mutually_exclusive_group()
-        release_group.add_argument(
-            '--release',
+        self.release.add_argument(
+            '--release', '-r',
             default=options.release,
             choices=choices.release,
-            help=(
-                f'ROS release to build. Currently: {options.release}'
-            )
-        )
-        release_group.add_argument(
-            '--no-release',
-            default=options.release,
-            action='store_const',
-            const=None,
-            dest='release',
-            help=(
-                SUPPRESS if options.release is None else
-                f'ROS release to build. Currently: {options.release}'
-            )
-        )
-
-        replace_docker_container_group = (
-            self.replace_docker_container.add_mutually_exclusive_group()
-        )
-        replace_docker_container_group.add_argument(
-            '--replace-docker-container',
-            action='store_true',
-            default=options.replace_docker_container,
-            help=(
-                SUPPRESS if options.replace_docker_container else
-                f'Replace docker containers that should only need to be built once. '
-                f'Currently: {options.replace_docker_container}'
-            )
-        )
-        replace_docker_container_group.add_argument(
-            '--keep-docker-container',
-            action='store_false',
-            dest='replace_docker_container',
-            default=options.replace_docker_container,
-            help=(
-                SUPPRESS if not options.replace_docker_container else
-                f'Do not replace docker containers that should only need to be built once. '
-                f'Currently: {options.replace_docker_container}'
-            )
+            help=f'ROS release to build. Currently: {options.release}',
         )
 
         rosdep_install_args_group = self.rosdep_install_args.add_mutually_exclusive_group()
@@ -511,36 +501,6 @@ class Flag:
                 SUPPRESS if options.sanitizer is None else
                 f'Do not build with a sanitizer enabled. '
                 f'Currently: {options.sanitizer}'
-            )
-        )
-
-        class VolumesAction(Action):
-            def __call__(
-                    self,
-                    _parser: ArgumentParser,
-                    namespace: Namespace,
-                    values: List[str],
-                    _option_string: Optional[str] = None
-            ) -> None:
-                volumes = {}
-                for value in values:
-                    try:
-                        host_path, container_path = value.split(':')
-                    except ValueError:
-                        host_path, container_path = value, value
-
-                    volumes[host_path] = container_path
-
-                setattr(namespace, self.dest, frozendict(volumes))
-
-        self.volumes.add_argument(
-            '--docker-container-volumes', '-v',
-            nargs='+',
-            default=options.docker_container_volumes,
-            action=VolumesAction,
-            help=(
-                f'Additional volumes to mount in docker container. '
-                f'Currently: {options.docker_container_volumes}'
             )
         )
 
@@ -649,7 +609,6 @@ parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
         flag.help,
-        flag.dry_run,
         flag.log_level,
         flag.run_main,
         flag.run_validate_options,
@@ -660,17 +619,16 @@ parser = parser.merged_with(
     sub_commands='bash',
     flags=frozenset({
         flag.architecture,
+        flag.docker_container_ccache,
+        flag.docker_container_gui,
+        flag.docker_container_ports,
+        flag.docker_container_replace,
+        flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
-        flag.enable_ccache,
-        flag.enable_gui,
-        flag.flavor,
-        flag.docker_container_ports,
         flag.pull_build,
         flag.pull_docker_image,
         flag.release,
-        flag.replace_docker_container,
-        flag.volumes,
     }),
 )
 
@@ -742,12 +700,12 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.docker_container_ports,
+        flag.docker_container_replace,
+        flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
         flag.pull_docker_image,
         flag.release,
-        flag.replace_docker_container,
-        flag.volumes,
     })
 )
 parser = parser.merged_with(sub_commands='gen docker base')

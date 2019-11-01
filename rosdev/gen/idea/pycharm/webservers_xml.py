@@ -26,11 +26,7 @@ class GenIdeaPycharmWebserversXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # FIXME py38 debug print
-        log.debug(
-            f'idea_pycharm_webservers_xml_workspace_path: '
-            f'{options.idea_pycharm_webservers_xml_path}'
-        )
+        log.debug(f'{options.idea_pycharm_webservers_xml_path = }')
 
     @classmethod
     def get_element(cls, options: Options) -> _Element:

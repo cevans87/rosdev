@@ -24,9 +24,4 @@ class Clion(Handler):
 
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
-        return replace(
-            options,
-            docker_entrypoint_sh_setup_overlay=True,
-            docker_entrypoint_sh_setup_underlay=True,
-            idea_ide_name='CLion',
-        )
+        return replace(options, idea_ide_name='CLion')

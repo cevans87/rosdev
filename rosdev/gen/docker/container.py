@@ -43,9 +43,9 @@ class GenDockerContainer(Handler):
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_environment = dict(options.docker_container_environment)
-        if options.enable_gui:
+        if options.docker_container_gui:
             docker_container_environment['DISPLAY'] = os.environ['DISPLAY']
-        if options.enable_ccache:
+        if options.docker_container_ccache:
             docker_container_environment['CC'] = '/usr/lib/ccache/gcc'
             docker_container_environment['CXX'] = '/usr/lib/ccache/g++'
         docker_container_environment = frozendict(docker_container_environment)
@@ -59,7 +59,7 @@ class GenDockerContainer(Handler):
         docker_container_volumes[Path(options.home_path, '.ssh')] = (
             Path(options.home_path, '.ssh')
         )
-        if options.enable_gui:
+        if options.docker_container_gui:
             docker_container_volumes['/tmp/.X11-unix'] = '/tmp/.X11-unix'
         docker_container_volumes = frozendict(docker_container_volumes)
 
@@ -69,6 +69,14 @@ class GenDockerContainer(Handler):
             docker_container_ports=docker_container_ports,
             docker_container_volumes=docker_container_volumes,
         )
+    
+    @classmethod
+    async def validate_options(cls, options: Options) -> None:
+        log.debug(f'{options.docker_container_ccache = }')
+        log.debug(f'{options.docker_container_environment = }')
+        log.debug(f'{options.docker_container_gui = }')
+        log.debug(f'{options.docker_container_ports = }')
+        log.debug(f'{options.docker_container_volumes = }')
 
     @classmethod
     async def main(cls, options: Options) -> None:
@@ -88,7 +96,7 @@ class GenDockerContainer(Handler):
                 container = None
             else:
                 # TODO also remove if container fails to restart
-                if options.replace_docker_container:
+                if options.docker_container_replace:
                     log.info(f'Replacing existing docker container.')
                     container.remove(force=True)
                     container = None

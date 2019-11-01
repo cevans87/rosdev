@@ -22,11 +22,7 @@ class GenIdeaPycharmDeploymentXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # FIXME py38 debug print
-        log.debug(
-            f'pycharm_deployment_xml_workspace_path: '
-            f'{options.idea_pycharm_deployment_xml_path}'
-        )
+        log.debug(f'{options.idea_pycharm_deployment_xml_path = }')
 
     @classmethod
     def get_element(cls, options: Options) -> _Element:

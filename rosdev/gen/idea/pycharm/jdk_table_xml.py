@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass, field
 from logging import getLogger
 from lxml import etree
@@ -30,24 +29,18 @@ class GenIdeaPycharmJdkTableXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # FIXME py38 debug print
-        log.debug(
-            f'pycharm_jdk_table_xml_universal_path: '
-            f'{options.idea_pycharm_jdk_table_xml_path}'
+        log.debug(f'{options.idea_pycharm_jdk_table_xml_path = }')
+
+    @classmethod
+    async def get_python_version(cls, options: Options) -> str:
+        return await cls.execute_host_and_get_line(
+            command=f'docker exec {options.docker_container_name} python --version'
         )
 
     @classmethod
-    @memoize
-    async def get_version(cls, options: Options) -> str:
+    async def get_python_name(cls, options: Options) -> str:
         return (
-            await cls.execute_host(f'docker exec {options.docker_container_name} python --version')
-        )[0]
-
-    @classmethod
-    @memoize
-    async def get_name(cls, options: Options) -> str:
-        return (
-            f'Remote Python {await cls.get_version(options)} '
+            f'Remote Python {await cls.get_python_version(options)} '
             f'({options.idea_pycharm_jdk_table_xml_sftp_uri})'
         )
 
@@ -57,11 +50,11 @@ class GenIdeaPycharmJdkTableXml(Handler):
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <application>
-                  <component name="ProjectJdkTable" rosdev_hint="list">
-                    <jdk version="2" rosdev_hint="item">
-                      <name value="{await cls.get_name(options)}" />
+                  <component name="ProjectJdkTable">
+                    <jdk version="2">
+                      <name value="{await cls.get_python_name(options)}" />
                       <type value="Python SDK" />
-                      <version value="{await cls.get_version(options)}" />
+                      <version value="{await cls.get_python_version(options)}" />
                       <homePath value="{options.idea_pycharm_jdk_table_xml_ssh_uri}" />
                       <additional
                           HOST="localhost"
@@ -76,7 +69,7 @@ class GenIdeaPycharmJdkTableXml(Handler):
                           VALID="true"
                           RUN_AS_ROOT_VIA_SUDO="false"
                           SKELETONS_PATH=""
-                          VERSION="{await cls.get_version(options)}">
+                          VERSION="{await cls.get_python_version(options)}">
                         <PathMappingSettings>
                           <option name="pathMappings">
                             <list>

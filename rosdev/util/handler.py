@@ -103,7 +103,7 @@ class Handler:
     @memoize
     async def _main_all(cls, options: Options) -> None:
         await cls._pre_main(options)
-        # TODO debug print main's dockstring
+        # TODO debug print main's docstring
         log.debug(f'Starting {cls.__name__}.main: {cls.main.__doc__ or "description unavailable"}')
         if options.run_main:
             await cls.main(options)
@@ -132,6 +132,7 @@ class Handler:
             return None
 
     @classmethod
+    @memoize
     async def _execute(
             cls,
             command: str,
@@ -151,7 +152,6 @@ class Handler:
         )
 
     @classmethod
-    @memoize
     async def execute_container(
             cls,
             *,
@@ -172,7 +172,6 @@ class Handler:
         )
 
     @classmethod
-    @memoize
     async def execute_container_and_get_lines(
             cls,
             *,
@@ -210,7 +209,6 @@ class Handler:
         return lines[0]
 
     @classmethod
-    @memoize
     async def execute_host(
             cls,
             *,
@@ -224,7 +222,6 @@ class Handler:
         )
 
     @classmethod
-    @memoize
     async def execute_host_and_get_lines(
             cls,
             *,
@@ -250,6 +247,7 @@ class Handler:
         return lines[0]
 
     @classmethod
+    @memoize
     async def _execute_shell(
             cls,
             *,
@@ -270,7 +268,6 @@ class Handler:
         )
 
     @classmethod
-    @memoize
     async def execute_shell_host(
             cls,
             *,
@@ -284,7 +281,6 @@ class Handler:
         )
     
     @classmethod
-    @memoize
     async def execute_shell_host_and_get_lines(
             cls,
             *,

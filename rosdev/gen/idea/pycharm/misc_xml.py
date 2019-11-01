@@ -26,11 +26,7 @@ class GenIdeaPycharmMiscXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        # FIXME py38 debug print
-        log.debug(
-            f'idea_pycharm_misc_xml_workspace_path: '
-            f'{options.idea_pycharm_misc_xml_path}'
-        )
+        log.debug(f'{options.idea_pycharm_misc_xml_path = }')
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
@@ -44,7 +40,7 @@ class GenIdeaPycharmMiscXml(Handler):
                   <component
                       name="ProjectRootManager"
                       version="2"
-                      project-jdk-name="{await GenIdeaPycharmJdkTableXml.get_name(options)}"
+                      project-jdk-name="{await GenIdeaPycharmJdkTableXml.get_python_name(options)}"
                       project-jdk-type="Python SDK" />
                 </project>
             ''').lstrip()

@@ -4,6 +4,7 @@ from logging import getLogger
 from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
+from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -16,6 +17,7 @@ class GenDockerGdbinit(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
+        GenDockerContainer,
     ))
 
     @classmethod
@@ -39,6 +41,7 @@ class GenDockerGdbinit(Handler):
             # FIXME these are two common paths from ci.ro2.org builds. Find a way to
             #  programmatically find the paths, probably through jenkins.
             text=(
+                f'set directories {options.src_symlink_path / "ros2"}'
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
                 f'packaging_{options.operating_system}/ws/src/ '
@@ -54,7 +57,6 @@ class GenDockerGdbinit(Handler):
                 f'{options.docker_gdbinit_path} '
                 f'{options.docker_gdbinit_symlink_container_path}'
             ),
-            err_ok=True,
             options=options,
         )
 

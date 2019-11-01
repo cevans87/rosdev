@@ -14,26 +14,26 @@ log = getLogger(__name__)
 class Options:
     architecture: Optional[str] = None
     build_type: str = 'Debug'
-    clean: bool = False
 
     colcon_build_args: Optional[str] = None
+
+    docker_container_ccache: bool = True
+    docker_container_gui: bool = False
     docker_container_environment: Mapping[str, str] = frozendict()
     docker_container_ports: Mapping[int, int] = frozendict()  # container:host
+    docker_container_replace: bool = False
     docker_container_volumes: Mapping[Path, Path] = frozendict()  # host:container
+
     docker_entrypoint_sh_quick_setup_overlay: bool = True
     docker_entrypoint_sh_quick_setup_underlay: bool = True
-    docker_entrypoint_sh_setup_overlay: bool = False
+    docker_entrypoint_sh_setup_overlay: bool = True
     docker_entrypoint_sh_setup_underlay: bool = True
+
     docker_image_base_tag: Optional[str] = None
+
     docker_ssh_port: Optional[int] = None
-    dry_run: bool = False
-    # TODO rename to enable_docker_container_ccache
-    enable_ccache: bool = True
-    # TODO rename to enable_docker_container_gui
-    enable_gui: bool = False
+
     executable: Optional[str] = None
-    # TODO find a better name for this
-    flavor: str = 'ros-base'
 
     idea_ide_name: Optional[str] = None
     idea_ide_start_path: Optional[Path] = None
@@ -45,7 +45,6 @@ class Options:
     pull_build: bool = False
     pull_docker_image: bool = False
     release: str = 'latest'
-    replace_docker_container: bool = False
     rosdep_install_args: Optional[str] = None
     run_main: bool = True
     run_validate_options: bool = True
@@ -53,9 +52,6 @@ class Options:
 
     reuse_environment: bool = True
     reuse_docker_ssh_pam_environment: bool = True
-
-    source_ros_overlay_setup_bash: bool = False
-    source_ros_underlay_setup_bash: bool = True
 
     stage: Optional[str] = None
 
@@ -167,6 +163,10 @@ class Options:
         return self.workspace_path / '.rosdev' / self.release / self.architecture
 
     @property
+    def install_id_path(self) -> Path:
+        return self.home_rosdev_path / 'install_id'
+
+    @property
     def install_path(self) -> Path:
         return self.home_rosdev_path / 'install'
 
@@ -174,6 +174,10 @@ class Options:
     def install_symlink_path(self) -> Path: 
         return self.workspace_rosdev_path / 'install'
 
+    @property
+    def src_id_path(self) -> Path:
+        return self.home_rosdev_path / 'src_id'
+    
     @property
     def src_path(self) -> Path:
         return self.home_rosdev_path / 'src'
@@ -297,14 +301,12 @@ class Options:
         assert self.stage == 'main', 'Cannot write files outside of main'
 
         log.debug(f'Writing to {path}, text: \n{text}')
-        if not self.dry_run:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
 
     def write_bytes(self, *, path: Path, text: bytes) -> None:
         assert self.stage == 'main', 'Cannot write files outside of main'
 
         log.debug(f'Writing to {path}, bytes:\n{text.decode()}')
-        if not self.dry_run:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(text)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text)

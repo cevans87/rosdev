@@ -5,6 +5,7 @@ from typing import Tuple, Type
 from rosdev.gen.core import GenCore
 from rosdev.gen.docker.base import GenDockerBase
 from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.docker.ssh.base import GenDockerSshBase
 from rosdev.util.handler import Handler
@@ -20,6 +21,7 @@ class GenDockerCore(Handler):
         GenCore,
         GenDockerBase,
         GenDockerContainer,
+        GenDockerGdbinit,
         GenDockerImage,
         GenDockerSshBase,
     ))

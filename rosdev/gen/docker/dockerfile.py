@@ -35,14 +35,15 @@ class GenDockerDockerfile(Handler):
             # XXX arm32v8 and arm64v8 return error code 100 if we only apt-get update once.
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
             RUN apt-get update && apt-get update
-
+            
+            # FIXME this is insanely slow. The apt-cache search part is the primary culprit.
             # Install debug symbols for all installed ros packages.
-            RUN apt list --installed "ros-$ROS_DISTRO*" | \
-                grep -o "ros-$ROS_DISTRO-[^/]*" | \
-                sed "s/$/-dbgsym/" | \
-                xargs -L1 apt-cache search | \
-                grep -o "ros-$ROS_DISTRO-.*-dbgsym" | \
-                xargs -d "\n" -- apt-get install -y
+            #RUN apt list --installed "ros-$ROS_DISTRO*" | \
+            #    grep -o "ros-$ROS_DISTRO-[^/]*" | \
+            #    sed "s/$/-dbgsym/" | \
+            #    xargs -L1 apt-cache search | \
+            #    grep -o "ros-$ROS_DISTRO-.*-dbgsym" | \
+            #    xargs -d "\n" -- apt-get install -y
 
             RUN apt-get install -y \
                 build-essential \

@@ -1,8 +1,10 @@
+from atools import memoize
 from dataclasses import dataclass, field, replace
 from frozendict import frozendict
 from logging import getLogger
 import os
 from pathlib import Path
+import shutil
 from tempfile import TemporaryDirectory
 from typing import Tuple, Type
 
@@ -23,6 +25,11 @@ class GenInstall(Handler):
     ))
 
     @classmethod
+    @memoize
+    async def get_id(cls, options) -> str:
+        return options.install_id_path.read_text() if options.install_id_path.is_file() else ''
+
+    @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_volumes = dict(options.docker_container_volumes)
         docker_container_volumes[options.install_path] = options.install_path
@@ -36,12 +43,19 @@ class GenInstall(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        # FIXME this only detects that install exists, but not the newest install. Associate the
-        #  install with the id of the image with which it was installed.
-        if not options.install_path.exists():
+        if (
+                (not options.install_path.exists()) or
+                (await GenDockerImage.get_id(options) != await cls.get_id(options))
+        ):
             log.info(f'Installing install from {options.docker_image_base_tag} docker image')
+            if options.install_path.is_dir():
+                await cls.execute_host(command=f'chmod -R +w {options.install_path}')
+                shutil.rmtree(options.install_path)
+            if options.install_id_path.is_file():
+                options.install_id_path.unlink()
             release_name = options.release
             if release_name == 'latest':
+                # FIXME move to rosdev.gen.release
                 release_name = await cls.execute_shell_host_and_get_line(
                     command=(
                         f'docker run --rm {options.docker_image_base_tag} ls /opt/ros 2> /dev/null'
@@ -66,8 +80,11 @@ class GenInstall(Handler):
                             f'{command}'
                         )
                     )
+            options.install_id_path.write_text(await GenDockerImage.get_id(options))
             log.info(f'Installed install from {options.docker_image_base_tag} docker image')
 
+        if options.install_symlink_path.exists():
+            options.install_symlink_path.unlink()
         options.install_symlink_path.parent.mkdir(parents=True, exist_ok=True)
         options.install_symlink_path.symlink_to(options.install_path, target_is_directory=True)
-        log.info(f'Linked install {options.install_symlink_path} -> {options.install_path}')
+        log.info(f'Linked from {options.install_symlink_path} to install at {options.install_path}')
