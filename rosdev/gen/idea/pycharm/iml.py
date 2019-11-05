@@ -6,7 +6,6 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
-from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.base import GenIdeaBase
 from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
@@ -14,13 +13,14 @@ from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
 
+
 log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenIdeaPycharmDeploymentXml(Handler):
+class GenIdeaPycharmIml(Handler):
+
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerContainer,
         GenHost,
         GenIdeaBase,
         GenIdeaPycharmJdkTableXml,
@@ -28,31 +28,31 @@ class GenIdeaPycharmDeploymentXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_pycharm_deployment_xml_path = }')
+        log.debug(f'{options.idea_pycharm_misc_xml_path = }')
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
         return etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
-                <project version="4">
-                  <component name="PublishConfigData">
-                    <serverData>
-                      <paths name="{await GenIdeaPycharmJdkTableXml.get_remote_address(options)}">
-                        <serverdata>
-                          <mappings>
-                            <mapping deploy="{options.workspace_path}" local="$PROJECT_DIR$" />
-                          </mappings>
-                          <excludedPaths>
-                            <excludedPath path="{options.workspace_path}" />
-                            <excludedPath local="true" path="$PROJECT_DIR$" />
-                          </excludedPaths>
-                        </serverdata>
-                      </paths>
-                    </serverData>
+                <module type="PYTHON_MODULE" version="4">
+                  <component name="NewModuleRootManager">
+                    <content url="file://$MODULE_DIR$" />
+                    <orderEntry
+                        type="jdk"
+                        jdkName="{await GenIdeaPycharmJdkTableXml.get_python_name(options)}" 
+                        jdkType="Python SDK" />
+                    <orderEntry type="sourceFolder" forTests="false" />
                   </component>
-                </project>
-            ''').strip()
+                  <component name="PyDocumentationSettings">
+                    <option name="format" value="REST" />
+                    <option name="myDocStringFormat" value="reStructuredText" />
+                  </component>
+                  <component name="TestRunnerService">
+                    <option name="PROJECT_TEST_RUNNER" value="pytest" />
+                  </component>
+                </module>
+            ''').lstrip()
         )
 
     @classmethod
@@ -60,10 +60,10 @@ class GenIdeaPycharmDeploymentXml(Handler):
         root_element = merge_elements(
             from_element=await cls.get_element(options),
             into_element=get_root_element_from_path(
-                options.idea_pycharm_deployment_xml_path
+                options.idea_pycharm_iml_path
             )
         )
-        
+
         GenHost.write_bytes(
             data=etree.tostring(
                 root_element,
@@ -72,5 +72,5 @@ class GenIdeaPycharmDeploymentXml(Handler):
                 encoding='UTF-8',
             ),
             options=options,
-            path=options.idea_pycharm_deployment_xml_path,
+            path=options.idea_pycharm_iml_path,
         )

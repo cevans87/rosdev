@@ -6,6 +6,7 @@ from textwrap import dedent
 from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
+from rosdev.gen.host import GenHost
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -17,6 +18,7 @@ log = getLogger(__name__)
 class GenDockerDockerfile(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
+        GenHost,
     ))
 
     @classmethod
@@ -118,8 +120,9 @@ class GenDockerDockerfile(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating Dockerfile at {options.docker_dockerfile_path}')
-        options.write_text(
+        GenHost.write_text(
+            data=cls.get_dockerfile_contents(options),
+            options=options,
             path=options.docker_dockerfile_path,
-            text=cls.get_dockerfile_contents(options)
         )
         log.info(f'Created Dockerfile at {options.docker_dockerfile_path}')

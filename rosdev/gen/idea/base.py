@@ -8,7 +8,6 @@ from rosdev.gen.idea.keepass import GenIdeaKeepass
 from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
 from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
-from rosdev.gen.idea.workspace_xml import GenIdeaWorkspaceXml
 from rosdev.util.handler import Handler
 
 
@@ -24,5 +23,4 @@ class GenIdeaBase(Handler):
         GenIdeaSecurityXml,
         GenIdeaUniversal,
         GenIdeaUuid,
-        GenIdeaWorkspaceXml,
     ))

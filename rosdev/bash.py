@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Tuple, Type
 
-from rosdev.gen.docker.core import GenDockerCore
+from rosdev.gen.docker.core import GenDockerContainer
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -15,7 +15,7 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class Bash(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerCore,
+        GenDockerContainer,
     ))
 
     @classmethod

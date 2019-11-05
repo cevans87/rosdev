@@ -6,6 +6,7 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
+from rosdev.gen.host import GenHost
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
 from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
@@ -21,6 +22,7 @@ log = getLogger(__name__)
 class GenIdeaSecurityXml(Handler):
     
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenHost,
         GenIdeaIdeName,
         GenIdeaUniversal,
         GenIdeaUuid,
@@ -53,7 +55,8 @@ class GenIdeaSecurityXml(Handler):
             into_element=get_root_element_from_path(options.idea_security_xml_path)
         )
 
-        options.write_text(
+        GenHost.write_text(
+            data=etree.tostring(root_element, pretty_print=True, encoding=str),
+            options=options,
             path=options.idea_security_xml_path,
-            text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

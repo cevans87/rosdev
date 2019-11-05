@@ -4,6 +4,7 @@ from pathlib import Path
 from pprint import pformat
 from typing import Tuple, Type
 
+from rosdev.gen.host import GenHost
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -13,6 +14,7 @@ from rosdev.util.options import Options
 class GenOverrides(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenHost,
         GenWorkspace,
     ))
 
@@ -39,7 +41,8 @@ class GenOverrides(Handler):
             commit[k] = v
 
         if commit:
-            options.write_text(
+            GenHost.write_text(
+                data=f'{pformat(commit)}\n',
+                options=options,
                 path=options.overrides_path,
-                text=f'{pformat(commit)}\n'
             )

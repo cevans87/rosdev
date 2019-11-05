@@ -14,8 +14,8 @@ from typing import Dict, FrozenSet, List, Mapping, Optional
 log = getLogger(__name__)
 
 
-_FIND_UUID_REGEX = re.compile(r'[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}')
 _FIND_NUMBER_REGEX = re.compile(r'\d+')
+_FIND_UUID_REGEX = re.compile(r'[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}')
 
 
 @dataclass(frozen=True)

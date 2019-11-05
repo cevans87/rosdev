@@ -33,7 +33,7 @@ def get_options_with_overrides() -> Options:
                 continue
             elif annotation in {Path, Optional[Path]}:
                 v = Path(v)
-            elif annotation == Mapping[int, int]:
+            elif annotation == Mapping[int, Optional[int]]:
                 v = frozendict(v)
             elif annotation == Mapping[Path, Path]:
                 v_mod = {}
@@ -93,12 +93,14 @@ class Flag:
     docker_container_volumes: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_entrypoint_sh_setup_overlay: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_entrypoint_sh_setup_underlay: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_image_pull: ArgumentParser = field(default_factory=gen_flag_parser)
+    docker_image_replace: ArgumentParser = field(default_factory=gen_flag_parser)
+    dry_run: ArgumentParser = field(default_factory=gen_flag_parser)
     help: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     pull_build: ArgumentParser = field(default_factory=gen_flag_parser)
-    pull_docker_image: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -300,6 +302,78 @@ class Flag:
             )
         )
 
+        docker_image_pull_group = self.docker_image_pull.add_mutually_exclusive_group()
+        docker_image_pull_group.add_argument(
+            '--docker-image-pull',
+            action='store_true',
+            default=options.docker_image_pull,
+            help=(
+                SUPPRESS if options.docker_image_pull else
+                f'Pull newer docker image. '
+                f'Currently: {options.docker_image_pull}'
+            )
+        )
+        docker_image_pull_group.add_argument(
+            '--no-docker-image-pull',
+            action='store_false',
+            dest='docker_image_pull',
+            default=options.docker_image_pull,
+            help=(
+                SUPPRESS if not options.docker_image_pull else
+                f'Do not pull newer docker image. '
+                f'Currently: {options.docker_image_pull}'
+            )
+        )
+
+        docker_image_replace_group = (
+            self.docker_image_replace.add_mutually_exclusive_group()
+        )
+        docker_image_replace_group.add_argument(
+            '--docker-image-replace',
+            action='store_true',
+            default=options.docker_image_replace,
+            help=(
+                SUPPRESS if options.docker_image_replace else
+                f'Replace docker images that should only need to be built once. '
+                f'Currently: {options.docker_image_replace}'
+            )
+        )
+        docker_image_replace_group.add_argument(
+            '--no-docker-image-replace',
+            action='store_false',
+            dest='docker_image_replace',
+            default=options.docker_image_replace,
+            help=(
+                SUPPRESS if not options.docker_image_replace else
+                f'Do not replace docker images that should only need to be built once. '
+                f'Currently: {options.docker_image_replace}'
+            )
+        )
+
+        dry_run_group = (
+            self.dry_run.add_mutually_exclusive_group()
+        )
+        dry_run_group.add_argument(
+            '--dry-run',
+            action='store_true',
+            default=options.dry_run,
+            help=(
+                f'Skip actions that cause lasting effects. Dependant actions to fail. '
+                f'Currently: {options.dry_run}'
+            )
+        )
+        dry_run_group.add_argument(
+            '--no-dry-run',
+            action='store_false',
+            dest='dry_run',
+            default=options.dry_run,
+            help=(
+                SUPPRESS if not options.dry_run else
+                f'Do not skip actions that cause lasting effects. '
+                f'Currently: {options.dry_run}'
+            )
+        )
+
         class HelpAction(_HelpAction):
 
             def __call__(
@@ -365,29 +439,6 @@ class Flag:
             default=options.log_level,
             choices=choices.log_level,
             help=f'Currently: {options.log_level}',
-        )
-
-        pull_docker_image_group = self.pull_docker_image.add_mutually_exclusive_group()
-        pull_docker_image_group.add_argument(
-            '--pull-docker-image',
-            action='store_true',
-            default=options.pull_docker_image,
-            help=(
-                SUPPRESS if options.pull_docker_image else
-                f'Pull newer docker image. '
-                f'Currently: {options.pull_docker_image}'
-            )
-        )
-        pull_docker_image_group.add_argument(
-            '--keep-docker-image',
-            action='store_false',
-            dest='pull_docker_image',
-            default=options.pull_docker_image,
-            help=(
-                SUPPRESS if not options.pull_docker_image else
-                f'Do not pull newer docker image. '
-                f'Currently: {options.pull_docker_image}'
-            )
         )
 
         pull_build_group = self.pull_build.add_mutually_exclusive_group()
@@ -608,6 +659,7 @@ class Parser:
 parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
+        flag.dry_run,
         flag.help,
         flag.log_level,
         flag.run_main,
@@ -626,8 +678,9 @@ parser = parser.merged_with(
         flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
+        flag.docker_image_replace,
         flag.pull_build,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
     }),
 )
@@ -641,7 +694,7 @@ parser = parser.merged_with(
         flag.architecture,
         flag.build_type,
         flag.colcon_build_args,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
         flag.sanitizer,
     })
@@ -654,7 +707,7 @@ parser = parser.merged_with(
         flag.build_type,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
         flag.sanitizer,
     }),
@@ -680,7 +733,7 @@ parser = parser.merged_with(
         flag.architecture,
         flag.build_type,
         flag.colcon_build_args,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
         flag.sanitizer,
     })
@@ -704,7 +757,7 @@ parser = parser.merged_with(
         flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
     })
 )
@@ -713,11 +766,11 @@ parser = parser.merged_with(sub_commands='gen docker container')
 parser = parser.merged_with(sub_commands='gen docker core')
 parser = parser.merged_with(sub_commands='gen docker image')
 parser = parser.merged_with(sub_commands='gen docker install')
+parser = parser.merged_with(sub_commands='gen docker pam_environment')
 
 parser = parser.merged_with(sub_commands='gen docker ssh base')
 parser = parser.merged_with(sub_commands='gen docker ssh core')
 parser = parser.merged_with(sub_commands='gen docker ssh start')
-parser = parser.merged_with(sub_commands='gen docker ssh pam_environment')
 parser = parser.merged_with(sub_commands='gen docker ssh port')
 
 parser = parser.merged_with(
@@ -756,7 +809,7 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.pull_build,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
     })
 )
@@ -774,7 +827,7 @@ parser = parser.merged_with(
     sub_commands='gen rosdep install',
     flags=frozenset({
         flag.architecture,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
         flag.rosdep_install_args,
     })
@@ -789,7 +842,7 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.architecture,
         flag.pull_build,
-        flag.pull_docker_image,
+        flag.docker_image_pull,
         flag.release,
     })
 )

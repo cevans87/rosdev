@@ -6,6 +6,7 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
+from rosdev.gen.host import GenHost
 from rosdev.gen.idea.base import GenIdeaBase
 from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
@@ -20,6 +21,7 @@ log = getLogger(__name__)
 class GenIdeaClionCppToolchainsXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenHost,
         GenIdeaBase,
         GenIdeaUuid,
     ))
@@ -59,7 +61,8 @@ class GenIdeaClionCppToolchainsXml(Handler):
             )
         )
 
-        options.write_text(
+        GenHost.write_text(
+            data=etree.tostring(root_element, pretty_print=True, encoding=str),
+            options=options,
             path=options.idea_clion_cpp_toolchains_xml_path,
-            text=etree.tostring(root_element, pretty_print=True, encoding=str)
         )

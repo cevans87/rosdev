@@ -5,12 +5,12 @@ from logging import getLogger
 import os
 from pathlib import Path
 import shutil
-from tempfile import TemporaryDirectory
 from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.util.handler import Handler
+from rosdev.gen.host import GenHost
 from rosdev.util.options import Options
 
 
@@ -49,38 +49,29 @@ class GenInstall(Handler):
         ):
             log.info(f'Installing install from {options.docker_image_base_tag} docker image')
             if options.install_path.is_dir():
-                await cls.execute_host(command=f'chmod -R +w {options.install_path}')
                 shutil.rmtree(options.install_path)
             if options.install_id_path.is_file():
                 options.install_id_path.unlink()
             release_name = options.release
             if release_name == 'latest':
                 # FIXME move to rosdev.gen.release
-                release_name = await cls.execute_shell_host_and_get_line(
+                release_name = await GenHost.execute_shell_and_get_line(
                     command=(
                         f'docker run --rm {options.docker_image_base_tag} ls /opt/ros 2> /dev/null'
                     ),
+                    options=options,
                 )
-            with TemporaryDirectory() as temp_dir:
-                staging_path = Path(temp_dir, 'install')
-                options.install_path.parent.mkdir(parents=True, exist_ok=True)
-                for command in [
-                    f'sudo mv /opt/ros/{release_name} {staging_path}',
-                    f'sudo chown -R {os.getuid()}:{os.getgid()} {staging_path}',
-                    f'sudo chmod -R -w {staging_path}',
-                    f'sudo mv {staging_path} {options.install_path}'
-                ]:
-                    await cls.execute_host(
-                        command=(
-                            f'docker run --rm '
-                            f'{options.docker_environment_flags} '
-                            f'-v {staging_path.parent}:{staging_path.parent} '
-                            f'-v {options.install_path.parent}:{options.install_path.parent} '
-                            f'{options.docker_image_tag} '
-                            f'{command}'
-                        )
-                    )
-            options.install_id_path.write_text(await GenDockerImage.get_id(options))
+            for command in [
+                f'sudo mv {Path("opt", "ros") / release_name} {options.install_path}',
+                f'sudo chown -R {os.getuid()}:{os.getgid()} {options.install_path}',
+            ]:
+                await GenDockerImage.execute(command=command, options=options)
+
+            GenHost.write_text(
+                data=await GenDockerImage.get_id(options),
+                options=options,
+                path=options.install_id_path,
+            )
             log.info(f'Installed install from {options.docker_image_base_tag} docker image')
 
         if options.install_symlink_path.exists():

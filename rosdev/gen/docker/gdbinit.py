@@ -5,6 +5,7 @@ from typing import Tuple, Type
 
 from rosdev.gen.base import GenBase
 from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.host import GenHost
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -18,6 +19,7 @@ class GenDockerGdbinit(Handler):
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
         GenBase,
         GenDockerContainer,
+        GenHost,
     ))
 
     @classmethod
@@ -36,11 +38,10 @@ class GenDockerGdbinit(Handler):
     @classmethod
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_gdbinit')
-        cls.write_text(
-            path=options.docker_gdbinit_path,
+        GenHost.write_text(
             # FIXME these are two common paths from ci.ro2.org builds. Find a way to
             #  programmatically find the paths, probably through jenkins.
-            text=(
+            data=(
                 f'set directories {options.src_symlink_path / "ros2"}'
                 f'set substitute-path '
                 f'/home/jenkins-agent/workspace/'
@@ -49,9 +50,11 @@ class GenDockerGdbinit(Handler):
                 f'set substitute-path '
                 f'/home/rosbuild/ci_scripts/ws/src/ '
                 f'{options.src_symlink_path}\n'
-            )
+            ),
+            options=options,
+            path=options.docker_gdbinit_path,
         )
-        await cls.execute_container(
+        await GenDockerContainer.execute(
             command=(
                 f'ln -f -s '
                 f'{options.docker_gdbinit_path} '

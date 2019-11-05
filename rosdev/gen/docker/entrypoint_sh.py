@@ -1,8 +1,10 @@
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from frozendict import frozendict
-from logging import getLogger
+from logging import getLogger, INFO
 from textwrap import dedent
+from typing import Tuple, Type
 
+from rosdev.gen.host import GenHost
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -13,6 +15,10 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerEntrypointSh(Handler):
 
+    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
+        GenHost,
+    ))
+        
     @classmethod
     async def resolve_options(cls, options: Options) -> Options:
         docker_container_environment = dict(Options.docker_container_environment)
@@ -78,7 +84,15 @@ class GenDockerEntrypointSh(Handler):
                     ! -f ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
                 ]]
             then
-                echo "Not sourcing underlay from ROS install."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Not sourcing underlay from ROS install."
+                fi
             elif
                 [[
                     ! -z ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
@@ -89,10 +103,26 @@ class GenDockerEntrypointSh(Handler):
                     ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
                 ]]
             then
-                echo "Sourcing cached quick setup underlay."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Sourcing cached quick setup underlay."
+                fi
                 source ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
             else
-                echo "Sourcing setup underlay."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Sourcing setup underlay."
+                fi
                 source ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
                 if
                     [[ 
@@ -101,7 +131,15 @@ class GenDockerEntrypointSh(Handler):
                         -d ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_parent_env_name}}}
                     ]]
                 then
-                    echo "Caching underlay to enable quick setup."
+                    if
+                        [[
+                            ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ]] && [[
+                            ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ]]
+                    then
+                        echo "Caching underlay to enable quick setup."
+                    fi
                     declare -px > ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
                 fi
             fi
@@ -113,7 +151,15 @@ class GenDockerEntrypointSh(Handler):
                     ! -f ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
                 ]]
             then
-                echo "Not sourcing overlay from ROS install."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Not sourcing overlay from ROS install."
+                fi
             elif
                 [[
                     -z ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
@@ -124,10 +170,26 @@ class GenDockerEntrypointSh(Handler):
                     ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
                 ]]
             then
-                echo "Sourcing cached quick setup overlay."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Sourcing cached quick setup overlay."
+                fi
                 source ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
             else
-                echo "Sourcing setup overlay."
+                if
+                    [[
+                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                    ]] && [[
+                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                    ]]
+                then
+                    echo "Sourcing setup overlay."
+                fi
                 source ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
                 if
                     [[
@@ -136,7 +198,15 @@ class GenDockerEntrypointSh(Handler):
                         -d ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_parent_env_name}}}
                     ]]
                 then
-                    echo "Caching overlay to enable quick setup."
+                    if
+                        [[
+                            ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ]] && [[
+                            ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ]]
+                    then
+                        echo "Caching overlay to enable quick setup."
+                    fi
                     declare -px > ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
                 fi
             fi
@@ -150,9 +220,10 @@ class GenDockerEntrypointSh(Handler):
     async def main(cls, options: Options) -> None:
         log.info(f'Creating docker_container_entrypoint_sh')
 
-        options.write_text(
+        GenHost.write_text(
+            data=cls.get_docker_entrypoint_sh_contents(options),
+            options=options,
             path=options.docker_entrypoint_sh_host_path,
-            text=cls.get_docker_entrypoint_sh_contents(options),
         )
         # Make executable
         options.docker_entrypoint_sh_host_path.chmod(0o755)

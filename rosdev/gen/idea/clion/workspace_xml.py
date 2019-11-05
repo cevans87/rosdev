@@ -6,7 +6,8 @@ from lxml.etree import _Element
 from textwrap import dedent
 from typing import Tuple, Type
 
-from rosdev.gen.environment import GenEnvironment
+from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.host import GenHost
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
 from rosdev.gen.idea.universal import GenIdeaUniversal
 from rosdev.gen.idea.uuid import GenIdeaUuid
@@ -19,10 +20,11 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenIdeaWorkspaceXml(Handler):
+class GenIdeaClionWorkspaceXml(Handler):
 
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenEnvironment,
+        GenDockerContainer,
+        GenHost,
         GenIdeaIdeName,
         GenIdeaUniversal,
         GenIdeaUuid,
@@ -30,7 +32,7 @@ class GenIdeaWorkspaceXml(Handler):
 
     @classmethod
     async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_workspace_xml_path = }')
+        log.debug(f'{options.idea_clion_workspace_xml_path = }')
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
@@ -48,7 +50,7 @@ class GenIdeaWorkspaceXml(Handler):
                             {''.join([
                                 f'<env name="{k}" value="{v}" />' 
                                 for k, v
-                                in (await GenEnvironment.get_environment_container(options)).items()
+                                in (await GenDockerContainer.get_environment(options)).items()
                             ])}
                           </envs>
                         </ADDITIONAL_GENERATION_ENVIRONMENT>
@@ -61,14 +63,18 @@ class GenIdeaWorkspaceXml(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        root_element = merge_elements(
-            from_element=await cls.get_element(options),
-            into_element=get_root_element_from_path(options.idea_workspace_xml_path)
-        )
+        #root_element = merge_elements(
+        #    from_element=await cls.get_element(options),
+        #    into_element=None,
+        #)
 
-        options.write_bytes(
-            path=options.idea_workspace_xml_path,
-            text=etree.tostring(
-                root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
-            )
+        GenHost.write_bytes(
+            data=etree.tostring(
+                await cls.get_element(options),
+                pretty_print=True,
+                xml_declaration=True,
+                encoding='UTF-8',
+            ),
+            options=options,
+            path=options.idea_clion_workspace_xml_path,
         )
