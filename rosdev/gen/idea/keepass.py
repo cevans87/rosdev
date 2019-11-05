@@ -6,8 +6,8 @@ from Crypto import Random
 from Crypto.Cipher import AES
 # noinspection PyPackageRequirements
 from Crypto.Util import Padding
+import getpass
 from logging import getLogger
-import os
 from pathlib import Path
 from pykeepass import PyKeePass
 from textwrap import dedent
@@ -96,7 +96,7 @@ class GenIdeaKeepass(Handler):
                     destination_group=group,
                     password=password,
                     title=f'IntelliJ Platform Deployment — {options.idea_uuid}',
-                    username=os.getlogin(),
+                    username=getpass.getuser(),
                 )
 
             db.save(str(options.idea_c_kdbx_path))

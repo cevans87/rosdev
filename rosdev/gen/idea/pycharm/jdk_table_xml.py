@@ -1,10 +1,10 @@
 from atools import memoize
 from dataclasses import dataclass, field
+import getpass
 from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
 from lxml.etree import _Element
-import os
 from pathlib import Path
 from textwrap import dedent
 from typing import FrozenSet, Tuple, Type
@@ -86,7 +86,7 @@ class GenIdeaPycharmJdkTableXml(Handler):
 
     @classmethod
     async def get_remote_address(cls, options) -> str:
-        return f'{os.getlogin()}@localhost:{await GenDockerContainer.get_ssh_port(options)}'
+        return f'{getpass.getuser()}@localhost:{await GenDockerContainer.get_ssh_port(options)}'
 
     @classmethod
     async def get_uri(cls, options: Options) -> str:

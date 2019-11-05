@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+import getpass
 from logging import getLogger
 import os
 import platform
@@ -90,26 +91,28 @@ class GenDockerDockerfile(Handler):
                 setuptools \
                 vcstool
                    
-            # We won't use this entrypoint. We mount our entrypoint when we start the container.
+            # We won't use this entrypoint.
             RUN rm /ros_entrypoint.sh
 
-            RUN groupadd -r -g {os.getgid()} {os.getlogin()}
-            RUN useradd {os.getlogin()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> /dev/null
-            RUN usermod {os.getlogin()} -d {options.home_path}
+            RUN groupadd -r -g {os.getgid()} {getpass.getuser()}
+            RUN useradd {getpass.getuser()} -l -r -u {os.getuid()} -g {os.getgid()} \
+                -G sudo 1> /dev/null
+            RUN usermod {getpass.getuser()} -d {options.home_path}
             RUN mkdir -p {options.home_path}
-            RUN chown {os.getlogin()}:{os.getlogin()} {options.home_path}
-            RUN echo "{os.getlogin()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+            RUN chown {getpass.getuser()}:{getpass.getuser()} {options.home_path}
+            RUN echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
             # Stops annoying message about being a sudoer when you first log in.
             RUN touch {options.home_path}/.sudo_as_admin_successful
             
             # Allow anonymous ssh login
-            RUN sed -i -re 's/^{os.getlogin()}:[^:]+:/{os.getlogin()}::/' /etc/passwd /etc/shadow
+            RUN sed -i -re 's/^{getpass.getuser()}:[^:]+:/{getpass.getuser()}::/' \
+                /etc/passwd /etc/shadow
             RUN echo 'sshd : ALL : allow' >> /etc/hosts.allow
             
             # TODO specify user_envfile to load a different .pam_environment
             run sed -i "s/readenv=1 envfile/readenv=1 user_readenv=1 envfile/g" /etc/pam.d/login
 
-            USER {os.getlogin()}
+            USER {getpass.getuser()}
             
             COPY {options.docker_entrypoint_sh_host_path.parts[-1]} \
                 {options.docker_entrypoint_sh_container_path}
