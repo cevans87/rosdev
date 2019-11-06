@@ -236,7 +236,8 @@ class Options:
 
     @property
     def idea_pycharm_webservers_name(self) -> str:
-        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash}'
+        return f'rosdev_remote'
+        #return f'rosdev_{self.idea_ide_name}_{self.workspace_hash}'
 
     @property
     def idea_pycharm_webservers_xml_path(self) -> Path:

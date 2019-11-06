@@ -659,9 +659,11 @@ class Parser:
 parser = Parser(
     sub_command='rosdev',
     flags=frozenset({
+        flag.architecture,
         flag.dry_run,
         flag.help,
         flag.log_level,
+        flag.release,
         flag.run_main,
         flag.run_validate_options,
     })
@@ -670,7 +672,6 @@ parser = Parser(
 parser = parser.merged_with(
     sub_commands='bash',
     flags=frozenset({
-        flag.architecture,
         flag.docker_container_ccache,
         flag.docker_container_gui,
         flag.docker_container_ports,
@@ -681,7 +682,6 @@ parser = parser.merged_with(
         flag.docker_image_replace,
         flag.pull_build,
         flag.docker_image_pull,
-        flag.release,
     }),
 )
 
@@ -691,11 +691,9 @@ parser = parser.merged_with(
         positional.command,
     ),
     flags=frozenset({
-        flag.architecture,
         flag.build_type,
         flag.colcon_build_args,
         flag.docker_image_pull,
-        flag.release,
         flag.sanitizer,
     })
 )
@@ -703,38 +701,24 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='clion',
     flags=frozenset({
-        flag.architecture,
         flag.build_type,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
         flag.docker_image_pull,
-        flag.release,
         flag.sanitizer,
     }),
 )
 
-parser = parser.merged_with(
-    sub_commands='gen architecture',
-    flags=frozenset({
-        flag.architecture
-    })
-)
+parser = parser.merged_with(sub_commands='gen architecture')
 
-parser = parser.merged_with(
-    sub_commands='gen base',
-    flags=frozenset({
-        flag.architecture
-    })
-)
+parser = parser.merged_with(sub_commands='gen base')
 
 parser = parser.merged_with(
     sub_commands='gen colcon build',
     flags=frozenset({
-        flag.architecture,
         flag.build_type,
         flag.colcon_build_args,
         flag.docker_image_pull,
-        flag.release,
         flag.sanitizer,
     })
 )
@@ -742,23 +726,19 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen core',
     flags=frozenset({
-        flag.architecture,
         flag.pull_build,
-        flag.release,
     })
 )
 
 parser = parser.merged_with(
     sub_commands='gen docker',
     flags=frozenset({
-        flag.architecture,
         flag.docker_container_ports,
         flag.docker_container_replace,
         flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
         flag.docker_image_pull,
-        flag.release,
     })
 )
 parser = parser.merged_with(sub_commands='gen docker base')
@@ -807,10 +787,8 @@ parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
 parser = parser.merged_with(
     sub_commands='gen install',
     flags=frozenset({
-        flag.architecture,
         flag.pull_build,
         flag.docker_image_pull,
-        flag.release,
     })
 )
 
@@ -826,9 +804,7 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen rosdep install',
     flags=frozenset({
-        flag.architecture,
         flag.docker_image_pull,
-        flag.release,
         flag.rosdep_install_args,
     })
 )
@@ -840,10 +816,8 @@ parser = parser.merged_with(
 parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
-        flag.architecture,
         flag.pull_build,
         flag.docker_image_pull,
-        flag.release,
     })
 )
 

@@ -102,10 +102,11 @@ class GenIdeaPycharmJdkTableXml(Handler):
 
     @classmethod
     async def get_python_name(cls, options: Options) -> str:
-        return (
-            f'{options.idea_pycharm_webservers_name} {await cls.get_python_version(options)} '
-            f'({await cls.get_sftp_uri(options)})'
-        )
+        return options.idea_pycharm_webservers_name
+        #return (
+        #    f'{options.idea_pycharm_webservers_name} {await cls.get_python_version(options)} '
+        #    f'({await cls.get_sftp_uri(options)})'
+        #)
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:

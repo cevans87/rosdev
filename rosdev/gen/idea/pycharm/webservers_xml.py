@@ -44,7 +44,7 @@ class GenIdeaPycharmWebserversXml(Handler):
                     <option name="servers">
                       <webServer
                           id="{options.idea_uuid}"
-                          name="{await GenIdeaPycharmJdkTableXml.get_remote_address(options)}" 
+                          name="{options.idea_pycharm_webservers_name}" 
                           url="http:///">
                         <fileTransfer
                             host="localhost"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from frozendict import frozendict
+import getpass
 from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
@@ -14,8 +15,16 @@ from typing import Dict, FrozenSet, List, Mapping, Optional
 log = getLogger(__name__)
 
 
-_FIND_NUMBER_REGEX = re.compile(r'\d+')
+_FIND_NUMBER_REGEX = re.compile(r'^\d+$')
 _FIND_UUID_REGEX = re.compile(r'[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}')
+_FIND_REMOTE_ADDRESS_REGEX = re.compile(fr'^{getpass.getuser()}@localhost:\d+$')
+_FIND_ROSDEV_REGEX = re.compile(r'^rosdev.*$')
+_FIND_DEDUP_REGEX = re.compile(
+    f'(?:{_FIND_NUMBER_REGEX.pattern})|'
+    f'(?:{_FIND_UUID_REGEX.pattern})|'
+    f'(?:{_FIND_REMOTE_ADDRESS_REGEX.pattern})'
+    f'(?:{_FIND_ROSDEV_REGEX.pattern})'
+)
 
 
 @dataclass(frozen=True)
@@ -26,21 +35,25 @@ class _ElementKey:
 
     @staticmethod
     def new(element: _Element) -> _ElementKey:
-        if element.getparent() is not None and element.getparent().tag == 'component':
-            child_keys = frozenset({_ElementKey.new(child_element) for child_element in element})
-        else:
+        if element.getparent() is None or element.getparent().tag != 'component':
             child_keys = frozenset()
+        else:
+            child_keys = frozenset({
+                _ElementKey.new(child_element)
+                for child_element in element
+                if child_element.tag in {'name', 'webServer'}
+            })
 
         return _ElementKey(
             tag=element.tag,
             attrib=frozendict({
-                k: _FIND_UUID_REGEX.sub('XXXX', v)
+                #k: _FIND_UUID_REGEX.sub('XXXX', v)
+                k: _FIND_DEDUP_REGEX.sub('XXXX', v)
                 for k, v in element.attrib.items()
-                if (
-                        (k != 'port') and
-                        ((element.tag, k) not in {('option', 'value'), ('env', 'value')}) and
-                        (_FIND_NUMBER_REGEX.match(v) is None)
-                )
+                if (element.tag, k) not in {
+                    ('option', 'value'),
+                    ('env', 'value'),
+                }
             }),
             child_keys=child_keys,
         )
@@ -80,7 +93,7 @@ def merge_elements(from_element: Optional[_Element], into_element: Optional[_Ele
 
     if from_element is None:
         from_element = into_element
-    elif into_element is None:
+    elif (into_element is None) or (into_element.tag in {'jdk', 'webServer'}):
         into_element = from_element
 
     assert _ElementKey.new(from_element) == _ElementKey.new(into_element)
