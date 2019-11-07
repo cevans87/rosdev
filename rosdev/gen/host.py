@@ -18,6 +18,9 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenHost(Handler):
 
+    class SubprocessException(Exception):
+        pass
+
     @classmethod
     async def _finish_process(
             cls,

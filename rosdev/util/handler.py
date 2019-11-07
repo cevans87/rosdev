@@ -17,9 +17,6 @@ class Handler:
     pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=tuple())
     post_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=tuple())
     
-    class SubprocessException(Exception):
-        pass
-    
     @classmethod
     async def run(cls, options: Options) -> None:
         options = replace(options, stage='resolve_options')

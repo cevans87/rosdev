@@ -47,7 +47,6 @@ class _ElementKey:
         return _ElementKey(
             tag=element.tag,
             attrib=frozendict({
-                #k: _FIND_UUID_REGEX.sub('XXXX', v)
                 k: _FIND_DEDUP_REGEX.sub('XXXX', v)
                 for k, v in element.attrib.items()
                 if (element.tag, k) not in {

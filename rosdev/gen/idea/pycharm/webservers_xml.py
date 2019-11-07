@@ -36,7 +36,7 @@ class GenIdeaPycharmWebserversXml(Handler):
 
     @classmethod
     async def get_element(cls, options: Options) -> _Element:
-        return etree.fromstring(
+        from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <application>
@@ -62,19 +62,23 @@ class GenIdeaPycharmWebserversXml(Handler):
                 </application>
             ''').lstrip()
         )
+        into_element = get_root_element_from_path(
+            options.idea_pycharm_webservers_xml_path
+        )
+        element = merge_elements(from_element=from_element, into_element=into_element)
+        
+        log.debug(f'{element = }')
+        
+        return element
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        root_element = merge_elements(
-            from_element=await cls.get_element(options),
-            into_element=get_root_element_from_path(
-                options.idea_pycharm_webservers_xml_path
-            )
-        )
-
         GenHost.write_bytes(
             data=etree.tostring(
-                root_element, pretty_print=True, xml_declaration=True, encoding='UTF-8'
+                await cls.get_element(options),
+                pretty_print=True,
+                xml_declaration=True,
+                encoding='UTF-8',
             ),
             options=options,
             path=options.idea_pycharm_webservers_xml_path,
