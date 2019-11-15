@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData">
+    <serverData>
+      <paths name="rosdev_remote (8327d1ab-26a3-4fe7-9f49-9449a613b92a)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/tmp/tmp.OPFONQFyaa" local="$PROJECT_DIR$" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/src/demos/demo_nodes_cpp/cmake-build-debug" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>

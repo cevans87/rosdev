@@ -6,17 +6,17 @@ from pathlib import Path
 from textwrap import dedent
 
 from rosdev.gen.host import GenHost
-from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
+from rosdev.gen.idea.clion.iml import GenIdeaClionIml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+
 
 log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenIdeaPycharmDeploymentXml(Handler):
+class GenIdeaClionModulesXml(Handler):
 
     @classmethod
     async def get_bytes(cls, options: Options) -> bytes:
@@ -24,25 +24,15 @@ class GenIdeaPycharmDeploymentXml(Handler):
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <project version="4">
-                  <component name="PublishConfigData">
-                    <serverData>
-                      <paths name="{await GenIdeaPycharmJdkTableXml.get_remote_address(options)}">
-                        <serverdata>
-                          <mappings>
-                            <mapping
-                                deploy="{await GenWorkspace.get_path(options)}" 
-                                local="$PROJECT_DIR$" />
-                          </mappings>
-                          <excludedPaths>
-                            <excludedPath path="{await GenWorkspace.get_path(options)}" />
-                            <excludedPath local="true" path="$PROJECT_DIR$" />
-                          </excludedPaths>
-                        </serverdata>
-                      </paths>
-                    </serverData>
+                  <component name="ProjectModuleManager">
+                    <modules>
+                      <module
+                          fileurl="file://{await GenIdeaClionIml.get_path(options)}" 
+                          filepath="{await GenIdeaClionIml.get_path(options)}" />
+                    </modules>
                   </component>
                 </project>
-            ''').strip()
+            ''').lstrip()
         )
         # noinspection PyShadowingBuiltins
         bytes = etree.tostring(element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
@@ -54,7 +44,7 @@ class GenIdeaPycharmDeploymentXml(Handler):
     @classmethod
     @memoize
     async def get_path(cls, options: Options) -> Path:
-        path = await GenIdeaWorkspace.get_path(options) / 'deployment.xml'
+        path = await GenIdeaWorkspace.get_path(options) / 'modules.xml'
 
         log.debug(f'{cls.__name__} {path = }')
 

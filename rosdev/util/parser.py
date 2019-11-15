@@ -742,17 +742,19 @@ parser = parser.merged_with(
         flag.docker_image_pull,
     })
 )
-parser = parser.merged_with(sub_commands='gen docker base')
 parser = parser.merged_with(sub_commands='gen docker container')
-parser = parser.merged_with(sub_commands='gen docker core')
+parser = parser.merged_with(sub_commands='gen docker dockerfile')
+parser = parser.merged_with(sub_commands='gen docker entrypoint_sh')
+parser = parser.merged_with(sub_commands='gen docker gdbinit')
 parser = parser.merged_with(sub_commands='gen docker image')
 parser = parser.merged_with(sub_commands='gen docker install')
 parser = parser.merged_with(sub_commands='gen docker pam_environment')
 
-parser = parser.merged_with(sub_commands='gen docker ssh base')
-parser = parser.merged_with(sub_commands='gen docker ssh core')
-parser = parser.merged_with(sub_commands='gen docker ssh start')
-parser = parser.merged_with(sub_commands='gen docker ssh port')
+parser = parser.merged_with(sub_commands='gen docker ssh')
+parser = parser.merged_with(sub_commands='gen docker ssh_base')
+
+parser = parser.merged_with(sub_commands='gen home')
+parser = parser.merged_with(sub_commands='gen host')
 
 parser = parser.merged_with(
     sub_commands='gen idea',
@@ -763,26 +765,26 @@ parser = parser.merged_with(
     })
 )
 
-parser = parser.merged_with(sub_commands='gen idea base')
-parser = parser.merged_with(sub_commands='gen idea core')
-parser = parser.merged_with(sub_commands='gen idea deployment_xml')
-parser = parser.merged_with(sub_commands='gen idea ide')
-parser = parser.merged_with(sub_commands='gen idea keepass')
+parser = parser.merged_with(sub_commands='gen idea c_kdbx')
+parser = parser.merged_with(sub_commands='gen idea c_pwd')
+parser = parser.merged_with(sub_commands='gen idea home')
+parser = parser.merged_with(sub_commands='gen idea ide_base')
 parser = parser.merged_with(sub_commands='gen idea security_xml')
-parser = parser.merged_with(sub_commands='gen idea settings')
 parser = parser.merged_with(sub_commands='gen idea workspace_xml')
 
-parser = parser.merged_with(sub_commands='gen idea clion base')
-parser = parser.merged_with(sub_commands='gen idea clion core')
 parser = parser.merged_with(sub_commands='gen idea clion cpp_toolchains_xml')
 parser = parser.merged_with(sub_commands='gen idea clion deployment_xml')
+parser = parser.merged_with(sub_commands='gen idea clion iml')
+parser = parser.merged_with(sub_commands='gen idea clion misc_xml')
+parser = parser.merged_with(sub_commands='gen idea clion modules_xml')
 parser = parser.merged_with(sub_commands='gen idea clion webservers_xml')
+parser = parser.merged_with(sub_commands='gen idea clion workspace_xml')
 
-parser = parser.merged_with(sub_commands='gen idea pycharm base')
-parser = parser.merged_with(sub_commands='gen idea pycharm core')
 parser = parser.merged_with(sub_commands='gen idea pycharm deployment_xml')
+parser = parser.merged_with(sub_commands='gen idea pycharm iml')
 parser = parser.merged_with(sub_commands='gen idea pycharm jdk_table_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm misc_xml')
+parser = parser.merged_with(sub_commands='gen idea pycharm modules_xml')
 parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
 
 parser = parser.merged_with(
@@ -792,6 +794,7 @@ parser = parser.merged_with(
         flag.docker_image_pull,
     })
 )
+parser = parser.merged_with(sub_commands='gen install_base')
 
 parser = parser.merged_with(
     sub_commands='gen overrides',
@@ -810,9 +813,8 @@ parser = parser.merged_with(
     })
 )
 
-parser = parser.merged_with(
-    sub_commands='gen rosdev',
-)
+parser = parser.merged_with(sub_commands='gen rosdev home')
+parser = parser.merged_with(sub_commands='gen rosdev workspace')
 
 parser = parser.merged_with(
     sub_commands='gen src',
@@ -821,6 +823,7 @@ parser = parser.merged_with(
         flag.docker_image_pull,
     })
 )
+parser = parser.merged_with(sub_commands='gen src_base')
 
 parser = parser.merged_with(sub_commands='gen workspace')
 

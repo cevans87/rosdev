@@ -1,14 +1,14 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
-# noinspection PyProtectedMember
-from lxml.etree import _Element
+from pathlib import Path
 from textwrap import dedent
-from typing import Tuple, Type
 
+from rosdev.gen.idea.clion.webservers_xml import GenIdeaClionWebserversXml
+from rosdev.gen.idea.home import GenIdeaHome
+from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.host import GenHost
-from rosdev.gen.idea.base import GenIdeaBase
-from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -20,29 +20,29 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenIdeaClionCppToolchainsXml(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenHost,
-        GenIdeaBase,
-        GenIdeaUuid,
-    ))
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenIdeaHome.get_path(options) / 'options' / 'cpp.toolchains.xml'
+        
+        log.debug(f'{cls.__name__} {path = }')
+        
+        return path
 
     @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_clion_cpp_toolchains_xml_path = }')
-
-    @classmethod
-    def get_element(cls, options: Options) -> _Element:
-        return etree.fromstring(
+    @memoize
+    async def get_text(cls, options: Options) -> str:
+        from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <application>
                   <component name="CPPToolchains" version="4">
                     <toolchains detectedVersion="5">
                       <toolchain
-                          name="{options.idea_clion_webservers_name}"
+                          name="{await GenIdeaClionWebserversXml.get_name(options)}"
                           toolSetKind="REMOTE"
                           customCMakePath="/usr/bin/cmake"
-                          hostId="{options.idea_uuid}"
+                          hostId="{await GenIdeaWorkspace.get_uuid(options)}"
                           debuggerKind="CUSTOM_GDB"
                           customGDBPath="/usr/bin/gdb"
                       />
@@ -51,18 +51,18 @@ class GenIdeaClionCppToolchainsXml(Handler):
                 </application>
             ''').lstrip()
         )
+        into_element = get_root_element_from_path(await cls.get_path(options))
+        element = merge_elements(from_element=from_element, into_element=into_element)
+        text = etree.tostring(element, pretty_print=True, encoding=str)
+
+        log.debug(f'{cls.__name__} {text = }')
+
+        return text
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        root_element = merge_elements(
-            from_element=cls.get_element(options),
-            into_element=get_root_element_from_path(
-                options.idea_clion_cpp_toolchains_xml_path
-            )
-        )
-
         GenHost.write_text(
-            data=etree.tostring(root_element, pretty_print=True, encoding=str),
+            data=await cls.get_text(options),
             options=options,
-            path=options.idea_clion_cpp_toolchains_xml_path,
+            path=await cls.get_path(options),
         )

@@ -50,34 +50,6 @@ class Options:
     sanitizer: Optional[str] = None
 
     @property
-    def idea_clion_cpp_toolchains_xml_path(self) -> Path:
-        return self.idea_home_path / 'options' / 'cpp.toolchains.xml'
-
-    @property
-    def idea_clion_iml_path(self) -> Path:
-        return self.idea_workspace_path / f'{self.workspace_path.parts[-1]}.iml'
-    
-    @property
-    def idea_clion_misc_xml_path(self) -> Path:
-        return self.idea_workspace_path / 'misc.xml'
-
-    @property
-    def idea_clion_webservers_xml_path(self) -> Path:
-        return self.idea_home_path / 'options' / 'webServers.xml'
-
-    @property
-    def idea_clion_deployment_xml_path(self) -> Path:
-        return self.idea_workspace_path / 'deployment.xml'
-
-    @property
-    def idea_clion_webservers_name(self) -> str:
-        return f'rosdev_{self.idea_ide_name}_{self.workspace_hash} ({self.idea_uuid})'
-
-    @property
-    def idea_clion_workspace_xml_path(self) -> Path:
-        return self.idea_workspace_path / 'workspace.xml'
-
-    @property
     def machine(self) -> str:
         return {
             'amd64': 'x86_64',

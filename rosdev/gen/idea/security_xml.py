@@ -20,6 +20,15 @@ class GenIdeaSecurityXml(Handler):
 
     @classmethod
     @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenIdeaHome.get_path(options) / 'options' / 'security.xml'
+
+        log.debug(f'{cls.__name__} {path = }')
+
+        return path
+
+    @classmethod
+    @memoize
     async def get_text(cls, options: Options) -> str:
         from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
@@ -39,11 +48,6 @@ class GenIdeaSecurityXml(Handler):
         log.debug(f'{cls.__name__} {text = }')
         
         return text
-
-    @classmethod
-    @memoize
-    async def get_path(cls, options: Options) -> Path:
-        return await GenIdeaHome.get_path(options) / 'options' / 'security.xml'
 
     @classmethod
     async def main(cls, options: Options) -> None:

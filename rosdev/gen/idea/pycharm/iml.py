@@ -11,7 +11,6 @@ from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.xml import get_root_element_from_path, merge_elements
 
 
 log = getLogger(__name__)
@@ -23,7 +22,7 @@ class GenIdeaPycharmIml(Handler):
     @classmethod
     @memoize
     async def get_bytes(cls, options: Options) -> bytes:
-        from_element = etree.fromstring(
+        element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <module type="PYTHON_MODULE" version="4">
@@ -45,8 +44,6 @@ class GenIdeaPycharmIml(Handler):
                 </module>
             ''').lstrip()
         )
-        into_element = get_root_element_from_path(await cls.get_path(options))
-        element = merge_elements(from_element=from_element, into_element=into_element)
         # noinspection PyShadowingBuiltins
         bytes = etree.tostring(element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
 

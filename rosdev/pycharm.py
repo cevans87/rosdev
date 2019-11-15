@@ -8,15 +8,14 @@ from rosdev.gen.idea.c_kdbx import GenIdeaCKdbx
 from rosdev.gen.idea.c_pwd import GenIdeaCPwd
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.ide_base import GenIdeaIdeBase
+from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
+from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.idea.pycharm.deployment_xml import GenIdeaPycharmDeploymentXml
 from rosdev.gen.idea.pycharm.iml import GenIdeaPycharmIml
 from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
 from rosdev.gen.idea.pycharm.misc_xml import GenIdeaPycharmMiscXml
 from rosdev.gen.idea.pycharm.modules_xml import GenIdeaPycharmModulesXml
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
-
-from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
-from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options

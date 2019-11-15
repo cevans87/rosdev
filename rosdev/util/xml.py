@@ -50,8 +50,11 @@ class _ElementKey:
                 k: _FIND_DEDUP_REGEX.sub('XXXX', v)
                 for k, v in element.attrib.items()
                 if (element.tag, k) not in {
+                    ('component', 'PROJECT_DIR'),
                     ('option', 'value'),
                     ('env', 'value'),
+                    ('module', 'classpath'),
+                    ('module', 'type'),
                 }
             }),
             child_keys=child_keys,
