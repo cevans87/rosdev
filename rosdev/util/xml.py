@@ -22,7 +22,7 @@ _FIND_ROSDEV_REGEX = re.compile(r'^rosdev.*$')
 _FIND_DEDUP_REGEX = re.compile(
     f'(?:{_FIND_NUMBER_REGEX.pattern})|'
     f'(?:{_FIND_UUID_REGEX.pattern})|'
-    f'(?:{_FIND_REMOTE_ADDRESS_REGEX.pattern})'
+    f'(?:{_FIND_REMOTE_ADDRESS_REGEX.pattern})|'
     f'(?:{_FIND_ROSDEV_REGEX.pattern})'
 )
 

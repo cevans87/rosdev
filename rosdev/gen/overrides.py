@@ -1,8 +1,9 @@
-from dataclasses import asdict, dataclass, field
+from atools import memoize
+from dataclasses import asdict, dataclass
 from frozendict import frozendict
+from logging import getLogger
 from pathlib import Path
 from pprint import pformat
-from typing import Tuple, Type
 
 from rosdev.gen.host import GenHost
 from rosdev.gen.workspace import GenWorkspace
@@ -10,16 +11,24 @@ from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
 
+log = getLogger(__name__)
+
+
 @dataclass(frozen=True)
 class GenOverrides(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenHost,
-        GenWorkspace,
-    ))
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenWorkspace.get_path(options) / '.rosdev' / 'overrides'
+
+        log.debug(f'{cls.__name__} {path = }')
+
+        return path
 
     @classmethod
-    async def main(cls, options: Options) -> None:
+    @memoize
+    async def get_text(cls, options: Options) -> str:
         commit = {}
         default_options = Options()
 
@@ -39,10 +48,16 @@ class GenOverrides(Handler):
                     v_mod[k_inner] = str(v_inner)
                 v = v_mod
             commit[k] = v
+        text = f'{pformat(commit)}\n' if commit else ''
+        
+        log.debug(f'{cls.__name__} {text = }')
+        
+        return text
 
-        if commit:
-            GenHost.write_text(
-                data=f'{pformat(commit)}\n',
-                options=options,
-                path=options.overrides_path,
-            )
+    @classmethod
+    async def main(cls, options: Options) -> None:
+        GenHost.write_text(
+            data=await cls.get_text(options),
+            options=options,
+            path=await cls.get_path(options),
+        )

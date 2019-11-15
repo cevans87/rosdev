@@ -7,10 +7,9 @@ from textwrap import dedent
 from typing import Tuple, Type
 
 from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.docker.ssh import GenDockerSsh
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.ide.name import GenIdeaIdeName
-from rosdev.gen.idea.universal import GenIdeaUniversal
-from rosdev.gen.idea.uuid import GenIdeaUuid
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -49,13 +48,13 @@ class GenIdeaClionWebserversXml(Handler):
                           url="http:///">
                         <fileTransfer
                             host="localhost"
-                            port="{await GenDockerContainer.get_ssh_port(options)}"
+                            port="{await GenDockerSsh.get_port(options)}"
                             privateKey="$USER_HOME$/.ssh/id_rsa" 
                             accessType="SFTP"
                             keyPair="true">
                           <option
                               name="port"
-                              value="{await GenDockerContainer.get_ssh_port(options)}" />
+                              value="{await GenDockerSsh.get_port(options)}" />
                         </fileTransfer>
                       </webServer>
                     </option>

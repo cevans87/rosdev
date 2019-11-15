@@ -1,13 +1,16 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 import getpass
 from logging import getLogger
 import os
+from pathlib import Path
 import platform
 from textwrap import dedent
-from typing import Tuple, Type
 
-from rosdev.gen.base import GenBase
+from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
+from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
+from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -17,19 +20,36 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenDockerDockerfile(Handler):
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenBase,
-        GenHost,
-    ))
+
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenRosdevHome.get_path(options) / 'docker' / 'Dockerfile'
+
+        log.debug(f'{cls.__name__} {path = }')
+
+        return path
+
+    @classmethod
+    @memoize
+    async def get_from(cls, options: Options) -> str:
+        if options.release == 'latest':
+            from_tag = 'osrf/ros2:nightly'
+        else:
+            from_tag = f'{options.architecture}/ros:{options.release}'
+
+        log.debug(f'{cls.__name__} {from_tag = }')
+
+        return from_tag
 
     @classmethod
     def get_qemu_path(cls, options: Options) -> str:
         return f'/usr/bin/qemu-{options.machine}-static'
 
     @classmethod
-    def get_dockerfile_contents(cls, options: Options) -> str:
+    async def get_text(cls, options: Options) -> str:
         return dedent(fr'''
-            FROM {options.docker_image_base_tag}
+            FROM {await cls.get_from(options)}
 
             # qemu static binaries
             #{f'VOLUME {cls.get_qemu_path(options)}' if platform.machine() != options.machine
@@ -97,12 +117,12 @@ class GenDockerDockerfile(Handler):
             RUN groupadd -r -g {os.getgid()} {getpass.getuser()}
             RUN useradd {getpass.getuser()} -l -r -u {os.getuid()} -g {os.getgid()} \
                 -G sudo 1> /dev/null
-            RUN usermod {getpass.getuser()} -d {options.home_path}
-            RUN mkdir -p {options.home_path}
-            RUN chown {getpass.getuser()}:{getpass.getuser()} {options.home_path}
+            RUN usermod {getpass.getuser()} -d {await GenHome.get_path(options)}
+            RUN mkdir -p {await GenHome.get_path(options)}
+            RUN chown {getpass.getuser()}:{getpass.getuser()} {await GenHome.get_path(options)}
             RUN echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
             # Stops annoying message about being a sudoer when you first log in.
-            RUN touch {options.home_path}/.sudo_as_admin_successful
+            RUN touch {await GenHome.get_path(options)}/.sudo_as_admin_successful
             
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{getpass.getuser()}:[^:]+:/{getpass.getuser()}::/' \
@@ -114,18 +134,18 @@ class GenDockerDockerfile(Handler):
 
             USER {getpass.getuser()}
             
-            COPY {options.docker_entrypoint_sh_host_path.parts[-1]} \
-                {options.docker_entrypoint_sh_container_path}
+            COPY {(await GenDockerEntrypointSh.get_path(options)).parts[-1]} \
+                {await GenDockerEntrypointSh.get_container_path(options)}
 
-            ENTRYPOINT ["{options.docker_entrypoint_sh_container_path}"]
+            ENTRYPOINT ["{await GenDockerEntrypointSh.get_container_path(options)}"]
         ''').lstrip()
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(f'Creating Dockerfile at {options.docker_dockerfile_path}')
+        log.info(f'Creating Dockerfile at {await cls.get_path(options)}.')
         GenHost.write_text(
-            data=cls.get_dockerfile_contents(options),
+            data=await cls.get_text(options),
             options=options,
-            path=options.docker_dockerfile_path,
+            path=await cls.get_path(options),
         )
-        log.info(f'Created Dockerfile at {options.docker_dockerfile_path}')
+        log.info(f'Created Dockerfile at {await cls.get_path(options)}.')

@@ -1,20 +1,20 @@
 from atools import memoize
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import getpass
 from logging import getLogger
 from lxml import etree
-# noinspection PyProtectedMember
-from lxml.etree import _Element
 from pathlib import Path
 from textwrap import dedent
-from typing import FrozenSet, Tuple, Type
+from typing import Tuple
 
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.docker.ssh import GenDockerSsh
 from rosdev.gen.host import GenHost
-from rosdev.gen.idea.ide.name import GenIdeaIdeName
-from rosdev.gen.idea.universal import GenIdeaUniversal
-from rosdev.gen.idea.uuid import GenIdeaUuid
+from rosdev.gen.idea.home import GenIdeaHome
+from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
+from rosdev.gen.idea.workspace import GenIdeaWorkspace
+from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -24,29 +24,28 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenIdeaPycharmJdkTableXml(Handler):
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerContainer,
-        GenDockerImage,
-        GenHost,
-        GenIdeaIdeName,
-        GenIdeaUniversal,
-        GenIdeaUuid,
-    ))
-
-    @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_pycharm_jdk_table_xml_path = }')
 
     @classmethod
     @memoize
-    async def get_python_executable(cls, options: Options) -> str:
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenIdeaHome.get_path(options) / 'options' / 'jdk.table.xml'
+        
+        log.debug(f'{cls.__name__} {path = }')
+        
+        return path
+
+    @classmethod
+    @memoize
+    async def get_executable_path(cls, options: Options) -> Path:
         ros_python_version = (
             await GenDockerContainer.get_environment(options)
         )['ROS_PYTHON_VERSION']
 
-        python_executable = await GenDockerImage.execute_and_get_line(
-            command=f'which python{ros_python_version}',
-            options=options,
+        python_executable = Path(
+            await GenDockerImage.execute_and_get_line(
+                command=f'which python{ros_python_version}',
+                options=options,
+            )
         )
         
         log.debug(f'{python_executable = }')
@@ -55,9 +54,9 @@ class GenIdeaPycharmJdkTableXml(Handler):
 
     @classmethod
     @memoize
-    async def get_python_version(cls, options: Options) -> str:
+    async def get_version(cls, options: Options) -> str:
         python_version = await GenDockerImage.execute_and_get_line(
-            command=f'{await cls.get_python_executable(options)} --version',
+            command=f'{await cls.get_executable_path(options)} --version',
             options=options,
         )
         
@@ -67,58 +66,71 @@ class GenIdeaPycharmJdkTableXml(Handler):
 
     @classmethod
     @memoize
-    async def get_remote_paths(cls, options: Options) -> FrozenSet[Path]:
+    async def get_remote_paths(cls, options: Options) -> Tuple[Path, ...]:
         remote_paths = (
             await GenDockerContainer.get_environment(options)
         )['PYTHONPATH']
         
         remote_paths = remote_paths.split(':')
         remote_paths = [Path(remote_path) for remote_path in remote_paths]
-        remote_paths = [
+        remote_paths = tuple([
             remote_path for remote_path in remote_paths
-            if options.workspace_path in remote_path.parents
-        ]
-        remote_paths = frozenset(remote_paths)
+            if await GenWorkspace.get_path(options) in remote_path.parents
+        ])
 
         log.debug(f'{remote_paths = }')
         
         return remote_paths
 
     @classmethod
+    @memoize
     async def get_remote_address(cls, options) -> str:
-        return f'{getpass.getuser()}@localhost:{await GenDockerContainer.get_ssh_port(options)}'
+        remote_address = (
+                f'{getpass.getuser()}@localhost:{await GenDockerSsh.get_port(options)}'
+        )
+        
+        log.debug(f'{cls.__name__} {remote_address = }')
+        
+        return remote_address
 
     @classmethod
+    @memoize
     async def get_uri(cls, options: Options) -> str:
-        return f'{await cls.get_remote_address(options)}{await cls.get_python_executable(options)}'
+        uri = f'{await cls.get_remote_address(options)}{await cls.get_executable_path(options)}'
+        
+        log.debug(f'{cls.__name__} {uri = }')
+        
+        return uri
 
     @classmethod
+    @memoize
     async def get_sftp_uri(cls, options: Options) -> str:
-        return f'sftp://{await cls.get_uri(options)}'
+        sftp_uri = f'sftp://{await cls.get_uri(options)}'
+        
+        log.debug(f'{cls.__name__} {sftp_uri = }')
+        
+        return sftp_uri
 
     @classmethod
+    @memoize
     async def get_ssh_uri(cls, options: Options) -> str:
-        return f'ssh://{await cls.get_uri(options)}'
+        ssh_uri = f'ssh://{await cls.get_uri(options)}'
+        
+        log.debug(f'{cls.__name__} {ssh_uri = }')
+        
+        return ssh_uri
 
     @classmethod
-    async def get_python_name(cls, options: Options) -> str:
-        return options.idea_pycharm_webservers_name
-        #return (
-        #    f'{options.idea_pycharm_webservers_name} {await cls.get_python_version(options)} '
-        #    f'({await cls.get_sftp_uri(options)})'
-        #)
-
-    @classmethod
-    async def get_element(cls, options: Options) -> _Element:
-        return etree.fromstring(
+    async def get_text(cls, options: Options) -> str:
+        from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <application>
                   <component name="ProjectJdkTable">
                     <jdk version="2">
-                      <name value="{await cls.get_python_name(options)}" />
+                      <name value="{await GenIdeaPycharmWebserversXml.get_name(options)}" />
                       <type value="Python SDK" />
-                      <version value="{await cls.get_python_version(options)}" />
+                      <version value="{await cls.get_version(options)}" />
                       <homePath value="{await cls.get_sftp_uri(options)}" />
                       <roots>
                         <classPath>
@@ -137,10 +149,10 @@ class GenIdeaPycharmJdkTableXml(Handler):
                         </sourcePath>
                       </roots>
                       <additional
-                          WEB_SERVER_CONFIG_ID="{options.idea_uuid}" 
+                          WEB_SERVER_CONFIG_ID="{await GenIdeaWorkspace.get_uuid(options)}" 
                           WEB_SERVER_CONFIG_NAME="{await cls.get_remote_address(options)}" 
                           WEB_SERVER_CREDENTIALS_ID="{await cls.get_sftp_uri(options)}" 
-                          INTERPRETER_PATH="{await cls.get_python_executable(options)}"
+                          INTERPRETER_PATH="{await cls.get_executable_path(options)}"
                           HELPERS_PATH="$USER_HOME$/.pycharm_helpers"
                           INITIALIZED="false" 
                           VALID="true"
@@ -176,18 +188,18 @@ class GenIdeaPycharmJdkTableXml(Handler):
                 </application>
             ''').strip()
         )
+        into_element = get_root_element_from_path(await cls.get_path(options))
+        element = merge_elements(from_element=from_element, into_element=into_element)
+        text = etree.tostring(element, pretty_print=True, encoding=str)
+        
+        log.debug(f'{cls.__name__} {text = }')
+
+        return text
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        root_element = merge_elements(
-            from_element=await cls.get_element(options),
-            into_element=get_root_element_from_path(
-                options.idea_pycharm_jdk_table_xml_path
-            )
-        )
-
         GenHost.write_text(
-            data=etree.tostring(root_element, pretty_print=True, encoding=str),
+            data=await cls.get_text(options),
             options=options,
-            path=options.idea_pycharm_jdk_table_xml_path,
+            path=await cls.get_path(options),
         )

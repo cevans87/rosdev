@@ -190,8 +190,6 @@ class GenHost(Handler):
 
     @classmethod
     def write_bytes(cls, *, options: Options, path: Path, data: bytes) -> None:
-        assert options.stage == 'main', 'Cannot write files outside of main'
-
         log.debug(f'Writing to {path}, bytes:\n{data.decode()}')
         path.parent.mkdir(parents=True, exist_ok=True)
         if not options.dry_run:
@@ -199,8 +197,6 @@ class GenHost(Handler):
 
     @classmethod
     def write_text(cls, *, options: Options, path: Path, data: str) -> None:
-        assert options.stage == 'main', 'Cannot write files outside of main'
-
         log.debug(f'Writing to {path}, text: \n{data}')
         path.parent.mkdir(parents=True, exist_ok=True)
         if not options.dry_run:

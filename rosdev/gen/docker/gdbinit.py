@@ -1,11 +1,12 @@
-from dataclasses import dataclass, field, replace
-from frozendict import frozendict
+from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
-from typing import Tuple, Type
+from pathlib import Path
 
-from rosdev.gen.base import GenBase
 from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
+from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -16,24 +17,23 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerGdbinit(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenBase,
-        GenDockerContainer,
-        GenHost,
-    ))
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenRosdevWorkspace.get_path(options) / 'gdbinit'
+        
+        log.debug(f'{cls.__name__} {path = }')
+        
+        return path
 
     @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.docker_gdbinit_path] = options.docker_gdbinit_path
-        docker_container_volumes = frozendict(options.docker_container_volumes)
+    @memoize
+    async def get_symlink_path(cls, options: Options) -> Path:
+        symlink_path = await GenHome.get_path(options) / '.gdbinit'
 
-        return replace(options, docker_container_volumes=docker_container_volumes)
+        log.debug(f'{cls.__name__} {symlink_path = }')
 
-    @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.docker_gdbinit_symlink_container_path = }')
-        log.debug(f'{options.docker_gdbinit_path = }')
+        return symlink_path
 
     @classmethod
     async def main(cls, options: Options) -> None:
@@ -55,11 +55,7 @@ class GenDockerGdbinit(Handler):
             path=options.docker_gdbinit_path,
         )
         await GenDockerContainer.execute(
-            command=(
-                f'ln -f -s '
-                f'{options.docker_gdbinit_path} '
-                f'{options.docker_gdbinit_symlink_container_path}'
-            ),
+            commmand=f'ln -s {await cls.get_path(options)} {await cls.get_symlink_path(options)}',
             options=options,
         )
 

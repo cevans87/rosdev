@@ -1,13 +1,13 @@
 from atools import memoize
-from dataclasses import dataclass, field, replace
-from frozendict import frozendict
+from dataclasses import dataclass
 from logging import getLogger
+from pathlib import Path
 import shutil
-from typing import Tuple, Type
 
-from rosdev.gen.base import GenBase
 from rosdev.gen.host import GenHost
 from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.rosdev.home import GenRosdevHome
+from rosdev.gen.src_base import GenSrcBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -18,28 +18,25 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenSrc(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenBase,
-        GenDockerImage,
-        GenHost,
-    ))
-
     @classmethod
     @memoize
     async def get_id(cls, options) -> str:
-        return options.src_id_path.read_text() if options.src_id_path.is_file() else ''
+        id_path = await cls.get_id_path(options)
+        # noinspection PyShadowingBuiltins
+        id = id_path.read_text() if id_path.is_file() else ''
+
+        log.debug(f'{cls.__name__} {id = }')
+
+        return id
 
     @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.src_id_path] = options.src_id_path
-        docker_container_volumes[options.src_path] = options.src_path
-        docker_container_volumes = frozendict(docker_container_volumes)
+    @memoize
+    async def get_id_path(cls, options: Options) -> Path:
+        id_path = await GenRosdevHome.get_path(options) / 'src_id'
 
-        return replace(
-            options,
-            docker_container_volumes=docker_container_volumes,
-        )
+        log.debug(f'{cls.__name__} {id_path = }')
+
+        return id_path
 
     @classmethod
     async def main(cls, options: Options) -> None:
@@ -48,26 +45,30 @@ class GenSrc(Handler):
             return
 
         if (
-                (not options.src_path.exists()) or
+                (not (await GenSrcBase.get_path(options)).exists()) or
                 (await GenDockerImage.get_id(options) != await cls.get_id(options))
         ):
             log.info(f'Installing src.')
-            if options.src_path.is_dir():
-                await GenHost.execute(command=f'chmod -R +w {options.src_path}', options=options)
-                shutil.rmtree(options.src_path)
-            options.src_path.mkdir(parents=True, exist_ok=True)
-            if options.src_id_path.is_file():
-                options.src_id_path.unlink()
+            if (await GenSrcBase.get_path(options)).is_dir():
+                await GenHost.execute(
+                    command=f'chmod -R +w {await GenSrcBase.get_path(options)}',
+                    options=options,
+                )
+                shutil.rmtree(await GenSrcBase.get_path(options))
+            (await GenSrcBase.get_path(options)).mkdir(parents=True, exist_ok=True)
+            if (await cls.get_id_path(options)).is_file():
+                (await cls.get_id_path(options)).unlink()
             release_name = options.release if options.release != 'latest' else 'master'
             for command in [
                 (
-                        f'wget https://raw.githubusercontent.com/ros2/ros2/'
-                        f'{release_name}/ros2.repos '
-                        f'-O {options.home_rosdev_path.parent / "ros2.repos"}'
+                        f'wget'
+                        f' https://raw.githubusercontent.com/ros2/ros2/{release_name}/ros2.repos'
+                        f' -O {(await GenSrcBase.get_path(options)).parent / "ros2.repos"}'
                 ),
                 (
-                        f'vcs import --input {options.home_rosdev_path.parent / "ros2.repos"}'
-                        f' {options.src_path}'
+                        f'vcs import --input'
+                        f' {(await GenSrcBase.get_path(options)).parent / "ros2.repos"}'
+                        f' {await GenSrcBase.get_path(options)}'
                 ),
             ]:
                 await GenDockerImage.execute(command=command, options=options)
@@ -75,12 +76,17 @@ class GenSrc(Handler):
             GenHost.write_text(
                 data=await GenDockerImage.get_id(options),
                 options=options,
-                path=options.src_id_path,
+                path=await cls.get_id_path(options),
             )
             log.info(f'Installed src.')
 
-        if options.src_symlink_path.exists():
-            options.src_symlink_path.unlink()
-        options.src_symlink_path.parent.mkdir(parents=True, exist_ok=True)
-        options.src_symlink_path.symlink_to(options.src_path, target_is_directory=True)
-        log.info(f'Linked from {options.src_symlink_path} to src at {options.src_path}')
+        if (await GenSrcBase.get_symlink_path(options)).exists():
+            (await GenSrcBase.get_symlink_path(options)).unlink()
+        (await GenSrcBase.get_symlink_path(options)).parent.mkdir(parents=True, exist_ok=True)
+        (await GenSrcBase.get_symlink_path(options)).symlink_to(
+            await GenSrcBase.get_path(options), target_is_directory=True
+        )
+        log.info(
+            f'Linked from {await GenSrcBase.get_symlink_path(options)} to src at'
+            f' {await GenSrcBase.get_path(options)}'
+        )

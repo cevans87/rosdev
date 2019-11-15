@@ -1,10 +1,14 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 import json
 from logging import getLogger
-from typing import Tuple, Type
+from typing import Tuple
 
-from rosdev.gen.docker.base import GenDockerBase
+from rosdev.gen.docker.dockerfile import GenDockerDockerfile
+from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
+from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
+from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -14,10 +18,24 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenDockerImage(Handler):
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerBase,
-        GenHost,
-    ))
+
+    @classmethod
+    @memoize
+    async def get_tag(cls, options: Options) -> str:
+        tag = f'rosdev:{options.release}_{options.architecture}'
+        
+        log.debug(f'{cls.__name__} {tag = }')
+
+        return tag
+
+    @classmethod
+    @memoize
+    async def get_id(cls, options: Options) -> str:
+        lines = await GenHost.execute_shell_and_get_lines(
+            command=f'docker image inspect {await cls.get_tag(options)} 2> /dev/null',
+            options=options,
+        )
+        return json.loads('\n'.join(lines))[0]['Id']
 
     @classmethod
     async def execute(
@@ -30,10 +48,10 @@ class GenDockerImage(Handler):
         await GenHost.execute(
             command=(
                 f'docker run --rm'
-                f' -e {options.docker_entrypoint_sh_log_level_env_name}={log.getEffectiveLevel()}'
-                f' -v {options.home_path}:{options.home_path}'
-                f' -v {options.workspace_path}:{options.workspace_path}'
-                f' {options.docker_image_tag}'
+                f' -e {await GenDockerEntrypointSh.get_log_level_env_name(options)}'
+                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
+                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' {await cls.get_tag(options)}'
                 f' {command}'
             ),
             err_ok=err_ok,
@@ -51,9 +69,9 @@ class GenDockerImage(Handler):
         return await GenHost.execute_and_get_lines(
             command=(
                 f'docker run --rm'
-                f' -v {options.home_path}:{options.home_path}'
-                f' -v {options.workspace_path}:{options.workspace_path}'
-                f' {options.docker_image_tag}'
+                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
+                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' {await cls.get_tag(options)}'
                 f' {command}'
             ),
             err_ok=err_ok,
@@ -71,9 +89,9 @@ class GenDockerImage(Handler):
         return await GenHost.execute_and_get_line(
             command=(
                 f'docker run --rm'
-                f' -v {options.home_path}:{options.home_path}'
-                f' -v {options.workspace_path}:{options.workspace_path}'
-                f' {options.docker_image_tag}'
+                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
+                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' {await cls.get_tag(options)}'
                 f' {command}'
             ),
             options=options,
@@ -81,35 +99,18 @@ class GenDockerImage(Handler):
         )
 
     @classmethod
-    async def get_id(cls, options: Options) -> str:
-        lines = await GenHost.execute_shell_and_get_lines(
-            command=f'docker image inspect {options.docker_image_tag} 2> /dev/null',
-            options=options,
-        )
-        return json.loads('\n'.join(lines))[0]['Id']
-
-    @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.docker_image_base_tag = }')
-        log.debug(f'{options.docker_image_tag = }')
-        log.debug(f'{options.docker_image_replace = }')
-
-    @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(
-            f'Creating docker image {options.docker_image_tag}'
-            f' from {options.docker_image_base_tag}'
-        )
+        log.info(f'Creating docker image {await cls.get_tag(options)}')
         await GenHost.execute(
             command=(
-                f'docker image build {options.docker_dockerfile_path.parent}'
+                f'docker image build {(await GenDockerDockerfile.get_path(options)).parent}'
                 f'{" --pull" if options.docker_image_pull else ""}'
                 f'{" --no-cache" if options.docker_image_replace else ""}'
-                f' --tag {options.docker_image_tag}'
+                f' --tag {await cls.get_tag(options)}'
             ),
             options=options,
         )
         log.info(
-            f'Created docker image {options.docker_image_tag}'
-            f' from {options.docker_image_base_tag}'
+            f'Created docker image {await cls.get_tag(options)}'
+            f' from {await GenDockerDockerfile.get_from(options)}'
         )

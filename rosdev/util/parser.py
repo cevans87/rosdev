@@ -39,7 +39,7 @@ def get_options_with_overrides() -> Options:
                 v_mod = {}
                 for k_inner, v_inner in v.items():
                     v_mod[Path(k_inner)] = Path(v_inner)
-                v = v_mod
+                v = frozendict(v_mod)
             override[k] = v
 
     return Options(**ChainMap(*overrides))
@@ -74,7 +74,7 @@ class Choices:
     idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    release = tuple(sorted({'crystal', 'dashing', 'kinetic', 'melodic'}) + ['latest'])
+    release = tuple(sorted({'crystal', 'dashing', 'eloquent', 'kinetic', 'melodic'}) + ['latest'])
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 
@@ -240,8 +240,9 @@ class Flag:
                         host_path, container_path = value, value
 
                     docker_container_volumes[host_path] = container_path
+                docker_container_volumes = frozendict(docker_container_volumes)
 
-                setattr(namespace, self.dest, frozendict(docker_container_volumes))
+                setattr(namespace, self.dest, docker_container_volumes)
 
         self.docker_container_volumes.add_argument(
             '--docker-container-volumes',
@@ -820,6 +821,8 @@ parser = parser.merged_with(
         flag.docker_image_pull,
     })
 )
+
+parser = parser.merged_with(sub_commands='gen workspace')
 
 parser = parser.merged_with(sub_commands='pycharm')
 

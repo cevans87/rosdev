@@ -1,16 +1,16 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
-# noinspection PyProtectedMember
-from lxml.etree import _Element
+from pathlib import Path
 from textwrap import dedent
-from typing import Tuple, Type
 
 from rosdev.gen.host import GenHost
-from rosdev.gen.idea.base import GenIdeaBase
-from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
+from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
+from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.xml import get_root_element_from_path, merge_elements
 
 
 log = getLogger(__name__)
@@ -19,19 +19,10 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenIdeaPycharmMiscXml(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenHost,
-        GenIdeaBase,
-        GenIdeaPycharmJdkTableXml,
-    ))
-
     @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_pycharm_misc_xml_path = }')
-
-    @classmethod
-    async def get_element(cls, options: Options) -> _Element:
-        return etree.fromstring(
+    @memoize
+    async def get_bytes(cls, options: Options) -> bytes:
+        from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
                 <project version="4">
@@ -41,21 +32,33 @@ class GenIdeaPycharmMiscXml(Handler):
                   <component
                       name="ProjectRootManager"
                       version="2"
-                      project-jdk-name="{await GenIdeaPycharmJdkTableXml.get_python_name(options)}"
+                      project-jdk-name="{await GenIdeaPycharmWebserversXml.get_name(options)}"
                       project-jdk-type="Python SDK" />
                 </project>
             ''').lstrip()
         )
+        into_element = get_root_element_from_path(await cls.get_path(options))
+        element = merge_elements(from_element=from_element, into_element=into_element)
+        # noinspection PyShadowingBuiltins
+        bytes = etree.tostring(element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
+
+        log.debug(f'{cls.__name__} {bytes = }')
+
+        return bytes
+
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenIdeaWorkspace.get_path(options) / 'misc.xml'
+
+        log.debug(f'{cls.__name__} {path}')
+
+        return path
 
     @classmethod
     async def main(cls, options: Options) -> None:
         GenHost.write_bytes(
-            data=etree.tostring(
-                await cls.get_element(options),
-                pretty_print=True,
-                xml_declaration=True,
-                encoding='UTF-8',
-            ),
+            data=await cls.get_bytes(options),
             options=options,
-            path=options.idea_pycharm_misc_xml_path,
+            path=await cls.get_path(options),
         )

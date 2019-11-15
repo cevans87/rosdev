@@ -1,16 +1,14 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
-# noinspection PyProtectedMember
-from lxml.etree import _Element
+from pathlib import Path
 from textwrap import dedent
-from typing import Tuple, Type
 
-from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.gen.docker.ssh import GenDockerSsh
 from rosdev.gen.host import GenHost
-from rosdev.gen.idea.base import GenIdeaBase
-from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
-from rosdev.gen.idea.uuid import GenIdeaUuid
+from rosdev.gen.idea.home import GenIdeaHome
+from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.xml import get_root_element_from_path, merge_elements
@@ -22,20 +20,9 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenIdeaPycharmWebserversXml(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerContainer,
-        GenHost,
-        GenIdeaBase,
-        GenIdeaPycharmJdkTableXml,
-        GenIdeaUuid,
-    ))
-
     @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.idea_pycharm_webservers_xml_path = }')
-
-    @classmethod
-    async def get_element(cls, options: Options) -> _Element:
+    @memoize
+    async def get_bytes(cls, options: Options) -> bytes:
         from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
@@ -43,18 +30,18 @@ class GenIdeaPycharmWebserversXml(Handler):
                   <component name="WebServers">
                     <option name="servers">
                       <webServer
-                          id="{options.idea_uuid}"
-                          name="{options.idea_pycharm_webservers_name}" 
+                          id="{await GenIdeaWorkspace.get_uuid(options)}"
+                          name="{await cls.get_name(options)}" 
                           url="http:///">
                         <fileTransfer
                             host="localhost"
-                            port="{await GenDockerContainer.get_ssh_port(options)}"
+                            port="{await GenDockerSsh.get_port(options)}"
                             privateKey="$USER_HOME$/.ssh/id_rsa"
                             accessType="SFTP"
                             keyPair="true">
                           <option
                               name="port"
-                              value="{await GenDockerContainer.get_ssh_port(options)}" />
+                              value="{await GenDockerSsh.get_port(options)}" />
                         </fileTransfer>
                       </webServer>
                     </option>
@@ -62,24 +49,38 @@ class GenIdeaPycharmWebserversXml(Handler):
                 </application>
             ''').lstrip()
         )
-        into_element = get_root_element_from_path(
-            options.idea_pycharm_webservers_xml_path
-        )
+        into_element = get_root_element_from_path(await cls.get_path(options))
         element = merge_elements(from_element=from_element, into_element=into_element)
+        # noinspection PyShadowingBuiltins
+        bytes = etree.tostring(element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
+
+        log.debug(f'{cls.__name__} {bytes = }')
+
+        return bytes
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_name(cls, options: Options) -> str:
+        name = 'rosdev_remote'
         
-        log.debug(f'{element = }')
+        log.debug(f'{cls.__name__} {name = }')
         
-        return element
+        return name
+
+    @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenIdeaHome.get_path(options) / 'options' / 'webServers.xml'
+
+        log.debug(f'{cls.__name__} {path = }')
+
+        return path
 
     @classmethod
     async def main(cls, options: Options) -> None:
         GenHost.write_bytes(
-            data=etree.tostring(
-                await cls.get_element(options),
-                pretty_print=True,
-                xml_declaration=True,
-                encoding='UTF-8',
-            ),
+            data=await cls.get_bytes(options),
             options=options,
-            path=options.idea_pycharm_webservers_xml_path,
+            path=await cls.get_path(options),
         )

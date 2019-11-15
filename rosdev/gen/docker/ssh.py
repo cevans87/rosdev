@@ -1,10 +1,10 @@
-from dataclasses import dataclass, field
+from atools import memoize
+from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
-from typing import Tuple, Type
 
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
+from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.host import GenHost
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -15,32 +15,44 @@ log = getLogger(__name__)
 
 @dataclass(frozen=True)
 class GenDockerSsh(Handler):
+    
+    @classmethod
+    @memoize
+    async def get_port(cls, options: Options) -> int:
+        port = int(
+            (
+                await GenHost.execute_and_get_line(
+                    command=f'docker port {await GenDockerContainer.get_name(options)} 22',
+                    options=options,
+                )
+            ).rsplit(':', 1)[-1]
+        )
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenDockerContainer,
-        GenDockerPamEnvironment,
-        GenHost,
-    ))
+        log.debug(f'{cls.__name__} {port = }')
+
+        return port
 
     @classmethod
     async def main(cls, options: Options) -> None:
+        assert (await GenDockerPamEnvironment.get_path(options)).is_file()
         await GenHost.execute(
             command=(
-                f'ssh-keygen '
-                f'-f "{Path.home()}/.ssh/known_hosts" '
-                f'-R "[localhost]:{await GenDockerContainer.get_ssh_port(options)}"'
+                f'ssh-keygen'
+                f' -f "{await GenDockerSshBase.get_path(options) / "known_hosts"}"'
+                f' -R "[localhost]:{await cls.get_port(options)}"'
             ),
             err_ok=True,
             options=options,
         )
-        await GenHost.execute(
-            command=f'docker exec {options.docker_container_name} sudo service ssh start',
+
+        await GenDockerContainer.execute(
+            command=f'sudo service ssh start',
             options=options,
         )
         await GenHost.execute_shell(
             command=(
-                f'ssh-keyscan -p {await GenDockerContainer.get_ssh_port(options)} '
-                f'localhost >> "{Path.home()}/.ssh/known_hosts"'
+                f'ssh-keyscan -p {await cls.get_port(options)} localhost >>'
+                f' "{await GenDockerSshBase.get_path(options) / "known_hosts"}"'
             ),
             options=options,
         )

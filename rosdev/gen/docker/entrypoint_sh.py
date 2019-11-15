@@ -1,10 +1,16 @@
-from dataclasses import dataclass, field, replace
+from atools import memoize
+from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger, INFO
+from pathlib import Path
 from textwrap import dedent
-from typing import Tuple, Type
+from typing import Dict, Mapping
 
 from rosdev.gen.host import GenHost
+from rosdev.gen.install_base import GenInstallBase
+from rosdev.gen.rosdev.home import GenRosdevHome
+from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
+from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -15,199 +21,354 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerEntrypointSh(Handler):
 
-    pre_dependencies: Tuple[Type[Handler], ...] = field(init=False, default=(
-        GenHost,
-    ))
-        
     @classmethod
-    async def resolve_options(cls, options: Options) -> Options:
-        docker_container_environment = dict(Options.docker_container_environment)
+    @memoize
+    async def get_environment(cls, options: Options) -> Mapping[str, str]:
+        environment: Dict[str, str] = {}
         if options.docker_entrypoint_sh_quick_setup_overlay:
-            docker_container_environment[
-                options.docker_entrypoint_sh_quick_setup_overlay_path_env_name
-            ] = f'{options.docker_entrypoint_sh_quick_setup_overlay_path}'
-            docker_container_environment[
-                options.docker_entrypoint_sh_quick_setup_overlay_path_parent_env_name
-            ] = f'{options.docker_entrypoint_sh_quick_setup_overlay_path.parent}'
+            environment[await cls.get_quick_setup_overlay_path_env_name(options)] = (
+                f'{await cls.get_quick_setup_overlay_path(options)}'
+            )
+            environment[await cls.get_quick_setup_overlay_path_parent_env_name(options)] = (
+                f'{(await cls.get_quick_setup_overlay_path(options)).parent}'
+            )
         if options.docker_entrypoint_sh_quick_setup_underlay:
-            docker_container_environment[
-                options.docker_entrypoint_sh_quick_setup_underlay_path_env_name
-            ] = f'{options.docker_entrypoint_sh_quick_setup_underlay_path}'
-            docker_container_environment[
-                options.docker_entrypoint_sh_quick_setup_underlay_path_parent_env_name
-            ] = f'{options.docker_entrypoint_sh_quick_setup_underlay_path.parent}'
+            environment[await cls.get_quick_setup_underlay_path_env_name(options)] = (
+                f'{await cls.get_quick_setup_underlay_path(options)}'
+            )
+            environment[await cls.get_quick_setup_underlay_path_parent_env_name(options)] = (
+                f'{(await cls.get_quick_setup_underlay_path(options)).parent}'
+            )
         if options.docker_entrypoint_sh_setup_overlay:
-            docker_container_environment[
-                options.docker_entrypoint_sh_setup_overlay_path_env_name
-            ] = f'{options.docker_entrypoint_sh_setup_overlay_path}'
+            environment[await cls.get_setup_overlay_path_env_name(options)] = (
+                f'{await cls.get_setup_overlay_path(options)}'
+            )
         if options.docker_entrypoint_sh_setup_underlay:
-            docker_container_environment[
-                options.docker_entrypoint_sh_setup_underlay_path_env_name
-            ] = f'{options.docker_entrypoint_sh_setup_underlay_path}'
+            environment[await cls.get_setup_underlay_path_env_name(options)] = (
+                f'{await cls.get_setup_underlay_path(options)}'
+            )
 
-        docker_container_environment = frozendict(docker_container_environment)
-
-        docker_container_volumes = dict(options.docker_container_volumes)
-        docker_container_volumes[options.docker_entrypoint_sh_host_path] = (
-            options.docker_entrypoint_sh_container_path
-        )
-        docker_container_volumes = frozendict(docker_container_volumes)
-
-        return replace(
-            options,
-            docker_container_environment=docker_container_environment,
-            docker_container_volumes=docker_container_volumes,
-        )
+        environment: Mapping[str, str] = frozendict(environment)
+        
+        log.debug(f'{cls.__name__} {environment = }')
+        
+        return environment
 
     @classmethod
-    async def validate_options(cls, options: Options) -> None:
-        log.debug(f'{options.docker_entrypoint_sh_quick_setup_overlay = }')
-        log.debug(f'{options.docker_entrypoint_sh_quick_setup_underlay = }')
-        log.debug(f'{options.docker_entrypoint_sh_setup_overlay = }')
-        log.debug(f'{options.docker_entrypoint_sh_setup_overlay_path = }')
-        log.debug(f'{options.docker_entrypoint_sh_setup_underlay = }')
-        log.debug(f'{options.docker_entrypoint_sh_setup_underlay_path = }')
+    @memoize
+    async def get_environment_flags(cls, options: Options) -> str:
+        environment_flags = ' '.join([
+            f'-e {k}={v}'
+            for k, v in (await cls.get_environment(options)).items()
+        ])
+        
+        log.debug(f'{cls.__name__} {environment_flags = }')
+        
+        return environment_flags
 
-        log.debug(f'{options.docker_entrypoint_sh_container_path = }')
-        log.debug(f'{options.docker_entrypoint_sh_host_path = }')
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_container_path(cls, options: Options) -> Path:
+        container_path = Path('/') / 'rosdev_docker_entrypoint.sh'
+        
+        log.debug(f'{cls.__name__} {container_path = }')
+        
+        return container_path
 
     @classmethod
-    def get_docker_entrypoint_sh_contents(cls, options: Options) -> str:
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenRosdevHome.get_path(options) / 'docker' / 'rosdev_docker_entrypoint.sh'
+
+        log.debug(f'{cls.__name__} {path = }')
+        
+        return path
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_log_level_env_name(cls, options: Options) -> str:
+        log_level_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_LOG_LEVEL'
+
+        log.debug(f'{cls.__name__} {log_level_env_name = }')
+
+        return log_level_env_name
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_path_env_name(cls, options: Options) -> str:
+        path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_PATH'
+        
+        log.debug(f'{cls.__name__} {path_env_name = }')
+        
+        return path_env_name
+
+    @classmethod
+    @memoize
+    async def get_quick_setup_overlay_path(cls, options: Options) -> Path:
+        quick_setup_overlay_path = (
+            await GenRosdevWorkspace.get_path(options) / 'quick_setup_overlay.sh'
+        )
+
+        log.debug(f'{cls.__name__} {quick_setup_overlay_path = }')
+        
+        return quick_setup_overlay_path
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_quick_setup_overlay_path_env_name(cls, options: Options) -> str:
+        quick_setup_overlay_path_env_name = (
+            'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH'
+        )
+        
+        log.debug(f'{cls.__name__} {quick_setup_overlay_path_env_name = }')
+        
+        return quick_setup_overlay_path_env_name
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_quick_setup_overlay_path_parent_env_name(cls, options: Options) -> str:
+        quick_setup_overlay_path_parent_env_name = (
+            'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH_PARENT'
+        )
+        
+        log.debug(f'{cls.__name__} {quick_setup_overlay_path_parent_env_name = }')
+        
+        return quick_setup_overlay_path_parent_env_name
+
+    @classmethod
+    @memoize
+    async def get_quick_setup_underlay_path(cls, options: Options) -> Path:
+        quick_setup_underlay_path = (
+            await GenRosdevWorkspace.get_path(options) / 'quick_setup_underlay.sh'
+        )
+
+        log.debug(f'{cls.__name__} {quick_setup_underlay_path = }')
+        
+        return quick_setup_underlay_path
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_quick_setup_underlay_path_env_name(cls, options: Options) -> str:
+        quick_setup_underlay_path_env_name = (
+            'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH'
+        )
+
+        log.debug(f'{cls.__name__} {quick_setup_underlay_path_env_name = }')
+        
+        return quick_setup_underlay_path_env_name
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_quick_setup_underlay_path_parent_env_name(cls, options: Options) -> str:
+        quick_setup_underlay_path_parent_env_name = (
+            'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH_PARENT'
+        )
+
+        log.debug(f'{cls.__name__} {quick_setup_underlay_path_parent_env_name = }')
+        
+        return quick_setup_underlay_path_parent_env_name
+
+    @classmethod
+    @memoize
+    async def get_setup_overlay_path(cls, options: Options) -> Path:
+        setup_overlay_path = await GenWorkspace.get_path(options) / 'install' / 'setup.bash'
+
+        log.debug(f'{cls.__name__} {setup_overlay_path = }')
+
+        return setup_overlay_path
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_setup_overlay_path_env_name(cls, options: Options) -> str:
+        setup_overlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_OVERLAY_PATH'
+
+        log.debug(f'{cls.__name__} {setup_overlay_path_env_name = }')
+        
+        return setup_overlay_path_env_name
+
+    @classmethod
+    @memoize
+    async def get_setup_underlay_path(cls, options: Options) -> Path:
+        setup_underlay_path = await GenInstallBase.get_symlink_path(options) / 'setup.bash'
+
+        log.debug(f'{cls.__name__} {setup_underlay_path = }')
+
+        return setup_underlay_path
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    @memoize
+    async def get_setup_underlay_path_env_name(cls, options: Options) -> str:
+        setup_underlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_UNDERLAY_PATH'
+
+        log.debug(f'{cls.__name__} {setup_underlay_path_env_name = }')
+        
+        return setup_underlay_path_env_name
+
+    @classmethod
+    @memoize
+    async def get_overlay_path(cls, options: Options) -> Path:
+        overlay_path = await GenRosdevWorkspace.get_path(options) / 'overlay.sh'
+
+        log.debug(f'{cls.__name__} {overlay_path = }')
+        
+        return overlay_path
+
+    @classmethod
+    @memoize
+    async def get_underlay_path(cls, options: Options) -> Path:
+        underlay_path = await GenRosdevWorkspace.get_path(options) / 'underlay.sh'
+
+        log.debug(f'{cls.__name__} {underlay_path = }')
+        
+        return underlay_path
+
+    @classmethod
+    @memoize
+    async def get_text(cls, options: Options) -> str:
         return dedent(fr'''
             #!/bin/bash
             set -e
 
             if 
                 [[ 
-                    -z ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
+                    -z ${{{await cls.get_setup_underlay_path_env_name(options)}}}
                 ]] || [[ 
-                    ! -f ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
+                    ! -f ${{{await cls.get_setup_underlay_path_env_name(options)}}}
                 ]]
             then
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Not sourcing underlay from ROS install."
                 fi
             elif
                 [[
-                    ! -z ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
+                    ! -z ${{{await cls.get_quick_setup_underlay_path_env_name(options)}}}
                 ]] && [[ 
-                    -f ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
+                    -f ${{{await cls.get_quick_setup_underlay_path_env_name(options)}}}
                 ]] && [[  
-                    ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}} -nt \
-                    ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
+                    ${{{await cls.get_quick_setup_underlay_path_env_name(options)}}} -nt \
+                    ${{{await cls.get_setup_underlay_path_env_name(options)}}}
                 ]]
             then
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Sourcing cached quick setup underlay."
                 fi
-                source ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
+                source ${{{await cls.get_quick_setup_underlay_path_env_name(options)}}}
             else
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Sourcing setup underlay."
                 fi
-                source ${{{options.docker_entrypoint_sh_setup_underlay_path_env_name}}}
+                source ${{{await cls.get_setup_underlay_path_env_name(options)}}}
                 if
                     [[ 
-                        ! -z ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_parent_env_name}}}
+                        ! -z ${{{await cls.get_quick_setup_underlay_path_parent_env_name(options)}}}
                     ]] && [[ 
-                        -d ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_parent_env_name}}}
+                        -d ${{{await cls.get_quick_setup_underlay_path_parent_env_name(options)}}}
                     ]]
                 then
                     if
                         [[
-                            ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                            ! -z ${{{await cls.get_log_level_env_name(options)}}}
                         ]] && [[
-                            ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                            ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                         ]]
                     then
                         echo "Caching underlay to enable quick setup."
                     fi
-                    declare -px > ${{{options.docker_entrypoint_sh_quick_setup_underlay_path_env_name}}}
+                    declare -px > ${{{await cls.get_quick_setup_underlay_path_env_name(options)}}}
                 fi
             fi
 
             if 
                 [[
-                    -z ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
+                    -z ${{{await cls.get_setup_overlay_path_env_name(options)}}}
                 ]] || [[
-                    ! -f ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
+                    ! -f ${{{await cls.get_setup_overlay_path_env_name(options)}}}
                 ]]
             then
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Not sourcing overlay from ROS install."
                 fi
             elif
                 [[
-                    -z ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
+                    -z ${{{await cls.get_quick_setup_overlay_path_env_name(options)}}}
                 ]] && [[
-                    -f ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
+                    -f ${{{await cls.get_quick_setup_overlay_path_env_name(options)}}}
                 ]] && [[ 
-                    ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}} -nt \
-                    ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
+                    ${{{await cls.get_quick_setup_overlay_path_env_name(options)}}} -nt \
+                    ${{{await cls.get_setup_overlay_path_env_name(options)}}}
                 ]]
             then
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Sourcing cached quick setup overlay."
                 fi
-                source ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
+                source ${{{await cls.get_quick_setup_overlay_path_env_name(options)}}}
             else
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                        ! -z ${{{await cls.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                        ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
                     echo "Sourcing setup overlay."
                 fi
-                source ${{{options.docker_entrypoint_sh_setup_overlay_path_env_name}}}
+                source ${{{await cls.get_setup_overlay_path_env_name(options)}}}
                 if
                     [[
-                        ! -z ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_parent_env_name}}}
+                        ! -z ${{{await cls.get_quick_setup_overlay_path_parent_env_name(options)}}}
                     ]] && [[ 
-                        -d ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_parent_env_name}}}
+                        -d ${{{await cls.get_quick_setup_overlay_path_parent_env_name(options)}}}
                     ]]
                 then
                     if
                         [[
-                            ! -z ${{{options.docker_entrypoint_sh_log_level_env_name}}}
+                            ! -z ${{{await cls.get_log_level_env_name(options)}}}
                         ]] && [[
-                            ${{{options.docker_entrypoint_sh_log_level_env_name}}} -le {INFO}
+                            ${{{await cls.get_log_level_env_name(options)}}} -le {INFO}
                         ]]
                     then
                         echo "Caching overlay to enable quick setup."
                     fi
-                    declare -px > ${{{options.docker_entrypoint_sh_quick_setup_overlay_path_env_name}}}
+                    declare -px > ${{{await cls.get_quick_setup_overlay_path_env_name(options)}}}
                 fi
             fi
 
@@ -221,11 +382,11 @@ class GenDockerEntrypointSh(Handler):
         log.info(f'Creating docker_container_entrypoint_sh')
 
         GenHost.write_text(
-            data=cls.get_docker_entrypoint_sh_contents(options),
+            data=await cls.get_text(options),
             options=options,
-            path=options.docker_entrypoint_sh_host_path,
+            path=await cls.get_path(options),
         )
         # Make executable
-        options.docker_entrypoint_sh_host_path.chmod(0o755)
+        (await cls.get_path(options)).chmod(0o755)
 
         log.info(f'Created docker_container_entrypoint_sh')
