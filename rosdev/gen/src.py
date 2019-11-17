@@ -7,6 +7,7 @@ import shutil
 from rosdev.gen.host import GenHost
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.rosdev.home import GenRosdevHome
+from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.gen.src_base import GenSrcBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -39,7 +40,26 @@ class GenSrc(Handler):
         return id_path
 
     @classmethod
+    @memoize
+    async def get_path(cls, options: Options) -> Path:
+        path = await GenRosdevHome.get_path(options) / 'src'
+
+        log.debug(f'{cls.__name__} {path = }')
+
+        return path
+
+    @classmethod
+    @memoize
+    async def get_symlink_path(cls, options: Options) -> Path:
+        symlink_path = await GenRosdevWorkspace.get_path(options) / 'src'
+
+        log.debug(f'{cls.__name__} {symlink_path = }')
+
+        return symlink_path
+
+    @classmethod
     async def main(cls, options: Options) -> None:
+        return
         if options.release in {'kinetic', 'melodic'}:
             log.info(f'Not installing src for ROS 1 release: {options.release = }')
             return

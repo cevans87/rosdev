@@ -12,13 +12,10 @@ setup(
     install_requires=[
         'argcomplete>=1.9.4',
         'atools>=0.6.2',
-        'docker>=3.7.0',
         'frozendict>=1.2',
         'lxml>=4.3.3',
         'pycryptodome>=3.8.2',
         'pykeepass>=2.19',
-        'python-jenkins>=1.4.0',
-        'vcstool>=0.1.38',
     ],
     tests_require=[
         'pytest',

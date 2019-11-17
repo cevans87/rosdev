@@ -22,6 +22,8 @@ class Bash(Handler):
             'docker',
             *(
                 f'docker exec -it'
+                f' -e {await GenDockerEntrypointSh.get_log_level_env_name(options)}'
+                f'={log.getEffectiveLevel()}'
                 f' {await GenDockerEntrypointSh.get_environment_flags(options)}'
                 f' --workdir {Path.cwd()}'
                 f' {await GenDockerContainer.get_name(options)}'

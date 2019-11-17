@@ -14,20 +14,21 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenInstallBase(Handler):
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
-        path = await GenRosdevHome.get_path(options) / 'install'
+    async def get_home_path(options: Options) -> Path:
+        home_path = await GenRosdevHome.get_path(options) / 'install'
 
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{GenInstallBase.__name__} {home_path = }')
+
+        return home_path
+
+    @staticmethod
+    @memoize
+    async def get_path(options: Options) -> Path:
+        path = await GenRosdevWorkspace.get_path(options) / 'install'
+
+        log.debug(f'{GenInstallBase.__name__} {path = }')
 
         return path
 
-    @classmethod
-    @memoize
-    async def get_symlink_path(cls, options: Options) -> Path:
-        symlink_path = await GenRosdevWorkspace.get_path(options) / 'install'
-
-        log.debug(f'{cls.__name__} {symlink_path = }')
-
-        return symlink_path

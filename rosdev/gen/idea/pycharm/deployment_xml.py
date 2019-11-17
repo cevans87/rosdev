@@ -34,8 +34,8 @@ class GenIdeaPycharmDeploymentXml(Handler):
                                 local="$PROJECT_DIR$" />
                           </mappings>
                           <excludedPaths>
-                            <excludedPath path="{await GenWorkspace.get_path(options)}" />
-                            <excludedPath local="true" path="$PROJECT_DIR$" />
+                            <excludedPath path="/" />
+                            <excludedPath local="true" path="/" />
                           </excludedPaths>
                         </serverdata>
                       </paths>

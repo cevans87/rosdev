@@ -123,6 +123,8 @@ class GenDockerDockerfile(Handler):
             RUN echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
             # Stops annoying message about being a sudoer when you first log in.
             RUN touch {await GenHome.get_path(options)}/.sudo_as_admin_successful
+
+            RUN chown -R {getpass.getuser()}:{getpass.getuser()} /opt/ros/$ROS_DISTRO
             
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{getpass.getuser()}:[^:]+:/{getpass.getuser()}::/' \
