@@ -394,6 +394,9 @@ class GenDockerEntrypointSh(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
+        if (await cls.get_path(options)).exists():
+            return
+
         log.info(f'Creating docker_container_entrypoint_sh')
 
         GenHost.write_text(

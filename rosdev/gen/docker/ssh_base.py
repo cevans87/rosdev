@@ -14,11 +14,11 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerSshBase(Handler):
     
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
+    async def get_path(options: Options) -> Path:
         path = await GenHome.get_path(options) / '.ssh'
 
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{GenDockerSshBase.__name__} {path = }')
 
         return path

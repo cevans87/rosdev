@@ -5,7 +5,6 @@ from pathlib import Path
 
 from rosdev.gen.docker.container_base import GenDockerContainerBase
 from rosdev.gen.docker.image import GenDockerImage
-from rosdev.gen.host import GenHost
 from rosdev.gen.install_base import GenInstallBase
 from rosdev.util.options import Options
 
@@ -35,8 +34,8 @@ class GenInstall(GenInstallBase):
                 )
         ):
             if (await cls.get_home_path(options)).exists():
-                await GenHost.execute(
-                    command=f'rm -rf {await cls.get_home_path(options)}',
+                await GenDockerImage.execute(
+                    command=f'sudo rm -rf {await cls.get_home_path(options)}',
                     options=options,
                 )
-            (await cls.get_home_path(options)).mkdir(parents=True)
+            (await cls.get_home_path(options)).mkdir(parents=True, exist_ok=True)

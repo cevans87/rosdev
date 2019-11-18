@@ -106,6 +106,7 @@ class Flag:
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
+    src_replace: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
         self.architecture.add_argument(
@@ -556,6 +557,29 @@ class Flag:
             )
         )
 
+        src_replace_group = self.src_replace.add_mutually_exclusive_group()
+        src_replace_group.add_argument(
+            '--src-replace',
+            default=options.src_replace,
+            action='store_true',
+            help=(
+                SUPPRESS if options.src_replace else
+                f'Replace ROS/ROS2 src code. '
+                f'Currently: {options.src_replace}'
+            )
+        )
+        src_replace_group.add_argument(
+            '--no-src-replace',
+            dest='src_replace',
+            default=options.src_replace,
+            action='store_false',
+            help=(
+                SUPPRESS if not options.src_replace else
+                f'Do not eplace ROS/ROS2 src code. '
+                f'Currently: {options.src_replace}'
+            )
+        )
+
 
 flag = Flag()
 
@@ -680,9 +704,10 @@ parser = parser.merged_with(
         flag.docker_container_volumes,
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
+        flag.docker_image_pull,
         flag.docker_image_replace,
         flag.pull_build,
-        flag.docker_image_pull,
+        flag.src_replace,
     }),
 )
 
@@ -740,16 +765,17 @@ parser = parser.merged_with(
         flag.docker_entrypoint_sh_setup_overlay,
         flag.docker_entrypoint_sh_setup_underlay,
         flag.docker_image_pull,
+        flag.docker_image_replace,
     })
 )
 parser = parser.merged_with(sub_commands='gen docker container')
+parser = parser.merged_with(sub_commands='gen docker container_base')
 parser = parser.merged_with(sub_commands='gen docker dockerfile')
 parser = parser.merged_with(sub_commands='gen docker entrypoint_sh')
 parser = parser.merged_with(sub_commands='gen docker gdbinit')
 parser = parser.merged_with(sub_commands='gen docker image')
 parser = parser.merged_with(sub_commands='gen docker install')
 parser = parser.merged_with(sub_commands='gen docker pam_environment')
-
 parser = parser.merged_with(sub_commands='gen docker ssh')
 parser = parser.merged_with(sub_commands='gen docker ssh_base')
 
@@ -821,6 +847,7 @@ parser = parser.merged_with(
     flags=frozenset({
         flag.pull_build,
         flag.docker_image_pull,
+        flag.src_replace,
     })
 )
 parser = parser.merged_with(sub_commands='gen src_base')

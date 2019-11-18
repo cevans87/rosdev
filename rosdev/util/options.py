@@ -48,6 +48,7 @@ class Options:
     run_main: bool = True
     run_validate_options: bool = True
     sanitizer: Optional[str] = None
+    src_replace: bool = False
 
     @property
     def machine(self) -> str:

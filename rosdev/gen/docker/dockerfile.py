@@ -55,37 +55,38 @@ class GenDockerDockerfile(Handler):
             #{f'VOLUME {cls.get_qemu_path(options)}' if platform.machine() != options.machine
              and platform.system() != 'Darwin' else '# not needed'}
             
-            # XXX arm32v8 and arm64v8 return error code 100 if we only apt-get update once.
+            # XXX arm32v7 and arm64v8 return error code 100 if we only apt-get update once.
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
             RUN apt-get update && apt-get update
-            
-            # FIXME this is insanely slow. The apt-cache search part is the primary culprit.
-            # Install debug symbols for all installed ros packages.
-            #RUN apt list --installed "ros-$ROS_DISTRO*" | \
-            #    grep -o "ros-$ROS_DISTRO-[^/]*" | \
-            #    sed "s/$/-dbgsym/" | \
-            #    xargs -L1 apt-cache search | \
-            #    grep -o "ros-$ROS_DISTRO-.*-dbgsym" | \
-            #    xargs -d "\n" -- apt-get install -y
 
-            RUN apt-get install -y \
-                build-essential \
-                ccache \
-                cmake \
-                coreutils \
-                curl \
-                gdb \
-                git \
-                liblog4cxx-dev \
-                openssh-server \
-                python3-pip \
-                sudo \
-                wget
-                
-            RUN apt-get install --no-install-recommends -y \
-                libasio-dev \
-                libtinyxml2-dev \
-                && apt-get clean
+            # Install debug symbols for all installed ros packages.
+            RUN apt list --installed "ros-$ROS_DISTRO-*" | \
+                    grep -o "ros-$ROS_DISTRO-[^/]*" | \
+                    sed "s/$/-dbgsym/" > \
+                    a.txt && \
+                    apt list "ros-$ROS_DISTRO-*-dbgsym" | \
+                    grep -o "ros-$ROS_DISTRO-[^/]*" > \
+                    b.txt && \
+                    grep -Ff a.txt b.txt | \
+                    xargs -d "\n" -- apt-get install -y && \
+                    rm a.txt b.txt && \
+                apt-get install -y \
+                    build-essential \
+                    ccache \
+                    cmake \
+                    coreutils \
+                    curl \
+                    gdb \
+                    git \
+                    liblog4cxx-dev \
+                    openssh-server \
+                    python3-pip \
+                    sudo \
+                    wget && \
+                apt-get install --no-install-recommends -y \
+                    libasio-dev \
+                    libtinyxml2-dev && \
+                apt-get clean
 
             RUN python3 -m pip install -U \
                 argcomplete \
@@ -114,22 +115,19 @@ class GenDockerDockerfile(Handler):
             # We won't use this entrypoint.
             RUN rm /ros_entrypoint.sh
 
-            RUN groupadd -r -g {os.getgid()} {getpass.getuser()}
-            RUN useradd {getpass.getuser()} -l -r -u {os.getuid()} -g {os.getgid()} \
-                -G sudo 1> /dev/null
-            RUN usermod {getpass.getuser()} -d {await GenHome.get_path(options)}
-            RUN mkdir -p {await GenHome.get_path(options)}
-            RUN chown {getpass.getuser()}:{getpass.getuser()} {await GenHome.get_path(options)}
-            RUN echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
-            # Stops annoying message about being a sudoer when you first log in.
-            RUN touch {await GenHome.get_path(options)}/.sudo_as_admin_successful
+            RUN groupadd -r -g {os.getgid()} {getpass.getuser()} && \
+                useradd {getpass.getuser()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> \
+                    /dev/null && \
+                usermod {getpass.getuser()} -d {await GenHome.get_path(options)} && \
+                mkdir -p {await GenHome.get_path(options)} && \
+                chown {getpass.getuser()}:{getpass.getuser()} {await GenHome.get_path(options)} && \
+                echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+                touch {await GenHome.get_path(options)}/.sudo_as_admin_successful
 
-            RUN chown -R {getpass.getuser()}:{getpass.getuser()} /opt/ros/$ROS_DISTRO
-            
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{getpass.getuser()}:[^:]+:/{getpass.getuser()}::/' \
-                /etc/passwd /etc/shadow
-            RUN echo 'sshd : ALL : allow' >> /etc/hosts.allow
+                    /etc/passwd /etc/shadow && \
+                echo 'sshd : ALL : allow' >> /etc/hosts.allow
             
             # TODO specify user_envfile to load a different .pam_environment
             run sed -i "s/readenv=1 envfile/readenv=1 user_readenv=1 envfile/g" /etc/pam.d/login
@@ -144,6 +142,13 @@ class GenDockerDockerfile(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
+        if (
+                (not options.docker_image_pull) and
+                (not options.docker_image_replace) and
+                (await cls.get_path(options)).exists()
+        ):
+            return
+
         log.info(f'Creating Dockerfile at {await cls.get_path(options)}.')
         GenHost.write_text(
             data=await cls.get_text(options),

@@ -31,4 +31,3 @@ class GenInstallBase(Handler):
         log.debug(f'{GenInstallBase.__name__} {path = }')
 
         return path
-

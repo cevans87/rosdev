@@ -6,7 +6,6 @@ from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
 from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.host import GenHost
-from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
 
@@ -14,11 +13,11 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenDockerSsh(Handler):
+class GenDockerSsh(GenDockerSshBase):
     
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_port(cls, options: Options) -> int:
+    async def get_port(options: Options) -> int:
         port = int(
             (
                 await GenHost.execute_and_get_line(
@@ -28,7 +27,7 @@ class GenDockerSsh(Handler):
             ).rsplit(':', 1)[-1]
         )
 
-        log.debug(f'{cls.__name__} {port = }')
+        log.debug(f'{GenDockerSsh.__name__} {port = }')
 
         return port
 

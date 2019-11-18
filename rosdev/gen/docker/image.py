@@ -32,7 +32,7 @@ class GenDockerImage(Handler):
     @memoize
     async def get_id(options: Options) -> str:
         # noinspection PyShadowingBuiltins
-        id = (await GenDockerImage.get_inspect(options))['Id']
+        id = (await GenDockerImage.get_inspect(options)).get('Id', '')
         
         log.debug(f'{GenDockerImage.__name__} {id = }')
         
@@ -44,6 +44,7 @@ class GenDockerImage(Handler):
         lines = await GenHost.execute_shell_and_get_lines(
             command=f'docker image inspect {await GenDockerImage.get_tag(options)} 2> /dev/null',
             options=options,
+            err_ok=True,
         )
         inspect = array[0] if (array := json.loads('\n'.join(lines))) else {}
 
@@ -61,7 +62,7 @@ class GenDockerImage(Handler):
             if k == 'ROS_DISTRO'
         ][0]
 
-        log.debug(f'{GenDockerImage.__name__} {ros_distro}')
+        log.debug(f'{GenDockerImage.__name__} {ros_distro = }')
         
         return ros_distro
 
@@ -113,7 +114,7 @@ class GenDockerImage(Handler):
     async def main(cls, options: Options) -> None:
         if not await GenDockerImage.get_id(options):
             log.info('Docker image does not exist.')
-        elif not options.docker_image_replace:
+        elif (not options.docker_image_pull) and (not options.docker_image_replace):
             log.debug('Docker image is already built.')
             return
 
@@ -127,4 +128,6 @@ class GenDockerImage(Handler):
             ),
             options=options,
         )
+        GenDockerImage.get_id.memoize.reset()
+        GenDockerImage.get_inspect.memoize.reset()
         log.info(f'Created docker image {await cls.get_tag(options)}.')
