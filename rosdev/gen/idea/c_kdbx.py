@@ -2,7 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 import getpass
 from logging import getLogger
-from pathlib import Path
 from pykeepass import PyKeePass
 
 from rosdev.gen.host import GenHost
@@ -11,6 +10,7 @@ from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 log = getLogger(__name__)
 

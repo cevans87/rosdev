@@ -10,13 +10,13 @@ from Crypto.Cipher._mode_cbc import CbcMode
 # noinspection PyPackageRequirements
 from Crypto.Util import Padding
 from logging import getLogger
-from pathlib import Path
 from textwrap import dedent
 
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 log = getLogger(__name__)
 

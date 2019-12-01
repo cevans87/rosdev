@@ -2,7 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger, INFO
-from pathlib import Path
 from textwrap import dedent
 from typing import Dict, Mapping
 
@@ -13,6 +12,7 @@ from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)

@@ -6,10 +6,11 @@ from logging import getLogger
 from lxml import etree
 # noinspection PyProtectedMember
 from lxml.etree import Element, _Element
-from pathlib import Path
 import re
 from textwrap import dedent
 from typing import Dict, FrozenSet, List, Mapping, Optional
+
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)

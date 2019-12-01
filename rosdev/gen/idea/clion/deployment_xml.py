@@ -2,7 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
-from pathlib import Path
 from textwrap import dedent
 
 from rosdev.gen.host import GenHost
@@ -11,7 +10,7 @@ from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.xml import get_root_element_from_path, merge_elements
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)

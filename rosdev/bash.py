@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from logging import getLogger
 import os
-from pathlib import Path
 
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)

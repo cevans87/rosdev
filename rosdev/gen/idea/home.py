@@ -1,13 +1,13 @@
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
 import sys
 
 from rosdev.gen.home import GenHome
 from rosdev.gen.idea.ide_base import GenIdeaIdeBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 log = getLogger(__name__)
 
@@ -22,7 +22,7 @@ class GenIdeaHome(Handler):
             search_path = await GenHome.get_path(options) / 'Library' / 'Preferences'
             search_pattern = f'{await GenIdeaIdeBase.get_name(options)}*'
         else:
-            search_path = Path.home()
+            search_path = await GenHome.get_path(options)
             search_pattern = f'.{await GenIdeaIdeBase.get_name(options)}*'
         ide_paths = sorted(search_path.glob(search_pattern))
         assert ide_paths, (

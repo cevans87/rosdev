@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import getpass
 from logging import getLogger
 from lxml import etree
-from pathlib import Path
 from textwrap import dedent
 from typing import Tuple
 
@@ -17,6 +16,7 @@ from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 from rosdev.util.xml import get_root_element_from_path, merge_elements
 
 log = getLogger(__name__)
@@ -25,18 +25,18 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenIdeaPycharmJdkTableXml(Handler):
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
+    async def get_path(options: Options) -> Path:
         path = await GenIdeaHome.get_path(options) / 'options' / 'jdk.table.xml'
         
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {path = }')
         
         return path
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_executable_path(cls, options: Options) -> Path:
+    async def get_executable_path(options: Options) -> Path:
         ros_python_version = (
             await GenDockerContainer.get_environment(options)
         )['ROS_PYTHON_VERSION']
@@ -52,11 +52,11 @@ class GenIdeaPycharmJdkTableXml(Handler):
         
         return python_executable
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_version(cls, options: Options) -> str:
+    async def get_version(options: Options) -> str:
         python_version = await GenDockerImage.execute_and_get_line(
-            command=f'{await cls.get_executable_path(options)} --version',
+            command=f'{await GenIdeaPycharmJdkTableXml.get_executable_path(options)} --version',
             options=options,
         )
         
@@ -64,9 +64,9 @@ class GenIdeaPycharmJdkTableXml(Handler):
         
         return python_version
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_remote_paths(cls, options: Options) -> Tuple[Path, ...]:
+    async def get_remote_paths(options: Options) -> Tuple[Path, ...]:
         remote_paths = (
             await GenDockerContainer.get_environment(options)
         )['PYTHONPATH']
@@ -82,46 +82,49 @@ class GenIdeaPycharmJdkTableXml(Handler):
         
         return remote_paths
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_remote_address(cls, options) -> str:
+    async def get_remote_address(options) -> str:
         remote_address = (
                 f'{getpass.getuser()}@localhost:{await GenDockerSsh.get_port(options)}'
         )
         
-        log.debug(f'{cls.__name__} {remote_address = }')
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {remote_address = }')
         
         return remote_address
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_uri(cls, options: Options) -> str:
-        uri = f'{await cls.get_remote_address(options)}{await cls.get_executable_path(options)}'
-        
-        log.debug(f'{cls.__name__} {uri = }')
+    async def get_uri(options: Options) -> str:
+        uri = (
+            f'{await GenIdeaPycharmJdkTableXml.get_remote_address(options)}'
+            f'{await GenIdeaPycharmJdkTableXml.get_executable_path(options)}'
+        )
+
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {uri = }')
         
         return uri
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_sftp_uri(cls, options: Options) -> str:
-        sftp_uri = f'sftp://{await cls.get_uri(options)}'
+    async def get_sftp_uri(options: Options) -> str:
+        sftp_uri = f'sftp://{await GenIdeaPycharmJdkTableXml.get_uri(options)}'
         
-        log.debug(f'{cls.__name__} {sftp_uri = }')
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {sftp_uri = }')
         
         return sftp_uri
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_ssh_uri(cls, options: Options) -> str:
-        ssh_uri = f'ssh://{await cls.get_uri(options)}'
+    async def get_ssh_uri(options: Options) -> str:
+        ssh_uri = f'ssh://{await GenIdeaPycharmJdkTableXml.get_uri(options)}'
         
-        log.debug(f'{cls.__name__} {ssh_uri = }')
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {ssh_uri = }')
         
         return ssh_uri
 
-    @classmethod
-    async def get_text(cls, options: Options) -> str:
+    @staticmethod
+    async def get_text(options: Options) -> str:
         from_element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
@@ -130,8 +133,8 @@ class GenIdeaPycharmJdkTableXml(Handler):
                     <jdk version="2">
                       <name value="{await GenIdeaPycharmWebserversXml.get_name(options)}" />
                       <type value="Python SDK" />
-                      <version value="{await cls.get_version(options)}" />
-                      <homePath value="{await cls.get_sftp_uri(options)}" />
+                      <version value="{await GenIdeaPycharmJdkTableXml.get_version(options)}" />
+                      <homePath value="{await GenIdeaPycharmJdkTableXml.get_sftp_uri(options)}" />
                       <roots>
                         <classPath>
                           <root type="composite">
@@ -139,7 +142,8 @@ class GenIdeaPycharmJdkTableXml(Handler):
                             """
                             """.join([
                                 f'<root url="file://{remote_path}" type="simple" />'
-                                for remote_path in await cls.get_remote_paths(options)
+                                for remote_path
+                                in await GenIdeaPycharmJdkTableXml.get_remote_paths(options)
                             ])
                             }
                           </root>
@@ -149,10 +153,18 @@ class GenIdeaPycharmJdkTableXml(Handler):
                         </sourcePath>
                       </roots>
                       <additional
-                          WEB_SERVER_CONFIG_ID="{await GenIdeaWorkspace.get_uuid(options)}" 
-                          WEB_SERVER_CONFIG_NAME="{await cls.get_remote_address(options)}" 
-                          WEB_SERVER_CREDENTIALS_ID="{await cls.get_sftp_uri(options)}" 
-                          INTERPRETER_PATH="{await cls.get_executable_path(options)}"
+                          WEB_SERVER_CONFIG_ID="{
+                              await GenIdeaWorkspace.get_uuid(options)
+                          }" 
+                          WEB_SERVER_CONFIG_NAME="{
+                              await GenIdeaPycharmJdkTableXml.get_remote_address(options)
+                          }" 
+                          WEB_SERVER_CREDENTIALS_ID="{
+                              await GenIdeaPycharmJdkTableXml.get_sftp_uri(options)
+                          }" 
+                          INTERPRETER_PATH="{
+                              await GenIdeaPycharmJdkTableXml.get_executable_path(options)
+                          }"
                           HELPERS_PATH="$USER_HOME$/.pycharm_helpers"
                           INITIALIZED="false" 
                           VALID="true"
@@ -164,7 +176,8 @@ class GenIdeaPycharmJdkTableXml(Handler):
                         """.join([
                             f'<PATHS_ADDED_BY_USER_ROOT PATH_ADDED_BY_USER='
                             f'"file://{remote_path}" />'
-                            for remote_path in await cls.get_remote_paths(options)
+                            for remote_path 
+                            in await GenIdeaPycharmJdkTableXml.get_remote_paths(options)
                         ])
                         }
                         <PathMappingSettings>
@@ -173,10 +186,11 @@ class GenIdeaPycharmJdkTableXml(Handler):
                               {
                               """
                               """.join([
-                                 f'<mapping'
-                                 f' local-root="{remote_path}"'
-                                 f' remote-root="{remote_path}" />'
-                                 for remote_path in await cls.get_remote_paths(options)
+                                  f'<mapping'
+                                  f' local-root="{remote_path}"'
+                                  f' remote-root="{remote_path}" />'
+                                  for remote_path 
+                                  in await GenIdeaPycharmJdkTableXml.get_remote_paths(options)
                               ])
                               }
                             </list>
@@ -188,18 +202,18 @@ class GenIdeaPycharmJdkTableXml(Handler):
                 </application>
             ''').strip()
         )
-        into_element = get_root_element_from_path(await cls.get_path(options))
+        into_element = get_root_element_from_path(await GenIdeaPycharmJdkTableXml.get_path(options))
         element = merge_elements(from_element=from_element, into_element=into_element)
         text = etree.tostring(element, pretty_print=True, encoding=str)
         
-        log.debug(f'{cls.__name__} {text = }')
+        log.debug(f'{GenIdeaPycharmJdkTableXml.__name__} {text = }')
 
         return text
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
+    @staticmethod
+    async def main(options: Options) -> None:
         GenHost.write_text(
-            data=await cls.get_text(options),
+            data=await GenIdeaPycharmJdkTableXml.get_text(options),
             options=options,
-            path=await cls.get_path(options),
+            path=await GenIdeaPycharmJdkTableXml.get_path(options),
         )

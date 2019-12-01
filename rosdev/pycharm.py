@@ -1,7 +1,6 @@
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
 
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.c_kdbx import GenIdeaCKdbx
@@ -19,6 +18,7 @@ from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -38,7 +38,7 @@ class Pycharm(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info(f'Starting {await GenIdeaIdeBase.get_name(options)} IDE')
+        log.info(f'Starting {await GenIdeaIdeBase.get_name(options)}.')
         await GenHost.execute_shell(
             command=(
                 f'nohup {await cls.get_path(options)} {await GenWorkspace.get_path(options)}'

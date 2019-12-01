@@ -1,7 +1,6 @@
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
 
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.home import GenHome
@@ -9,6 +8,7 @@ from rosdev.gen.host import GenHost
 from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)

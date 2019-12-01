@@ -1,13 +1,13 @@
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
 from uuid import UUID, uuid4
 
 from rosdev.gen.host import GenHost
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 log = getLogger(__name__)
 

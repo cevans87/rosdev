@@ -15,6 +15,7 @@ from rosdev.gen.src import GenSrc
 from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
+from rosdev.util.uri import Uri
 
 
 log = getLogger(__name__)
@@ -24,7 +25,6 @@ log = getLogger(__name__)
 class GenDockerContainer(GenDockerContainerBase):
 
     @staticmethod
-    @memoize
     async def execute(
             command: str,
             options: Options,
@@ -45,7 +45,6 @@ class GenDockerContainer(GenDockerContainerBase):
         )
 
     @staticmethod
-    @memoize
     async def execute_and_get_lines(
             command: str,
             options: Options,
@@ -64,7 +63,6 @@ class GenDockerContainer(GenDockerContainerBase):
         )
 
     @staticmethod
-    @memoize
     async def execute_and_get_line(
             command: str,
             options: Options,
@@ -122,23 +120,65 @@ class GenDockerContainer(GenDockerContainerBase):
 
         return environment
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
-        if not await GenDockerContainer.get_id(options):
+    @staticmethod
+    @memoize
+    async def get_ip(options: Options) -> str:
+        ip = (await GenDockerContainer._get_inspect(options))['NetworkSettings']['IPAddress']
+
+        log.debug(f'{GenDockerContainer.__name__} {ip = }')
+
+        return ip
+    
+    @staticmethod
+    @memoize
+    async def get_port(options: Options) -> int:
+        port = int(
+            (
+                await GenDockerContainer._get_inspect(options)
+            )['NetworkSettings']['Ports']['22/tcp'][0]['HostPort']
+        )
+
+        log.debug(f'{GenDockerContainer.__name__} {port = }')
+
+        return port
+
+    @staticmethod
+    @memoize
+    async def get_uri(options) -> Uri:
+        uri = Uri(f'ssh://localhost:{await GenDockerContainer.get_port(options)}')
+        
+        log.debug(f'{GenDockerContainer.__name__} {uri = }')
+        
+        return uri
+
+    @staticmethod
+    async def main(options: Options) -> None:
+        if not await GenDockerContainerBase.get_id(options):
             log.info('Docker container does not exist.')
+        # FIXME saving and comparing ids like this is extremely error-prone and difficult to
+        #  understand. Find a better way.
         elif (
                 options.docker_container_replace or
-                (await GenDockerContainer.get_id(options) != await GenDockerImage.get_id(options))
+                (
+                        await GenDockerContainerBase.get_id(options) !=
+                        await GenDockerImage.get_id(options)
+                ) or (
+                        await GenDockerContainerBase.get_id(options) !=
+                        await GenInstall.get_id(options)
+                #) or (
+                #        await GenDockerContainerBase.get_id(options) !=
+                #        await GenSrc.get_id(options)
+                )
         ):
             log.info('Replacing existing docker container.')
             await GenHost.execute(
-                command=f'docker container rm -f {await GenDockerContainer.get_name(options)}',
+                command=f'docker container rm -f {await GenDockerContainerBase.get_name(options)}',
                 options=options,
             )
-        elif not await GenDockerContainer.get_running(options):
+        elif not await GenDockerContainerBase.get_running(options):
             log.info('Restarting stopped docker container.')
             await GenHost.execute(
-                command=f'docker start {await GenDockerContainer.get_name(options)}',
+                command=f'docker start {await GenDockerContainerBase.get_name(options)}',
                 options=options,
             )
             return
@@ -146,13 +186,13 @@ class GenDockerContainer(GenDockerContainerBase):
             log.debug('Docker container is already running.')
             return
 
-        log.info(f'Creating docker container {await GenDockerContainer.get_name(options)}.')
+        log.info(f'Creating docker container {await GenDockerContainerBase.get_name(options)}.')
         await GenHost.execute(
             command=(
                 f'docker run'
                 f' --detach'
                 f' --expose 22'
-                f' --hostname {await GenDockerContainer.get_name(options)}'
+                f' --hostname {await GenDockerContainerBase.get_name(options)}'
                 f' --ipc host'
                 f' --mount type=volume'
                 f',dst={await GenInstall.get_container_path(options)}'
@@ -160,7 +200,7 @@ class GenDockerContainer(GenDockerContainerBase):
                 f',volume-opt=type=none'
                 f',volume-opt=o=bind'
                 f',volume-opt=device={await GenInstall.get_home_path(options)}'
-                f' --name {await GenDockerContainer.get_name(options)}'
+                f' --name {await GenDockerContainerBase.get_name(options)}'
                 f' --privileged'
                 f' --publish-all'
                 f' --security-opt seccomp=unconfined'
@@ -178,7 +218,5 @@ class GenDockerContainer(GenDockerContainerBase):
             ),
             options=options,
         )
-        GenDockerContainer.get_id.memoize.reset()
-        GenDockerContainer.get_inspect.memoize.reset()
-        GenDockerContainer.get_running.memoize.reset()
+        assert await GenDockerContainer.get_running(options)
         log.info(f'Created docker container {await GenDockerContainer.get_name(options)}.')

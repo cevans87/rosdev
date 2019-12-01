@@ -1,12 +1,13 @@
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from pathlib import Path
 
 from rosdev.gen.docker.container_base import GenDockerContainerBase
 from rosdev.gen.docker.image import GenDockerImage
+from rosdev.gen.host import GenHost
 from rosdev.gen.install_base import GenInstallBase
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -24,18 +25,29 @@ class GenInstall(GenInstallBase):
 
         return container_path
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
+    @staticmethod
+    async def main(options: Options) -> None:
         if (
                 options.docker_container_replace or
+                (not (await GenInstallBase.get_home_path(options)).exists()) or
+                (not (await GenInstallBase.get_id(options))) or
                 (
-                        await GenDockerContainerBase.get_id(options) !=
-                        await GenDockerImage.get_id(options)
+                        await GenInstallBase.get_id(options) !=
+                        await GenDockerContainerBase.get_id(options)
                 )
         ):
-            if (await cls.get_home_path(options)).exists():
+            log.info(f'Installing install.')
+            if (await GenInstallBase.get_id_path(options)).exists():
+                (await GenInstallBase.get_id_path(options)).unlink()
+            if (await GenInstallBase.get_home_path(options)).exists():
                 await GenDockerImage.execute(
-                    command=f'sudo rm -rf {await cls.get_home_path(options)}',
+                    command=f'sudo rm -rf {await GenInstallBase.get_home_path(options)}',
                     options=options,
                 )
-            (await cls.get_home_path(options)).mkdir(parents=True, exist_ok=True)
+            (await GenInstallBase.get_home_path(options)).mkdir(parents=True, exist_ok=True)
+
+            GenHost.write_text(
+                data=await GenDockerImage.get_id(options),
+                options=options,
+                path=await GenInstallBase.get_id_path(options),
+            )

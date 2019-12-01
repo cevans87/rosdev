@@ -29,6 +29,6 @@ class GenRosdevHome(Handler):
 
         return path
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
-        (await cls.get_path(options)).mkdir(parents=True, exist_ok=True)
+    @staticmethod
+    async def main(options: Options) -> None:
+        (await GenRosdevHome.get_path(options)).mkdir(parents=True, exist_ok=True)

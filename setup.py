@@ -11,6 +11,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'argcomplete>=1.9.4',
+        'asyncssh',
         'atools>=0.6.2',
         'frozendict>=1.2',
         'lxml>=4.3.3',

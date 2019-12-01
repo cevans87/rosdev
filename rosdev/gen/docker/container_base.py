@@ -2,7 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 import json
 from logging import getLogger
-from pathlib import Path
 from typing import Mapping
 
 from rosdev.gen.home import GenHome
@@ -10,6 +9,7 @@ from rosdev.gen.host import GenHost
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 log = getLogger(__name__)
 
@@ -17,30 +17,27 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerContainerBase(Handler):
 
-    @staticmethod
+    @classmethod
     @memoize
-    async def get_id(options: Options) -> str:
+    async def get_id(cls, options: Options) -> str:
         # noinspection PyShadowingBuiltins
-        id = (await GenDockerContainerBase.get_inspect(options)).get('Image', '')
+        id = (await cls._get_inspect(options)).get('Image', '')
 
-        log.debug(f'{GenDockerContainerBase.__name__} {id = }')
+        log.debug(f'{cls.__name__} {id = }')
 
         return id
 
-    @staticmethod
+    @classmethod
     @memoize
-    async def get_inspect(options: Options) -> Mapping:
+    async def _get_inspect(cls, options: Options) -> Mapping:
         lines = await GenHost.execute_shell_and_get_lines(
-            command=(
-                f'docker container inspect {await GenDockerContainerBase.get_name(options)}'
-                f' 2> /dev/null'
-            ),
+            command=f'docker container inspect {await cls.get_name(options)} 2> /dev/null',
             options=options,
             err_ok=True,
         )
         inspect = array[0] if (array := json.loads('\n'.join(lines))) else {}
 
-        log.debug(f'{GenDockerContainerBase.__name__} {inspect = }')
+        log.debug(f'{cls.__name__} {inspect = }')
 
         return inspect
 
@@ -56,15 +53,12 @@ class GenDockerContainerBase(Handler):
 
         return name
 
-    @staticmethod
+    @classmethod
     @memoize
-    async def get_running(options: Options) -> bool:
-        running = (
-            (await GenDockerContainerBase.get_inspect(options)).get(
-                'State', {}).get('Running', False)
-        )
+    async def get_running(cls, options: Options) -> bool:
+        running = (await cls._get_inspect(options)).get('State', {}).get('Running', False)
 
-        log.debug(f'{GenDockerContainerBase.__name__} {running = }')
+        log.debug(f'{cls.__name__} {running = }')
 
         return running
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 from argcomplete import autocomplete
 # noinspection PyProtectedMember
-from argparse import Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, SUPPRESS
+from argparse import (
+    Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, REMAINDER, SUPPRESS
+)
 import ast
 from collections import ChainMap
 from dataclasses import asdict, dataclass, field, replace
@@ -10,10 +12,8 @@ from importlib import import_module
 import logging
 from pathlib import Path
 from typing import (
-    AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple,
-    Union
+    AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple, Union
 )
-from uuid import UUID
 
 from rosdev.util.options import Options
 
@@ -31,15 +31,8 @@ def get_options_with_overrides() -> Options:
             annotation = Options.__annotations__.get(k)
             if annotation is None:
                 continue
-            elif annotation in {Path, Optional[Path]}:
-                v = Path(v)
-            elif annotation == Mapping[int, Optional[int]]:
+            elif annotation in {Mapping[int, int], Mapping[str, str]}:
                 v = frozendict(v)
-            elif annotation == Mapping[Path, Path]:
-                v_mod = {}
-                for k_inner, v_inner in v.items():
-                    v_mod[Path(k_inner)] = Path(v_inner)
-                v = frozendict(v_mod)
             override[k] = v
 
     return Options(**ChainMap(*overrides))
@@ -57,11 +50,28 @@ class Positional:
     command: ArgumentParser = field(default_factory=gen_flag_parser)
     executable: ArgumentParser = field(default_factory=gen_flag_parser)
     package: ArgumentParser = field(default_factory=gen_flag_parser)
+    remainder: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
         self.command.add_argument('command')
         self.executable.add_argument('executable')
         self.package.add_argument('package')
+
+        class RemainderAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                setattr(namespace, self.dest, tuple(values))
+
+        self.remainder.add_argument(
+            'remainder',
+            action=RemainderAction,
+            nargs=REMAINDER,
+        )
 
 
 positional = Positional()
@@ -70,6 +80,7 @@ positional = Positional()
 @dataclass(frozen=True)
 class Choices:
     architecture = tuple(sorted({'amd64', 'arm32v7', 'arm64v8'}))
+    backend_type = tuple(sorted({'ecs', 'ssh'}))
     build_type = tuple(sorted({'Debug', 'MinSizeRel', 'Release', 'RelWithDebInfo'}))
     idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
@@ -84,6 +95,10 @@ choices = Choices()
 @dataclass(frozen=True)
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_builder_ssh_uri: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_builder_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_runner_ssh_uri: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_runner_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -100,13 +115,11 @@ class Flag:
     idea_ide_name: ArgumentParser = field(default_factory=gen_flag_parser)
     idea_uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
-    pull_build: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
     rosdep_install_args: ArgumentParser = field(default_factory=gen_flag_parser)
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
-    src_replace: ArgumentParser = field(default_factory=gen_flag_parser)
 
     def __post_init__(self) -> None:
         self.architecture.add_argument(
@@ -114,6 +127,94 @@ class Flag:
             default=options.architecture,
             choices=choices.architecture,
             help=f'Architecture to build. Currently: {options.architecture}',
+        )
+
+        backend_builder_identity_path_group = (
+            self.backend_builder_identity_path.add_mutually_exclusive_group()
+        )
+        backend_builder_identity_path_group.add_argument(
+            '--backend-builder-identity-path',
+            default=options.backend_builder_identity_path,
+            help=f'Identity to use when connecting to backend builder endpoint URI.'
+                 f' Currently: {options.backend_builder_identity_path}'
+        )
+        backend_builder_identity_path_group.add_argument(
+            '--no-backend-builder-identity-path',
+            action='store_const',
+            const='',
+            dest='backend_builder_identity_path',
+            default=options.backend_builder_identity_path,
+            help=(
+                SUPPRESS if options.backend_builder_identity_path is None else
+                f'Do not use identity when connecting to backend builder endpoint URI.'
+                f' Currently: {options.backend_builder_identity_path}'
+            ),
+        )
+
+        backend_builder_ssh_uri_group = (
+            self.backend_builder_ssh_uri.add_mutually_exclusive_group()
+        )
+        backend_builder_ssh_uri_group.add_argument(
+            '--backend-builder-ssh-uri',
+            default=options.backend_builder_ssh_uri,
+            help=f'Backend builder endpoint URI.'
+                 f' Currently: {options.backend_builder_ssh_uri}'
+        )
+        backend_builder_ssh_uri_group.add_argument(
+            '--no-backend-builder-ssh-uri',
+            action='store_const',
+            const='',
+            dest='backend_builder_ssh_uri',
+            default=options.backend_builder_ssh_uri,
+            help=(
+                SUPPRESS if options.backend_builder_ssh_uri is None else
+                f'Do not set backend builder endpoint URI.'
+                f' Currently: {options.backend_builder_ssh_uri}'
+            ),
+        )
+
+        backend_runner_identity_path_group = (
+            self.backend_runner_identity_path.add_mutually_exclusive_group()
+        )
+        backend_runner_identity_path_group.add_argument(
+            '--backend-runner-identity-path',
+            default=options.backend_runner_identity_path,
+            help=f'Identity to use when connecting to backend runner endpoint URI.'
+                 f' Currently: {options.backend_runner_identity_path}'
+        )
+        backend_runner_identity_path_group.add_argument(
+            '--no-backend-runner-identity-path',
+            action='store_const',
+            const='',
+            dest='backend_runner_identity_path',
+            default=options.backend_runner_identity_path,
+            help=(
+                SUPPRESS if options.backend_runner_identity_path is None else
+                f'Do not use identity when connecting to backend runner endpoint URI.'
+                f' Currently: {options.backend_runner_identity_path}'
+            ),
+        )
+
+        backend_runner_ssh_uri_group = (
+            self.backend_runner_ssh_uri.add_mutually_exclusive_group()
+        )
+        backend_runner_ssh_uri_group.add_argument(
+            '--backend-runner-ssh-uri',
+            default=options.backend_runner_ssh_uri,
+            help=f'Backend runner endpoint URI.'
+                 f' Currently: {options.backend_runner_ssh_uri}'
+        )
+        backend_runner_ssh_uri_group.add_argument(
+            '--no-backend-runner-ssh-uri',
+            action='store_const',
+            const='',
+            dest='backend_runner_ssh_uri',
+            default=options.backend_runner_ssh_uri,
+            help=(
+                SUPPRESS if options.backend_runner_ssh_uri is None else
+                f'Do not set backend runner endpoint URI.'
+                f' Currently: {options.backend_runner_ssh_uri}'
+            ),
         )
 
         self.build_type.add_argument(
@@ -128,8 +229,8 @@ class Flag:
             '--colcon-build-args',
             default=options.colcon_build_args,
             help=(
-                f'Additional args to pass to colcon build. '
-                f'Currently: {options.colcon_build_args}'
+                f'Additional args to pass to colcon build.'
+                f' Currently: {options.colcon_build_args}'
             )
         )
         colcon_build_args_group.add_argument(
@@ -140,8 +241,8 @@ class Flag:
             default=options.colcon_build_args,
             help=(
                 SUPPRESS if options.colcon_build_args is None else
-                f'Do not pass additional args to colcon build. '
-                f'Currently: {options.colcon_build_args}'
+                f'Do not pass additional args to colcon build.'
+                f' Currently: {options.colcon_build_args}'
             )
         )
 
@@ -173,8 +274,8 @@ class Flag:
             action='store_true',
             help=(
                 SUPPRESS if options.docker_container_gui else
-                f'Allow container to use host X11 server. '
-                f'Currently: {options.docker_container_gui}'
+                f'Allow container to use host X11 server.'
+                f' Currently: {options.docker_container_gui}'
             )
         )
         docker_container_gui_group.add_argument(
@@ -184,20 +285,40 @@ class Flag:
             action='store_false',
             help=(
                 SUPPRESS if not options.docker_container_gui else
-                f'Do not allow container to use host X11 server. '
-                f'Currently: {options.docker_container_gui}'
+                f'Do not allow container to use host X11 server.'
+                f' Currently: {options.docker_container_gui}'
             )
         )
 
-        # TODO add PortsAction to allow <host>:<container> mapping. See
-        #  DockerContainerVolumesAction for reference.
+        class DockerContainerPortsAction(Action):
+            def __call__(
+                    self,
+                    _parser: ArgumentParser,
+                    namespace: Namespace,
+                    values: List[str],
+                    _option_string: Optional[str] = None
+            ) -> None:
+                docker_container_ports = {}
+                for value in values:
+                    try:
+                        container_port, host_port = value.split(':')
+                    except ValueError:
+                        container_port, host_port = value, value
+                        
+                    container_port, host_port = int(container_port), int(host_port)
+
+                    docker_container_ports[container_port] = host_port
+                docker_container_ports = frozendict(docker_container_ports)
+
+                setattr(namespace, self.dest, docker_container_ports)
+
         self.docker_container_ports.add_argument(
             '--docker-container-ports',
             nargs='*',
-            type=int,
             default=options.docker_container_ports,
-            help=f'List of ports to expose in docker container. '
-                 f'Currently: {options.docker_container_ports}'
+            action=DockerContainerPortsAction,
+            help=f'List of ports to expose in docker container.'
+                 f' Currently: {options.docker_container_ports}'
         )
 
         docker_container_replace_group = (
@@ -209,8 +330,8 @@ class Flag:
             default=options.docker_container_replace,
             help=(
                 SUPPRESS if options.docker_container_replace else
-                f'Replace docker containers that should only need to be built once. '
-                f'Currently: {options.docker_container_replace}'
+                f'Replace docker containers that should only need to be built once.'
+                f' Currently: {options.docker_container_replace}'
             )
         )
         docker_container_replace_group.add_argument(
@@ -220,8 +341,8 @@ class Flag:
             default=options.docker_container_replace,
             help=(
                 SUPPRESS if not options.docker_container_replace else
-                f'Do not replace docker containers that should only need to be built once. '
-                f'Currently: {options.docker_container_replace}'
+                f'Do not replace docker containers that should only need to be built once.'
+                f' Currently: {options.docker_container_replace}'
             )
         )
 
@@ -251,8 +372,8 @@ class Flag:
             default=options.docker_container_volumes,
             action=DockerContainerVolumesAction,
             help=(
-                f'Additional volumes to mount in docker container. '
-                f'Currently: {options.docker_container_volumes}'
+                f'Additional volumes to mount in docker container.'
+                f' Currently: {options.docker_container_volumes}'
             )
         )
 
@@ -264,8 +385,8 @@ class Flag:
             action='store_true',
             default=options.docker_entrypoint_sh_setup_overlay,
             help=(
-                f'Source setup.bash from workspace install. '
-                f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
+                f'Source setup.bash from workspace install.'
+                f' Currently: {options.docker_entrypoint_sh_setup_overlay}'
             )
         )
         docker_entrypoint_sh_setup_overlay_group.add_argument(
@@ -275,8 +396,8 @@ class Flag:
             default=options.docker_entrypoint_sh_setup_overlay,
             help=(
                 SUPPRESS if not options.docker_entrypoint_sh_setup_overlay else
-                f'Do not source setup.bash from workspace install. '
-                f'Currently: {options.docker_entrypoint_sh_setup_overlay}'
+                f'Do not source setup.bash from workspace install.'
+                f' Currently: {options.docker_entrypoint_sh_setup_overlay}'
             )
         )
 
@@ -288,8 +409,8 @@ class Flag:
             action='store_true',
             default=options.docker_entrypoint_sh_setup_underlay,
             help=(
-                f'Source setup.bash from ROS install. '
-                f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
+                f'Source setup.bash from ROS install.'
+                f' Currently: {options.docker_entrypoint_sh_setup_underlay}'
             )
         )
         docker_entrypoint_sh_setup_underlay_group.add_argument(
@@ -299,8 +420,8 @@ class Flag:
             default=options.docker_entrypoint_sh_setup_underlay,
             help=(
                 SUPPRESS if not options.docker_entrypoint_sh_setup_underlay else
-                f'Do not source setup.bash from ROS install. '
-                f'Currently: {options.docker_entrypoint_sh_setup_underlay}'
+                f'Do not source setup.bash from ROS install.'
+                f' Currently: {options.docker_entrypoint_sh_setup_underlay}'
             )
         )
 
@@ -311,8 +432,8 @@ class Flag:
             default=options.docker_image_pull,
             help=(
                 SUPPRESS if options.docker_image_pull else
-                f'Pull newer docker image. '
-                f'Currently: {options.docker_image_pull}'
+                f'Pull newer docker image.'
+                f' Currently: {options.docker_image_pull}'
             )
         )
         docker_image_pull_group.add_argument(
@@ -322,8 +443,8 @@ class Flag:
             default=options.docker_image_pull,
             help=(
                 SUPPRESS if not options.docker_image_pull else
-                f'Do not pull newer docker image. '
-                f'Currently: {options.docker_image_pull}'
+                f'Do not pull newer docker image.'
+                f' Currently: {options.docker_image_pull}'
             )
         )
 
@@ -336,8 +457,8 @@ class Flag:
             default=options.docker_image_replace,
             help=(
                 SUPPRESS if options.docker_image_replace else
-                f'Replace docker images that should only need to be built once. '
-                f'Currently: {options.docker_image_replace}'
+                f'Replace docker images that should only need to be built once.'
+                f' Currently: {options.docker_image_replace}'
             )
         )
         docker_image_replace_group.add_argument(
@@ -347,8 +468,8 @@ class Flag:
             default=options.docker_image_replace,
             help=(
                 SUPPRESS if not options.docker_image_replace else
-                f'Do not replace docker images that should only need to be built once. '
-                f'Currently: {options.docker_image_replace}'
+                f'Do not replace docker images that should only need to be built once.'
+                f' Currently: {options.docker_image_replace}'
             )
         )
 
@@ -360,8 +481,8 @@ class Flag:
             action='store_true',
             default=options.dry_run,
             help=(
-                f'Skip actions that cause lasting effects. Dependant actions to fail. '
-                f'Currently: {options.dry_run}'
+                f'Skip actions that cause lasting effects. Dependant actions to fail.'
+                f' Currently: {options.dry_run}'
             )
         )
         dry_run_group.add_argument(
@@ -371,8 +492,8 @@ class Flag:
             default=options.dry_run,
             help=(
                 SUPPRESS if not options.dry_run else
-                f'Do not skip actions that cause lasting effects. '
-                f'Currently: {options.dry_run}'
+                f'Do not skip actions that cause lasting effects.'
+                f' Currently: {options.dry_run}'
             )
         )
 
@@ -415,20 +536,9 @@ class Flag:
             help=f'Name of IDEA IDE to use. Currently: {options.idea_ide_name}'
         )
 
-        class UuidAction(Action):
-            def __call__(
-                    self,
-                    _parser: ArgumentParser,
-                    namespace: Namespace,
-                    values: List[str],
-                    _option_string: Optional[str] = None
-            ) -> None:
-                setattr(namespace, self.dest, f'{UUID(values[0])}')
-
         self.idea_uuid.add_argument(
             '--idea-uuid',
             default=options.idea_uuid,
-            action=UuidAction,
             type=str,
             help=(
                 f'UUID to use for generated idea settings. '
@@ -443,27 +553,6 @@ class Flag:
             help=f'Currently: {options.log_level}',
         )
 
-        pull_build_group = self.pull_build.add_mutually_exclusive_group()
-        pull_build_group.add_argument(
-            '--pull-build',
-            action='store_true',
-            default=options.pull_build,
-            help=(
-                SUPPRESS if options.pull_build else
-                f'Pull newer ros build. Currently: {options.pull_build}'
-            )
-        )
-        pull_build_group.add_argument(
-            '--keep-build',
-            action='store_false',
-            dest='pull_build',
-            default=options.pull_build,
-            help=(
-                SUPPRESS if not options.pull_build else
-                f'Do not pull newer ros build. Currently: {options.pull_build}'
-            )
-        )
-
         self.release.add_argument(
             '--release', '-r',
             default=options.release,
@@ -476,8 +565,8 @@ class Flag:
             '--rosdep-install-args',
             default=options.rosdep_install_args,
             help=(
-                f'Additional args to pass to rosdep install. '
-                f'Currently: {options.rosdep_install_args}'
+                f'Additional args to pass to rosdep install.'
+                f' Currently: {options.rosdep_install_args}'
             )
         )
         rosdep_install_args_group.add_argument(
@@ -488,8 +577,8 @@ class Flag:
             default=options.rosdep_install_args,
             help=(
                 SUPPRESS if options.rosdep_install_args is None else
-                f'Do not pass additional args to rosdep install. '
-                f'Currently: {options.rosdep_install_args}'
+                f'Do not pass additional args to rosdep install.'
+                f' Currently: {options.rosdep_install_args}'
             )
         )
 
@@ -504,7 +593,7 @@ class Flag:
             )
         )
         run_main_group.add_argument(
-            '--skip-main',
+            '--no-run-main',
             dest='run_main',
             default=options.run_main,
             action='store_false',
@@ -521,8 +610,8 @@ class Flag:
             action='store_true',
             help=(
                 SUPPRESS if options.run_validate_options else
-                f'Run validate options part of program. '
-                f'Currently: {options.run_validate_options}'
+                f'Run validate options part of program.'
+                f' Currently: {options.run_validate_options}'
             )
         )
         run_validate_options_group.add_argument(
@@ -532,8 +621,8 @@ class Flag:
             action='store_false',
             help=(
                 SUPPRESS if not options.run_validate_options else
-                f'Do not run validate optionspart of program. '
-                f'Currently: {options.run_validate_options}'
+                f'Do not run validate optionspart of program.'
+                f' Currently: {options.run_validate_options}'
             )
         )
 
@@ -552,31 +641,8 @@ class Flag:
             default=options.sanitizer,
             help=(
                 SUPPRESS if options.sanitizer is None else
-                f'Do not build with a sanitizer enabled. '
-                f'Currently: {options.sanitizer}'
-            )
-        )
-
-        src_replace_group = self.src_replace.add_mutually_exclusive_group()
-        src_replace_group.add_argument(
-            '--src-replace',
-            default=options.src_replace,
-            action='store_true',
-            help=(
-                SUPPRESS if options.src_replace else
-                f'Replace ROS/ROS2 src code. '
-                f'Currently: {options.src_replace}'
-            )
-        )
-        src_replace_group.add_argument(
-            '--no-src-replace',
-            dest='src_replace',
-            default=options.src_replace,
-            action='store_false',
-            help=(
-                SUPPRESS if not options.src_replace else
-                f'Do not eplace ROS/ROS2 src code. '
-                f'Currently: {options.src_replace}'
+                f'Do not build with a sanitizer enabled.'
+                f' Currently: {options.sanitizer}'
             )
         )
 
@@ -706,8 +772,6 @@ parser = parser.merged_with(
         flag.docker_entrypoint_sh_setup_underlay,
         flag.docker_image_pull,
         flag.docker_image_replace,
-        flag.pull_build,
-        flag.src_replace,
     }),
 )
 
@@ -725,6 +789,17 @@ parser = parser.merged_with(
 )
 
 parser = parser.merged_with(
+    sub_commands='build',
+    positionals=(
+        positional.remainder,
+    ),
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    }),
+)
+
+parser = parser.merged_with(
     sub_commands='clion',
     flags=frozenset({
         flag.build_type,
@@ -737,7 +812,69 @@ parser = parser.merged_with(
 
 parser = parser.merged_with(sub_commands='gen architecture')
 
-parser = parser.merged_with(sub_commands='gen base')
+parser = parser.merged_with(
+    sub_commands='gen backend apt builder_key',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend apt builder_packages',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend apt builder_source',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen backend builder',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen backend builder_base',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen backend endpoints',
+    flags=frozenset({
+        flag.backend_builder_identity_path,
+        flag.backend_builder_ssh_uri,
+        flag.backend_runner_identity_path,
+        flag.backend_runner_ssh_uri,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen backend runner',
+    flags=frozenset({
+        flag.backend_runner_identity_path,
+        flag.backend_runner_ssh_uri,
+    })
+)
+
+parser = parser.merged_with(
+    sub_commands='gen backend runner_base',
+    flags=frozenset({
+        flag.backend_runner_identity_path,
+        flag.backend_runner_ssh_uri,
+    })
+)
 
 parser = parser.merged_with(
     sub_commands='gen colcon build',
@@ -746,13 +883,6 @@ parser = parser.merged_with(
         flag.colcon_build_args,
         flag.docker_image_pull,
         flag.sanitizer,
-    })
-)
-
-parser = parser.merged_with(
-    sub_commands='gen core',
-    flags=frozenset({
-        flag.pull_build,
     })
 )
 
@@ -816,7 +946,6 @@ parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
 parser = parser.merged_with(
     sub_commands='gen install',
     flags=frozenset({
-        flag.pull_build,
         flag.docker_image_pull,
     })
 )
@@ -845,14 +974,19 @@ parser = parser.merged_with(sub_commands='gen rosdev workspace')
 parser = parser.merged_with(
     sub_commands='gen src',
     flags=frozenset({
-        flag.pull_build,
         flag.docker_image_pull,
-        flag.src_replace,
     })
 )
 parser = parser.merged_with(sub_commands='gen src_base')
 
 parser = parser.merged_with(sub_commands='gen workspace')
+
+parser = parser.merged_with(
+    sub_commands='install',
+    positionals=(
+        positional.remainder,
+    ),
+)
 
 parser = parser.merged_with(sub_commands='pycharm')
 

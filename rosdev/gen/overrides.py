@@ -2,13 +2,13 @@ from atools import memoize
 from dataclasses import asdict, dataclass
 from frozendict import frozendict
 from logging import getLogger
-from pathlib import Path
 from pprint import pformat
 
 from rosdev.gen.host import GenHost
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -17,18 +17,18 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenOverrides(Handler):
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
+    async def get_path(options: Options) -> Path:
         path = await GenWorkspace.get_path(options) / '.rosdev' / 'overrides'
 
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{GenOverrides.__name__} {path = }')
 
         return path
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_text(cls, options: Options) -> str:
+    async def get_text(options: Options) -> str:
         commit = {}
         default_options = Options()
 
@@ -36,28 +36,19 @@ class GenOverrides(Handler):
             if (k == 'stage') or (getattr(default_options, k) == v):
                 continue
 
-            if isinstance(v, Path):
-                v = str(v)
-            elif isinstance(v, frozendict):
-                v_mod = {}
-                for k_inner, v_inner in v.items():
-                    if isinstance(k_inner, Path):
-                        k_inner = str(k_inner)
-                    if isinstance(v_inner, Path):
-                        v_inner = str(v_inner)
-                    v_mod[k_inner] = str(v_inner)
-                v = v_mod
+            if isinstance(v, frozendict):
+                v = dict(v)
             commit[k] = v
         text = f'{pformat(commit)}\n' if commit else ''
         
-        log.debug(f'{cls.__name__} {text = }')
+        log.debug(f'{GenOverrides.__name__} {text = }')
         
         return text
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
+    @staticmethod
+    async def main(options: Options) -> None:
         GenHost.write_text(
-            data=await cls.get_text(options),
+            data=await GenOverrides.get_text(options),
             options=options,
-            path=await cls.get_path(options),
+            path=await GenOverrides.get_path(options),
         )
