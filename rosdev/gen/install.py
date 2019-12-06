@@ -46,8 +46,6 @@ class GenInstall(GenInstallBase):
                 )
             (await GenInstallBase.get_home_path(options)).mkdir(parents=True, exist_ok=True)
 
-            GenHost.write_text(
-                data=await GenDockerImage.get_id(options),
-                options=options,
-                path=await GenInstallBase.get_id_path(options),
+            (await GenInstallBase.get_id_path(options)).write_text(
+                data=await GenDockerImage.get_id(options)
             )

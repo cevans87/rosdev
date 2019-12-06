@@ -1,15 +1,21 @@
 from dataclasses import dataclass
 from logging import getLogger
 
-from rosdev.gen.backend.apt.local_key import GenBackendAptLocalKey
-from rosdev.gen.backend.apt.local_packages import GenBackendAptLocalPackages
-from rosdev.gen.backend.apt.local_source import GenBackendAptLocalSource
+from rosdev.gen.backend.apt.key.local import GenBackendAptKeyLocal
+from rosdev.gen.backend.apt.packages.local import GenBackendAptPackagesLocal
+from rosdev.gen.backend.apt.source.local import GenBackendAptSourceLocal
 from rosdev.gen.backend.local_base import GenBackendLocalBase
+from rosdev.gen.backend.install.local import GenBackendInstallLocal
+from rosdev.gen.backend.mixin import GenBackendMixin
+from rosdev.gen.backend.pip.packages.local import GenBackendPipPackagesLocal
+from rosdev.gen.backend.rsync.local import GenBackendRsyncLocal
+from rosdev.gen.backend.rosdev.home.local import GenBackendRosdevHomeLocal
+from rosdev.gen.backend.rosdev.workspace.local import GenBackendRosdevWorkspaceLocal
 
 
 log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenBackendLocal(GenBackendLocalBase):
+class GenBackendLocal(GenBackendLocalBase, GenBackendMixin):
     pass

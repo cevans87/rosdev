@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.backend.builder import GenBackendBuilder
+from rosdev.gen.backend.entrypoint_sh.builder_base import GenBackendEntrypointhBuilderBase
 from rosdev.gen.backend.local import GenBackendLocal
-from rosdev.gen.backend.rsync.builder_workspace import GenBackendRsyncBuilderWorkspace
-from rosdev.gen.workspace import GenWorkspace
-
+from rosdev.gen.backend.rsync.workspace.builder import GenBackendRsyncWorkspaceBuilder
+from rosdev.gen.backend.workspace.builder_base import GenBackendWorkspaceBuilderBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -21,24 +21,24 @@ class Build(Handler):
     @staticmethod
     @memoize
     async def main(options: Options) -> None:
-        lines = await GenBackendBuilder.execute_and_get_lines(
-            command='env',
-            options=options,
-        )
-        log.info(lines)
-        await GenBackendBuilder.execute(
+        await (await GenBackendBuilder.get_ssh(options)).execute(
             command=(
-                f'colcon build'
+                f'{await GenBackendEntrypointhBuilderBase.get_path(options)}'
+                f' colcon build'
                 f'{" " + " ".join(options.remainder) if options.remainder else ""}'
             ),
+            environment=await GenBackendEntrypointhBuilderBase.get_environment(options),
             options=options,
+            path=await GenBackendWorkspaceBuilderBase.get_path(options),
         )
-        await GenBackendLocal.execute(
-            command=(
-                f'rsync'
-                f' {await GenBackendRsyncBuilderWorkspace.get_rsync_flags(options)}'
-                f' {await GenWorkspace.get_path(options)}'
-                f' {await GenBackendRsyncBuilderWorkspace.get_rsync_uri(options)}'
-            ),
-            options=options,
-        )
+
+        if not await GenBackendRsyncWorkspaceBuilder.is_local(options):
+            await (await GenBackendLocal.get_ssh(options)).execute(
+                command=(
+                    f'rsync'
+                    f' {await GenBackendRsyncWorkspaceBuilder.get_flags(options)}'
+                    f' {await GenBackendRsyncWorkspaceBuilder.get_dst_uri(options)}/*'
+                    f' {await GenBackendRsyncWorkspaceBuilder.get_src_uri(options)}'
+                ),
+                options=options,
+            )

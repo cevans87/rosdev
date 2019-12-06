@@ -46,9 +46,9 @@ class GenInstallBase(Handler):
 
     @staticmethod
     @memoize
-    async def get_path(options: Options) -> Path:
-        path = await GenRosdevWorkspace.get_path(options) / 'install'
+    async def get_workspace_path(options: Options) -> Path:
+        workspace_path = await GenRosdevWorkspace.get_path(options) / 'install'
 
-        log.debug(f'{GenInstallBase.__name__} {path = }')
+        log.debug(f'{GenInstallBase.__name__} {workspace_path = }')
 
-        return path
+        return workspace_path

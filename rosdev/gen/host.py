@@ -48,7 +48,7 @@ class GenHost(Handler):
             capture_output: bool,
             options: Options,
     ) -> Optional[Tuple[str]]:
-        log.debug(f'execute err_ok={err_ok} "{command}"')
+        log.debug(f'execute {err_ok = } {command = }')
         process = await create_subprocess_exec(
             *command.split(),
             stdout=PIPE if capture_output else None,

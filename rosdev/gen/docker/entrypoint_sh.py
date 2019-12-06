@@ -62,7 +62,7 @@ class GenDockerEntrypointSh(Handler):
 
         environment: Mapping[str, str] = frozendict(environment)
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {environment = }')
+        log.debug(f'{__class__.__name__} {environment = }')
         
         return environment
 
@@ -74,7 +74,7 @@ class GenDockerEntrypointSh(Handler):
             for k, v in (await GenDockerEntrypointSh.get_environment(options)).items()
         ])
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {environment_flags = }')
+        log.debug(f'{__class__.__name__} {environment_flags = }')
         
         return environment_flags
 
@@ -84,7 +84,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_container_path(options: Options) -> Path:
         container_path = Path('/') / 'rosdev_docker_entrypoint.sh'
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {container_path = }')
+        log.debug(f'{__class__.__name__} {container_path = }')
         
         return container_path
 
@@ -93,7 +93,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_path(options: Options) -> Path:
         path = await GenRosdevHome.get_path(options) / 'docker' / 'rosdev_docker_entrypoint.sh'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {path = }')
+        log.debug(f'{__class__.__name__} {path = }')
         
         return path
 
@@ -103,7 +103,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_log_level_env_name(options: Options) -> str:
         log_level_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_LOG_LEVEL'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {log_level_env_name = }')
+        log.debug(f'{__class__.__name__} {log_level_env_name = }')
 
         return log_level_env_name
 
@@ -113,7 +113,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_path_env_name(options: Options) -> str:
         path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_PATH'
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {path_env_name = }')
+        log.debug(f'{__class__.__name__} {path_env_name = }')
         
         return path_env_name
 
@@ -124,7 +124,7 @@ class GenDockerEntrypointSh(Handler):
             await GenRosdevWorkspace.get_path(options) / 'quick_setup_overlay.sh'
         )
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {quick_setup_overlay_path = }')
+        log.debug(f'{__class__.__name__} {quick_setup_overlay_path = }')
         
         return quick_setup_overlay_path
 
@@ -136,7 +136,7 @@ class GenDockerEntrypointSh(Handler):
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH'
         )
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {quick_setup_overlay_path_env_name = }')
+        log.debug(f'{__class__.__name__} {quick_setup_overlay_path_env_name = }')
         
         return quick_setup_overlay_path_env_name
 
@@ -148,7 +148,7 @@ class GenDockerEntrypointSh(Handler):
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH_PARENT'
         )
         
-        log.debug(f'{GenDockerEntrypointSh.__name__} {quick_setup_overlay_path_parent_env_name = }')
+        log.debug(f'{__class__.__name__} {quick_setup_overlay_path_parent_env_name = }')
         
         return quick_setup_overlay_path_parent_env_name
 
@@ -159,7 +159,7 @@ class GenDockerEntrypointSh(Handler):
             await GenRosdevWorkspace.get_path(options) / 'quick_setup_underlay.sh'
         )
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {quick_setup_underlay_path = }')
+        log.debug(f'{__class__.__name__} {quick_setup_underlay_path = }')
         
         return quick_setup_underlay_path
 
@@ -171,7 +171,7 @@ class GenDockerEntrypointSh(Handler):
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH'
         )
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {quick_setup_underlay_path_env_name = }')
+        log.debug(f'{__class__.__name__} {quick_setup_underlay_path_env_name = }')
         
         return quick_setup_underlay_path_env_name
 
@@ -183,18 +183,16 @@ class GenDockerEntrypointSh(Handler):
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH_PARENT'
         )
 
-        log.debug(
-            f'{GenDockerEntrypointSh.__name__} {quick_setup_underlay_path_parent_env_name = }'
-        )
+        log.debug(f'{__class__.__name__} {quick_setup_underlay_path_parent_env_name = }')
         
         return quick_setup_underlay_path_parent_env_name
 
     @staticmethod
     @memoize
     async def get_setup_overlay_path(options: Options) -> Path:
-        setup_overlay_path = await GenWorkspace.get_path(options) / 'install' / 'setup.bash'
+        setup_overlay_path = await GenWorkspace.get_path(options) / 'install' / 'local_setup.bash'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {setup_overlay_path = }')
+        log.debug(f'{__class__.__name__} {setup_overlay_path = }')
 
         return setup_overlay_path
 
@@ -204,16 +202,16 @@ class GenDockerEntrypointSh(Handler):
     async def get_setup_overlay_path_env_name(options: Options) -> str:
         setup_overlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_OVERLAY_PATH'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {setup_overlay_path_env_name = }')
+        log.debug(f'{__class__.__name__} {setup_overlay_path_env_name = }')
         
         return setup_overlay_path_env_name
 
     @staticmethod
     @memoize
     async def get_setup_underlay_path(options: Options) -> Path:
-        setup_underlay_path = await GenInstallBase.get_path(options) / 'setup.bash'
+        setup_underlay_path = await GenInstallBase.get_workspace_path(options) / 'setup.bash'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {setup_underlay_path = }')
+        log.debug(f'{__class__.__name__} {setup_underlay_path = }')
 
         return setup_underlay_path
 
@@ -223,7 +221,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_setup_underlay_path_env_name(options: Options) -> str:
         setup_underlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_UNDERLAY_PATH'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {setup_underlay_path_env_name = }')
+        log.debug(f'{__class__.__name__} {setup_underlay_path_env_name = }')
         
         return setup_underlay_path_env_name
 
@@ -232,7 +230,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_overlay_path(options: Options) -> Path:
         overlay_path = await GenRosdevWorkspace.get_path(options) / 'overlay.sh'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {overlay_path = }')
+        log.debug(f'{__class__.__name__} {overlay_path = }')
         
         return overlay_path
 
@@ -241,7 +239,7 @@ class GenDockerEntrypointSh(Handler):
     async def get_underlay_path(options: Options) -> Path:
         underlay_path = await GenRosdevWorkspace.get_path(options) / 'underlay.sh'
 
-        log.debug(f'{GenDockerEntrypointSh.__name__} {underlay_path = }')
+        log.debug(f'{__class__.__name__} {underlay_path = }')
         
         return underlay_path
 

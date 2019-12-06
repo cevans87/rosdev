@@ -16,7 +16,7 @@ class GenIdeaIdeBase(Handler):
     @memoize
     async def get_name(cls, options: Options) -> str:
         name = options.idea_ide_name
-        if name is None:
+        if not name:
             if 'clion' in sys.argv:
                 name = 'CLion'
             elif 'pycharm' in sys.argv:

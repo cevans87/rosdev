@@ -11,10 +11,10 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class Options:
     architecture: str = {'x86_64': 'amd64', 'arm': 'arm32v7', 'aarch64': 'arm64v8'}[machine()]
-    backend_builder_ssh_uri: str = ''
-    backend_builder_identity_path: str = ''
-    backend_runner_ssh_uri: str = ''
-    backend_runner_identity_path: str = ''
+    backend_ssh_builder_identity_path: str = ''
+    backend_ssh_builder_uri: str = ''
+    backend_ssh_runner_identity_path: str = ''
+    backend_ssh_runner_uri: str = ''
     build_type: str = 'Debug'
     colcon_build_args: str = ''
     docker_container_ccache: bool = True

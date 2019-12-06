@@ -95,10 +95,10 @@ choices = Choices()
 @dataclass(frozen=True)
 class Flag:
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
-    backend_builder_ssh_uri: ArgumentParser = field(default_factory=gen_flag_parser)
-    backend_builder_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
-    backend_runner_ssh_uri: ArgumentParser = field(default_factory=gen_flag_parser)
-    backend_runner_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_ssh_builder_uri: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_ssh_builder_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_ssh_runner_uri: ArgumentParser = field(default_factory=gen_flag_parser)
+    backend_ssh_runner_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
     build_type: ArgumentParser = field(default_factory=gen_flag_parser)
     colcon_build_args: ArgumentParser = field(default_factory=gen_flag_parser)
     docker_container_ccache: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -129,91 +129,91 @@ class Flag:
             help=f'Architecture to build. Currently: {options.architecture}',
         )
 
-        backend_builder_identity_path_group = (
-            self.backend_builder_identity_path.add_mutually_exclusive_group()
+        backend_ssh_builder_identity_path_group = (
+            self.backend_ssh_builder_identity_path.add_mutually_exclusive_group()
         )
-        backend_builder_identity_path_group.add_argument(
-            '--backend-builder-identity-path',
-            default=options.backend_builder_identity_path,
+        backend_ssh_builder_identity_path_group.add_argument(
+            '--backend-ssh-builder-identity-path',
+            default=options.backend_ssh_builder_identity_path,
             help=f'Identity to use when connecting to backend builder endpoint URI.'
-                 f' Currently: {options.backend_builder_identity_path}'
+                 f' Currently: {options.backend_ssh_builder_identity_path}'
         )
-        backend_builder_identity_path_group.add_argument(
-            '--no-backend-builder-identity-path',
+        backend_ssh_builder_identity_path_group.add_argument(
+            '--no-backend-ssh-builder-identity-path',
             action='store_const',
             const='',
-            dest='backend_builder_identity_path',
-            default=options.backend_builder_identity_path,
+            dest='backend_ssh_builder_identity_path',
+            default=options.backend_ssh_builder_identity_path,
             help=(
-                SUPPRESS if options.backend_builder_identity_path is None else
+                SUPPRESS if options.backend_ssh_builder_identity_path is None else
                 f'Do not use identity when connecting to backend builder endpoint URI.'
-                f' Currently: {options.backend_builder_identity_path}'
+                f' Currently: {options.backend_ssh_builder_identity_path}'
             ),
         )
 
-        backend_builder_ssh_uri_group = (
-            self.backend_builder_ssh_uri.add_mutually_exclusive_group()
+        backend_ssh_builder_uri_group = (
+            self.backend_ssh_builder_uri.add_mutually_exclusive_group()
         )
-        backend_builder_ssh_uri_group.add_argument(
-            '--backend-builder-ssh-uri',
-            default=options.backend_builder_ssh_uri,
+        backend_ssh_builder_uri_group.add_argument(
+            '--backend-ssh-builder-uri',
+            default=options.backend_ssh_builder_uri,
             help=f'Backend builder endpoint URI.'
-                 f' Currently: {options.backend_builder_ssh_uri}'
+                 f' Currently: {options.backend_ssh_builder_uri}'
         )
-        backend_builder_ssh_uri_group.add_argument(
-            '--no-backend-builder-ssh-uri',
+        backend_ssh_builder_uri_group.add_argument(
+            '--no-backend-ssh-builder-uri',
             action='store_const',
             const='',
-            dest='backend_builder_ssh_uri',
-            default=options.backend_builder_ssh_uri,
+            dest='backend_ssh_builder_uri',
+            default=options.backend_ssh_builder_uri,
             help=(
-                SUPPRESS if options.backend_builder_ssh_uri is None else
+                SUPPRESS if options.backend_ssh_builder_uri is None else
                 f'Do not set backend builder endpoint URI.'
-                f' Currently: {options.backend_builder_ssh_uri}'
+                f' Currently: {options.backend_ssh_builder_uri}'
             ),
         )
 
-        backend_runner_identity_path_group = (
-            self.backend_runner_identity_path.add_mutually_exclusive_group()
+        backend_ssh_runner_identity_path_group = (
+            self.backend_ssh_runner_identity_path.add_mutually_exclusive_group()
         )
-        backend_runner_identity_path_group.add_argument(
-            '--backend-runner-identity-path',
-            default=options.backend_runner_identity_path,
+        backend_ssh_runner_identity_path_group.add_argument(
+            '--backend-ssh-runner-identity-path',
+            default=options.backend_ssh_runner_identity_path,
             help=f'Identity to use when connecting to backend runner endpoint URI.'
-                 f' Currently: {options.backend_runner_identity_path}'
+                 f' Currently: {options.backend_ssh_runner_identity_path}'
         )
-        backend_runner_identity_path_group.add_argument(
-            '--no-backend-runner-identity-path',
+        backend_ssh_runner_identity_path_group.add_argument(
+            '--no-backend-ssh-runner-identity-path',
             action='store_const',
             const='',
-            dest='backend_runner_identity_path',
-            default=options.backend_runner_identity_path,
+            dest='backend_ssh_runner_identity_path',
+            default=options.backend_ssh_runner_identity_path,
             help=(
-                SUPPRESS if options.backend_runner_identity_path is None else
+                SUPPRESS if options.backend_ssh_runner_identity_path is None else
                 f'Do not use identity when connecting to backend runner endpoint URI.'
-                f' Currently: {options.backend_runner_identity_path}'
+                f' Currently: {options.backend_ssh_runner_identity_path}'
             ),
         )
 
-        backend_runner_ssh_uri_group = (
-            self.backend_runner_ssh_uri.add_mutually_exclusive_group()
+        backend_ssh_runner_uri_group = (
+            self.backend_ssh_runner_uri.add_mutually_exclusive_group()
         )
-        backend_runner_ssh_uri_group.add_argument(
-            '--backend-runner-ssh-uri',
-            default=options.backend_runner_ssh_uri,
+        backend_ssh_runner_uri_group.add_argument(
+            '--backend-ssh-runner-uri',
+            default=options.backend_ssh_runner_uri,
             help=f'Backend runner endpoint URI.'
-                 f' Currently: {options.backend_runner_ssh_uri}'
+                 f' Currently: {options.backend_ssh_runner_uri}'
         )
-        backend_runner_ssh_uri_group.add_argument(
-            '--no-backend-runner-ssh-uri',
+        backend_ssh_runner_uri_group.add_argument(
+            '--no-backend-ssh-runner-uri',
             action='store_const',
             const='',
-            dest='backend_runner_ssh_uri',
-            default=options.backend_runner_ssh_uri,
+            dest='backend_ssh_runner_uri',
+            default=options.backend_ssh_runner_uri,
             help=(
-                SUPPRESS if options.backend_runner_ssh_uri is None else
+                SUPPRESS if options.backend_ssh_runner_uri is None else
                 f'Do not set backend runner endpoint URI.'
-                f' Currently: {options.backend_runner_ssh_uri}'
+                f' Currently: {options.backend_ssh_runner_uri}'
             ),
         )
 
@@ -794,8 +794,8 @@ parser = parser.merged_with(
         positional.remainder,
     ),
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
     }),
 )
 
@@ -813,66 +813,82 @@ parser = parser.merged_with(
 parser = parser.merged_with(sub_commands='gen architecture')
 
 parser = parser.merged_with(
-    sub_commands='gen backend apt builder_key',
+    sub_commands='gen backend apt key builder',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
     })
 )
 parser = parser.merged_with(
-    sub_commands='gen backend apt builder_packages',
+    sub_commands='gen backend apt key runner',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
     })
 )
 parser = parser.merged_with(
-    sub_commands='gen backend apt builder_source',
+    sub_commands='gen backend apt packages builder',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
     })
 )
-
+parser = parser.merged_with(
+    sub_commands='gen backend apt packages runner',
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend apt source builder',
+    flags=frozenset({
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend apt source runner',
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
 parser = parser.merged_with(
     sub_commands='gen backend builder',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
     })
 )
-
 parser = parser.merged_with(
     sub_commands='gen backend builder_base',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
     })
 )
-
 parser = parser.merged_with(
     sub_commands='gen backend endpoints',
     flags=frozenset({
-        flag.backend_builder_identity_path,
-        flag.backend_builder_ssh_uri,
-        flag.backend_runner_identity_path,
-        flag.backend_runner_ssh_uri,
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
     })
 )
-
 parser = parser.merged_with(
     sub_commands='gen backend runner',
     flags=frozenset({
-        flag.backend_runner_identity_path,
-        flag.backend_runner_ssh_uri,
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
     })
 )
-
 parser = parser.merged_with(
     sub_commands='gen backend runner_base',
     flags=frozenset({
-        flag.backend_runner_identity_path,
-        flag.backend_runner_ssh_uri,
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
     })
 )
 
@@ -988,7 +1004,29 @@ parser = parser.merged_with(
     ),
 )
 
+parser = parser.merged_with(
+    sub_commands='launch',
+    positionals=(
+        positional.remainder,
+    ),
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
+
 parser = parser.merged_with(sub_commands='pycharm')
+
+parser = parser.merged_with(
+    sub_commands='run',
+    positionals=(
+        positional.remainder,
+    ),
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
 
 
 def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
