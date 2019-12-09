@@ -16,6 +16,7 @@ class GenSrc(GenSrcBase):
 
     @staticmethod
     async def main(options: Options) -> None:
+        return
         if options.release in {'kinetic', 'melodic'}:
             log.info(f'Not installing src for ROS 1 release "{options.release}".')
             return

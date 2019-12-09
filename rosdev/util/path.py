@@ -6,6 +6,9 @@ log = _getLogger(__name__)
 
 
 class Path(PosixPath):
+
+    def __bool__(self) -> bool:
+        return self != Path() and bool(super())
     
     def read_bytes(self) -> bytes:
         data = super().read_bytes()

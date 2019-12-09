@@ -17,26 +17,31 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerPamEnvironment(Handler):
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_symlink_container_path(cls, options: Options) -> Path:
+    async def get_symlink_container_path(options: Options) -> Path:
         symlink_container_path = await GenHome.get_path(options) / '.pam_environment'
         
-        log.debug(f'{__package__} {symlink_container_path}')
+        log.debug(f'{__class__.__name__} {symlink_container_path}')
         
         return symlink_container_path
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
-        path = await GenRosdevWorkspace.get_path(options) / 'docker_pam_environment'
-        
-        log.debug(f'{__package__} {path = }')
+    async def get_path(options: Options) -> Path:
+        path = (
+            await GenRosdevWorkspace.get_path(options) /
+            'docker' /
+            'rosdev_docker_pam_environment'
+        )
+
+        log.debug(f'{__class__.__name__} {path = }')
         
         return path
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
+    @staticmethod
+    @memoize
+    async def main(options: Options) -> None:
         log.info(f'Creating pam_environment')
 
         docker_ssh_pam_environment_lines = []
@@ -73,16 +78,18 @@ class GenDockerPamEnvironment(Handler):
             #            f'lib{self.options.sanitizer}.so.0'
             #        )
 
-        GenHost.write_text(
+        (await GenDockerPamEnvironment.get_path(options)).write_text(
             data='\n'.join(docker_ssh_pam_environment_lines),
+        )
+        await GenDockerContainer.execute(
+            command=f'rm -f {await GenDockerPamEnvironment.get_symlink_container_path(options)}',
             options=options,
-            path=await cls.get_path(options),
         )
         await GenDockerContainer.execute(
             command=(
-                f'ln -f -s '
-                f'{await cls.get_path(options)} '
-                f'{await cls.get_symlink_container_path(options)}'
+                f' ln -s'
+                f' {await GenDockerPamEnvironment.get_path(options)}'
+                f' {await GenDockerPamEnvironment.get_symlink_container_path(options)}'
             ),
             err_ok=True,
             options=options,

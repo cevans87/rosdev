@@ -30,7 +30,7 @@ class GenDockerGdbinit(Handler):
     @staticmethod
     @memoize
     async def get_home_path(options: Options) -> Path:
-        home_path = await GenRosdevHome.get_path(options) / 'gdbinit'
+        home_path = await GenRosdevHome.get_path(options) / 'docker' / 'gdbinit'
         
         log.debug(f'{GenDockerGdbinit.__name__} {home_path = }')
         
@@ -57,9 +57,7 @@ class GenDockerGdbinit(Handler):
             return
 
         log.info(f'Creating docker_gdbinit')
-        GenHost.write_text(
+        (await cls.get_home_path(options)).write_text(
             data=await cls.get_text(options),
-            options=options,
-            path=await cls.get_home_path(options),
         )
         log.info(f'Created docker_gdbinit')

@@ -891,6 +891,34 @@ parser = parser.merged_with(
         flag.backend_ssh_runner_uri,
     })
 )
+parser = parser.merged_with(
+    sub_commands='gen backend ssh builder',
+    flags=frozenset({
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend ssh builder_base',
+    flags=frozenset({
+        flag.backend_ssh_builder_identity_path,
+        flag.backend_ssh_builder_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend ssh runner',
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
+parser = parser.merged_with(
+    sub_commands='gen backend ssh runner_base',
+    flags=frozenset({
+        flag.backend_ssh_runner_identity_path,
+        flag.backend_ssh_runner_uri,
+    })
+)
 
 parser = parser.merged_with(
     sub_commands='gen colcon build',

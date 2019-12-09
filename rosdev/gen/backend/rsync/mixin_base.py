@@ -26,7 +26,9 @@ class GenBackendRsyncMixinBase(GenBackendMixinBase, ABC):
     @memoize
     async def get_dst_uri(cls, options: Options) -> Uri:
         ssh_uri = await (await cls.get_ssh(options)).get_uri(options)
-        dst_uri = Uri(f'{ssh_uri.username}@{ssh_uri.hostname}:{(await cls.get_dst_path(options))}')
+        dst_uri = Uri(
+            f'rsync://{ssh_uri.username}@{ssh_uri.hostname}{(await cls.get_dst_path(options))}'
+        )
 
         log.debug(f'{cls.__name__} {dst_uri = }')
 

@@ -13,6 +13,7 @@ from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
 from rosdev.gen.install import GenInstall
+from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.gen.src import GenSrc
 from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
@@ -187,7 +188,6 @@ class GenDockerContainer(GenDockerContainerBase):
             log.debug('Docker container is already running.')
             return
 
-        log.info(f'Creating docker container {await GenDockerContainerBase.get_name(options)}.')
         await GenHost.execute(
             command=(
                 f'docker run'
@@ -205,10 +205,8 @@ class GenDockerContainer(GenDockerContainerBase):
                 f' --privileged'
                 f' --publish-all'
                 f' --security-opt seccomp=unconfined'
-                f' --volume {await GenDockerEntrypointSh.get_path(options)}'
-                f':{await GenDockerEntrypointSh.get_path(options)}'
-                f' --volume {await GenDockerGdbinit.get_home_path(options)}'
-                f':{await GenDockerGdbinit.get_container_path(options)}'
+                f' --volume {await GenRosdevHome.get_path(options) / "docker"}'
+                f':{await GenRosdevHome.get_path(options) / "docker"}'
                 f' --volume {await GenDockerSshBase.get_path(options)}'
                 f':{await GenDockerSshBase.get_path(options)}'
                 f' --volume {await GenWorkspace.get_path(options)}'
@@ -231,7 +229,16 @@ class GenDockerContainer(GenDockerContainerBase):
         )
         await GenDockerContainer.execute(
             command=(
-                f' ln -s {await GenInstall.get_container_path(options)}'
+                f' ln -s'
+                f' {await GenDockerGdbinit.get_home_path(options)}'
+                f' {await GenDockerGdbinit.get_container_path(options)}'
+            ),
+            options=options,
+        )
+        await GenDockerContainer.execute(
+            command=(
+                f'ln -s'
+                f' {await GenInstall.get_container_path(options)}'
                 f' {await GenInstall.get_home_path(options)}'
             ),
             options=options,

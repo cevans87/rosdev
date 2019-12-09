@@ -2,6 +2,7 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
+from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.c_kdbx import GenIdeaCKdbx
 from rosdev.gen.idea.c_pwd import GenIdeaCPwd

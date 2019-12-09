@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from typing import Optional
 from urllib.parse import ParseResult, urlparse
 
 from rosdev.util.path import Path
@@ -23,14 +24,14 @@ class Uri:
 
     @property
     def password(self) -> str:
-        return self._parse_result.password
+        return self._parse_result.password or ''
 
     @property
-    def path(self) -> Path:
-        return Path(self._parse_result.path)
+    def path(self) -> Optional[Path]:
+        return Path(self._parse_result.path) or None
 
     @property
-    def port(self) -> int:
+    def port(self) -> Optional[int]:
         return self._parse_result.port
 
     @property

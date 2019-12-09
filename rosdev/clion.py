@@ -2,6 +2,7 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
+from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.clion.cpp_toolchains_xml import GenIdeaClionCppToolchainsXml
 from rosdev.gen.idea.clion.deployment_xml import GenIdeaClionDeploymentXml

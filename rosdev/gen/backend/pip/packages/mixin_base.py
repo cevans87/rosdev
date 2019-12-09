@@ -17,6 +17,7 @@ class GenBackendPipPackagesMixinBase(GenBackendMixinBase, ABC):
     @classmethod
     @memoize
     async def get_pip_packages(cls, options: Options) -> FrozenSet[str]:
+        # FIXME use pip freeze to get packages in correct format.
         pip_packages = frozenset(
             pip_package
             for line in await (await cls.get_ssh(options)).execute_and_get_lines(

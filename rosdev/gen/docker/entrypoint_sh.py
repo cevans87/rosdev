@@ -82,7 +82,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_container_path(options: Options) -> Path:
-        container_path = Path('/') / 'rosdev_docker_entrypoint.sh'
+        container_path = Path('/') / 'entrypoint.sh'
         
         log.debug(f'{__class__.__name__} {container_path = }')
         
@@ -91,7 +91,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenRosdevHome.get_path(options) / 'docker' / 'rosdev_docker_entrypoint.sh'
+        path = await GenRosdevHome.get_path(options) / 'docker' / 'entrypoint.sh'
 
         log.debug(f'{__class__.__name__} {path = }')
         
@@ -121,7 +121,7 @@ class GenDockerEntrypointSh(Handler):
     @memoize
     async def get_quick_setup_overlay_path(options: Options) -> Path:
         quick_setup_overlay_path = (
-            await GenRosdevWorkspace.get_path(options) / 'quick_setup_overlay.sh'
+            await GenRosdevWorkspace.get_path(options) / 'docker' / 'quick_setup_overlay.sh'
         )
 
         log.debug(f'{__class__.__name__} {quick_setup_overlay_path = }')
@@ -156,7 +156,7 @@ class GenDockerEntrypointSh(Handler):
     @memoize
     async def get_quick_setup_underlay_path(options: Options) -> Path:
         quick_setup_underlay_path = (
-            await GenRosdevWorkspace.get_path(options) / 'quick_setup_underlay.sh'
+            await GenRosdevWorkspace.get_path(options) / 'docker' / 'quick_setup_underlay.sh'
         )
 
         log.debug(f'{__class__.__name__} {quick_setup_underlay_path = }')

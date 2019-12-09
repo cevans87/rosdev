@@ -37,6 +37,8 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
         connect_kwargs = {'host': uri.hostname}
         if identity_path is not None:
             connect_kwargs['client_keys'] = [f'{identity_path}']
+        if uri.password:
+            connect_kwargs['password'] = uri.password
         if uri.port:
             connect_kwargs['port'] = uri.port
         if uri.username:

@@ -21,12 +21,19 @@ class GenBackendRsyncMixin(GenBackendRsyncMixinBase, ABC):
         if await cls.is_local(options):
             return
 
+        await (await cls.get_ssh(options)).execute(
+            command=f'mkdir -p {(await cls.get_dst_path(options))}',
+            options=options,
+        )
+        
+        dst_uri = await cls.get_dst_uri(options)
+
         await GenBackendSshLocal.execute(
             command=(
                 f'rsync'
                 f' {await cls.get_flags(options)}'
-                f' {await cls.get_src_path(options)}/*'
-                f' {await cls.get_dst_uri(options)}'
+                f' {await cls.get_src_path(options) / "*"}'
+                f' {dst_uri.username}@{dst_uri.hostname}:{dst_uri.path}'
             ),
             options=options,
         )
