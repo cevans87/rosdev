@@ -37,8 +37,6 @@ class GenInstall(GenInstallBase):
                 )
         ):
             log.info(f'Installing install.')
-            if (await GenInstallBase.get_id_path(options)).exists():
-                (await GenInstallBase.get_id_path(options)).unlink()
             if (await GenInstallBase.get_home_path(options)).exists():
                 await GenDockerImage.execute(
                     command=f'sudo rm -rf {await GenInstallBase.get_home_path(options)}',
@@ -46,6 +44,4 @@ class GenInstall(GenInstallBase):
                 )
             (await GenInstallBase.get_home_path(options)).mkdir(parents=True, exist_ok=True)
 
-            (await GenInstallBase.get_id_path(options)).write_text(
-                data=await GenDockerImage.get_id(options)
-            )
+            await GenInstallBase.get_id.memoize.reset_call(options)

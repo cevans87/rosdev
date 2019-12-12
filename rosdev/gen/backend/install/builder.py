@@ -19,7 +19,7 @@ class GenBackendInstallBuilder(GenBackendInstallMixin, GenBackendInstallBuilderB
     @staticmethod
     @final
     @memoize
-    async def get_rsync_home(options: Options) -> Type[GenBackendRsyncHomeMixin]:
+    def get_rsync_home(options: Options) -> Type[GenBackendRsyncHomeMixin]:
         rsync_home = GenBackendRsyncHomeBuilder
 
         log.debug(f'{GenBackendInstallBuilder.__name__} {rsync_home = }')

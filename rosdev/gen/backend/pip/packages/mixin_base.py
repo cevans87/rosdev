@@ -6,6 +6,7 @@ from typing import FrozenSet
 
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -15,12 +16,15 @@ log = getLogger(__name__)
 class GenBackendPipPackagesMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
-    @memoize
+    @memoize(
+        db=Path.db(),
+        keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
+    )
     async def get_pip_packages(cls, options: Options) -> FrozenSet[str]:
         # FIXME use pip freeze to get packages in correct format.
         pip_packages = frozenset(
             pip_package
-            for line in await (await cls.get_ssh(options)).execute_and_get_lines(
+            for line in await cls.get_ssh(options).execute_and_get_lines(
                 command=f'python3 -m pip list', options=options
             )
             for (pip_package, _) in [line.split(' ', 1)]

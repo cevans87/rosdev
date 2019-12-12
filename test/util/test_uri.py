@@ -43,3 +43,7 @@ def test_uri_parses_sftp_path(path: Optional[Path]) -> None:
 
 def test_uri_parses_port(port: Optional[int]) -> None:
     assert Uri(f'ssh://foo@bar{":" + f"{port}" if port is not None else ""}').port == port
+
+
+def test_uri_hash_is_consistent() -> None:
+    assert hash(Uri('ssh://a@b')) == hash(Uri('ssh://a@b'))

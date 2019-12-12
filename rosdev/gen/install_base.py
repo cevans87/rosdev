@@ -2,7 +2,7 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
-from rosdev.gen.host import GenHost
+from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.util.handler import Handler
@@ -24,25 +24,15 @@ class GenInstallBase(Handler):
 
         return home_path
 
-    @classmethod
-    @memoize
-    async def get_id(cls, options: Options) -> str:
-        id_path = await cls.get_id_path(options)
+    @staticmethod
+    @memoize(db=Path.db(), keygen=lambda options: (options.architecture, options.release))
+    async def get_id(options: Options) -> str:
         # noinspection PyShadowingBuiltins
-        id = GenHost.read_text(id_path) if id_path.exists() else ''
+        id = await GenDockerImageBase.get_id(options)
 
-        log.debug(f'{cls.__name__} {id = }')
+        log.debug(f'{__class__.__name__} {id = }')
 
         return id
-
-    @staticmethod
-    @memoize
-    async def get_id_path(options: Options) -> Path:
-        id_path = await GenRosdevHome.get_path(options) / 'install_id'
-
-        log.debug(f'{GenInstallBase.__name__} {id_path = }')
-
-        return id_path
 
     @staticmethod
     @memoize

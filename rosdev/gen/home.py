@@ -17,6 +17,6 @@ class GenHome(Handler):
     async def get_path(options: Options) -> Path:
         path = Path.home()
         
-        log.debug(f'{GenHome.__name__} {path = }')
+        log.debug(f'{__class__.__name__} {path = }')
 
         return path

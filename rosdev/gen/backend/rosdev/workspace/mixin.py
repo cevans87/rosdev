@@ -33,7 +33,7 @@ class GenBackendRosdevWorkspaceMixin(GenBackendRosdevWorkspaceMixinBase, ABC):
         if await cls.is_local(options):
             return
 
-        await (await cls.get_ssh(options)).execute(
+        await cls.get_ssh(options).execute(
             command=(
                 f'mkdir -p {(await cls.get_path(options)).parent} &&'
                 f' rm -f {await cls.get_path(options)} &&'

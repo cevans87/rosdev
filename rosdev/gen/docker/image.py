@@ -77,6 +77,7 @@ class GenDockerImage(GenDockerImageBase):
         return ros_distro
 
     @staticmethod
+    @memoize
     async def main(options: Options) -> None:
         if not await GenDockerImageBase.get_id(options):
             log.info('Docker image does not exist.')

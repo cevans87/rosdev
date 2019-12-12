@@ -20,7 +20,7 @@ class GenBackendWorkspaceMixinBase(GenBackendMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
         raise NotImplementedError
 
     @classmethod
@@ -30,7 +30,7 @@ class GenBackendWorkspaceMixinBase(GenBackendMixinBase, ABC):
         path = Path(
             f'{await GenWorkspace.get_path(options)}'.replace(
                 f'{await GenHome.get_path(options)}',
-                f'{await (await cls.get_home(options)).get_path(options)}',
+                f'{await cls.get_home(options).get_path(options)}',
                 1,
             )
         )

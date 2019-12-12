@@ -18,7 +18,7 @@ class GenBackendInstallMixin(GenBackendInstallMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_rsync_home(options: Options) -> Type[GenBackendRsyncHomeMixin]:
+    def get_rsync_home(options: Options) -> Type[GenBackendRsyncHomeMixin]:
         raise NotImplementedError
 
     @classmethod
@@ -28,7 +28,7 @@ class GenBackendInstallMixin(GenBackendInstallMixinBase, ABC):
         if await cls.is_local(options):
             return
 
-        await (await cls.get_ssh(options)).execute(
+        await cls.get_ssh(options).execute(
             command=(
                 f'ln -s'
                 f' {await GenInstall.get_container_path(options)}'

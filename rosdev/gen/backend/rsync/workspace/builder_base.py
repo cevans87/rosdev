@@ -20,7 +20,7 @@ class GenBackendRsyncWorkspaceBuilderBase(
     @classmethod
     @final
     @memoize
-    async def get_workspace(cls, options: Options) -> Type[GenBackendWorkspaceMixinBase]:
+    def get_workspace(cls, options: Options) -> Type[GenBackendWorkspaceMixinBase]:
         home = GenBackendWorkspaceBuilderBase
 
         log.debug(f'{cls.__name__} {home = }')

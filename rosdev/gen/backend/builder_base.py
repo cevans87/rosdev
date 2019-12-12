@@ -17,7 +17,7 @@ class GenBackendBuilderBase(GenBackendMixinBase):
     @staticmethod
     @final
     @memoize
-    async def get_ssh(options: Options) -> Type[GenBackendSshMixin]:
+    def get_ssh(options: Options) -> Type[GenBackendSshMixin]:
         ssh = GenBackendSshBuilder
 
         log.debug(f'{GenBackendBuilderBase.__name__} {ssh = }')

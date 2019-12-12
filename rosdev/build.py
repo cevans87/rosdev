@@ -21,7 +21,7 @@ class Build(Handler):
     @staticmethod
     @memoize
     async def main(options: Options) -> None:
-        await (await GenBackendBuilder.get_ssh(options)).execute(
+        await GenBackendBuilder.get_ssh(options).execute(
             command=(
                 f'{await GenBackendEntrypointhBuilderBase.get_path(options)}'
                 f' colcon build'
@@ -35,7 +35,7 @@ class Build(Handler):
         if not await GenBackendRsyncWorkspaceBuilder.is_local(options):
             dst_uri = await GenBackendRsyncWorkspaceBuilder.get_dst_uri(options)
             f' {dst_uri.username}@{dst_uri.hostname}{dst_uri.path}'
-            await (await GenBackendLocal.get_ssh(options)).execute(
+            await GenBackendLocal.get_ssh(options).execute(
                 command=(
                     f'rsync'
                     f' {await GenBackendRsyncWorkspaceBuilder.get_flags(options)}'

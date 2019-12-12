@@ -12,7 +12,7 @@ setup(
     install_requires=[
         'argcomplete>=1.9.4',
         'asyncssh',
-        'atools>=0.6.2',
+        'atools>=0.10.0',
         'frozendict>=1.2',
         'lxml>=4.3.3',
         'pycryptodome>=3.8.2',

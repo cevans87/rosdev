@@ -19,7 +19,7 @@ class Run(Handler):
     @staticmethod
     @memoize
     async def main(options: Options) -> None:
-        await (await GenBackendRunner.get_ssh(options)).execute(
+        await GenBackendRunner.get_ssh(options).execute(
             command=(
                 f'{await GenBackendEntrypointhRunnerBase.get_path(options)}'
                 f' {"rosrun" if options.release in {"kinetic", "melodic"} else "ros2 run"}'

@@ -25,7 +25,7 @@ class GenBackendRsyncMixinBase(GenBackendMixinBase, ABC):
     @final
     @memoize
     async def get_dst_uri(cls, options: Options) -> Uri:
-        ssh_uri = await (await cls.get_ssh(options)).get_uri(options)
+        ssh_uri = await cls.get_ssh(options).get_uri(options)
         dst_uri = Uri(
             f'rsync://{ssh_uri.username}@{ssh_uri.hostname}{(await cls.get_dst_path(options))}'
         )
@@ -39,7 +39,7 @@ class GenBackendRsyncMixinBase(GenBackendMixinBase, ABC):
     @memoize
     async def get_flags(cls, options: Options) -> str:
         rsync_flags_parts = ['--recursive']
-        identity_path = await (await cls.get_ssh(options)).get_identity_path(options)
+        identity_path = await cls.get_ssh(options).get_identity_path(options)
         if identity_path is not None:
             rsync_flags_parts.append(fr'-e \"ssh -i {identity_path}\"')
 

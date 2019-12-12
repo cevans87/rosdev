@@ -2,10 +2,11 @@ from abc import ABC
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from typing import FrozenSet
+from typing import final, FrozenSet
 
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -15,10 +16,14 @@ log = getLogger(__name__)
 class GenBackendAptPackagesMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
-    @memoize
+    @final
+    @memoize(
+        db=Path.db(),
+        keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
+    )
     async def get_apt_packages(cls, options: Options) -> FrozenSet[str]:
         apt_packages = frozenset(
-            await (await cls.get_ssh(options)).execute_and_get_lines(
+            await cls.get_ssh(options).execute_and_get_lines(
                 command=f'apt list --installed | grep -o "^[^/]*"',
                 options=options,
             )

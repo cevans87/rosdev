@@ -21,7 +21,7 @@ class GenBackendRsyncMixin(GenBackendRsyncMixinBase, ABC):
         if await cls.is_local(options):
             return
 
-        await (await cls.get_ssh(options)).execute(
+        await cls.get_ssh(options).execute(
             command=f'mkdir -p {(await cls.get_dst_path(options))}',
             options=options,
         )

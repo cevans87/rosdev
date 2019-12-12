@@ -18,7 +18,7 @@ class GenBackendWorkspaceRunnerBase(GenBackendWorkspaceMixinBase, GenBackendLoca
     @staticmethod
     @final
     @memoize
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
         home = GenBackendHomeRunnerBase
 
         log.debug(f'{GenBackendWorkspaceRunnerBase.__name__} {home = }')

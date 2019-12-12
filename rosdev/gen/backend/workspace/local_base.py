@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
 
+from rosdev.gen.backend.local_base import GenBackendLocalBase
 from rosdev.gen.backend.home.local_base import GenBackendHomeLocalBase
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.gen.backend.workspace.mixin_base import GenBackendWorkspaceMixinBase
@@ -13,12 +14,12 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class GenBackendWorkspaceLocalBase(GenBackendWorkspaceMixinBase):
+class GenBackendWorkspaceLocalBase(GenBackendWorkspaceMixinBase, GenBackendLocalBase):
 
     @staticmethod
     @final
     @memoize
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
         home = GenBackendHomeLocalBase
         
         log.debug(f'{GenBackendWorkspaceLocalBase.__name__} {home = }')

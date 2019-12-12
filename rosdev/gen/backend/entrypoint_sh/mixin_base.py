@@ -22,7 +22,7 @@ class GenBackendEntrypointhMixinBase(GenBackendMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
         raise NotImplementedError
 
     @classmethod
@@ -31,7 +31,7 @@ class GenBackendEntrypointhMixinBase(GenBackendMixinBase, ABC):
         environment = frozendict({
             k: v.replace(
                 f'{await GenHome.get_path(options)}',
-                f'{await (await cls.get_home(options)).get_path(options)}',
+                f'{await cls.get_home(options).get_path(options)}',
             ).replace(
                 'quick_setup', f'{cls.__name__}_quick_setup'
             )
@@ -48,7 +48,7 @@ class GenBackendEntrypointhMixinBase(GenBackendMixinBase, ABC):
         path = Path(
             f'{await GenDockerEntrypointSh.get_path(options)}'.replace(
                 f'{await GenHome.get_path(options)}',
-                f'{await (await cls.get_home(options)).get_path(options)}'
+                f'{await cls.get_home(options).get_path(options)}'
             )
         )
 

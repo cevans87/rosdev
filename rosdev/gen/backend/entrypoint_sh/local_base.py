@@ -19,9 +19,9 @@ class GenBackendEntrypointhLocalBase(GenBackendEntrypointhMixinBase, GenBackendL
     @staticmethod
     @final
     @memoize
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
         home = GenBackendHomeLocalBase
         
-        log.debug(f'{GenBackendEntrypointhLocalBase.__name__} {home = }')
+        log.debug(f'{__class__.__name__} {home = }')
         
         return home

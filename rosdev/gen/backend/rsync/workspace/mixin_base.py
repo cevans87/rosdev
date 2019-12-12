@@ -20,7 +20,7 @@ class GenBackendRsyncWorkspaceMixinBase(GenBackendRsyncMixinBase, ABC):
     @final
     @memoize
     async def get_dst_path(cls, options: Options) -> Path:
-        dst_path = await (await cls.get_workspace(options)).get_path(options)
+        dst_path = await cls.get_workspace(options).get_path(options)
 
         log.debug(f'{cls.__name__} {dst_path = }')
 
@@ -38,5 +38,5 @@ class GenBackendRsyncWorkspaceMixinBase(GenBackendRsyncMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_workspace(options: Options) -> Type[GenBackendWorkspaceMixinBase]:
+    def get_workspace(options: Options) -> Type[GenBackendWorkspaceMixinBase]:
         ...

@@ -6,6 +6,7 @@ from logging import getLogger
 from rosdev.gen.backend.apt.source.local_base import GenBackendAptSourceLocalBase
 from rosdev.gen.backend.apt.source.mixin_base import GenBackendAptSourceMixinBase
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -15,13 +16,20 @@ log = getLogger(__name__)
 class GenBackendAptSourceMixin(GenBackendAptSourceMixinBase, ABC):
 
     @classmethod
-    @memoize
+    @memoize(
+        db=Path.db(),
+        keygen=lambda cls, options: (
+                cls.__name__,
+                cls.get_ssh(options).get_uri(options),
+                GenBackendAptSourceLocalBase.get_apt_source(options),
+        )
+    )
     async def main(cls, options: Options) -> None:
         if (
                 await cls.get_apt_source(options) !=
                 await GenBackendAptSourceLocalBase.get_apt_source(options)
         ):
-            await (await cls.get_ssh(options)).execute(
+            await cls.get_ssh(options).execute(
                 command=(
                     f"echo '{await GenBackendAptSourceLocalBase.get_apt_source(options)}' >"
                     f' {await cls.get_apt_source_path(options)}'
@@ -29,3 +37,4 @@ class GenBackendAptSourceMixin(GenBackendAptSourceMixinBase, ABC):
                 options=options,
                 sudo=True,
             )
+            await cls.get_apt_source.memoize.reset_call(cls, options)

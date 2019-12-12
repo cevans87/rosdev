@@ -23,7 +23,7 @@ class GenBackendMixinBase(Handler, ABC):
         architecture = {
             'x86_64': 'amd64', 'arm': 'arm32v7', 'aarch64': 'arm64v8'
         }[
-            await (await cls.get_ssh(options)).execute_and_get_line(
+            await cls.get_ssh(options).execute_and_get_line(
                 command='uname -m',
                 options=options,
             )
@@ -37,12 +37,12 @@ class GenBackendMixinBase(Handler, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_ssh(options: Options) -> Type[GenBackendSshMixin]:
+    def get_ssh(options: Options) -> Type[GenBackendSshMixin]:
         raise NotImplementedError
 
     @classmethod
     async def is_local(cls, options: Options) -> bool:
         return (
-                await (await cls.get_ssh(options)).get_uri(options) ==
+                await cls.get_ssh(options).get_uri(options) ==
                 await GenBackendSshLocal.get_uri(options)
         )

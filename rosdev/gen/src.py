@@ -1,3 +1,4 @@
+from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
@@ -15,8 +16,8 @@ log = getLogger(__name__)
 class GenSrc(GenSrcBase):
 
     @staticmethod
+    @memoize
     async def main(options: Options) -> None:
-        return
         if options.release in {'kinetic', 'melodic'}:
             log.info(f'Not installing src for ROS 1 release "{options.release}".')
             return
@@ -30,8 +31,6 @@ class GenSrc(GenSrcBase):
                 )
         ):
             log.info(f'Installing src.')
-            if (await GenSrcBase.get_id_path(options)).exists():
-                (await GenSrcBase.get_id_path(options)).unlink()
             if (await GenSrcBase.get_home_path(options)).exists():
                 await GenDockerImage.execute(
                     command=f'sudo rm -rf {await GenSrcBase.get_home_path(options)}',
@@ -53,9 +52,5 @@ class GenSrc(GenSrcBase):
                 ),
             ]:
                 await GenDockerImage.execute(command=command, options=options)
-
-            GenHost.write_text(
-                data=await GenDockerImage.get_id(options),
-                options=options,
-                path=await GenSrcBase.get_id_path(options),
-            )
+                
+            await GenSrcBase.get_id.memoize.reset_call(options)
