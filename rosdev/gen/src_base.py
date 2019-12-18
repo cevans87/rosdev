@@ -2,10 +2,6 @@ from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
-from rosdev.gen.docker.image_base import GenDockerImageBase
-from rosdev.gen.host import GenHost
-from rosdev.gen.rosdev.home import GenRosdevHome
-from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -19,28 +15,17 @@ class GenSrcBase(Handler):
 
     @staticmethod
     @memoize
-    async def get_home_path(options: Options) -> Path:
-        home_path = await GenRosdevHome.get_path(options) / 'src'
+    async def get_container_path(options: Options) -> Path:
+        container_path = Path('/opt/ros/src')
 
-        log.debug(f'{__class__.__name__} {home_path = }')
+        log.debug(f'{__class__.__name__} {container_path = }')
 
-        return home_path
-
-    # noinspection PyShadowingBuiltins
-    @staticmethod
-    @memoize(db=Path.db(), keygen=lambda options: (options.architecture, options.release))
-    async def get_id(options: Options) -> str:
-        # noinspection PyShadowingBuiltins
-        id = await GenDockerImageBase.get_id(options)
-
-        log.debug(f'{__class__.__name__} {id = }')
-
-        return id
-
+        return container_path
+    
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenRosdevWorkspace.get_path(options) / 'src'
+        path = Path.store() / 'src'
 
         log.debug(f'{__class__.__name__} {path = }')
 

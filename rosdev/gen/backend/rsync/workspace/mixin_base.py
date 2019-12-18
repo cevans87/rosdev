@@ -6,7 +6,6 @@ from typing import final, Type
 
 from rosdev.gen.backend.rsync.mixin_base import GenBackendRsyncMixinBase
 from rosdev.gen.backend.workspace.mixin_base import GenBackendWorkspaceMixinBase
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -30,7 +29,7 @@ class GenBackendRsyncWorkspaceMixinBase(GenBackendRsyncMixinBase, ABC):
     @final
     @memoize
     async def get_src_path(cls, options: Options) -> Path:
-        src_path = await GenWorkspace.get_path(options)
+        src_path = Path.workspace()
 
         log.debug(f'{cls.__name__} {src_path = }')
 
@@ -39,4 +38,4 @@ class GenBackendRsyncWorkspaceMixinBase(GenBackendRsyncMixinBase, ABC):
     @staticmethod
     @abstractmethod
     def get_workspace(options: Options) -> Type[GenBackendWorkspaceMixinBase]:
-        ...
+        raise NotImplementedError

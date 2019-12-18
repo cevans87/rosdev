@@ -3,9 +3,7 @@ from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.docker.container import GenDockerContainer
-from rosdev.gen.home import GenHome
-from rosdev.gen.host import GenHost
-from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
+from rosdev.gen.store import GenStore
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -20,7 +18,7 @@ class GenDockerPamEnvironment(Handler):
     @staticmethod
     @memoize
     async def get_symlink_container_path(options: Options) -> Path:
-        symlink_container_path = await GenHome.get_path(options) / '.pam_environment'
+        symlink_container_path = Path.home() / '.pam_environment'
         
         log.debug(f'{__class__.__name__} {symlink_container_path}')
         
@@ -29,11 +27,7 @@ class GenDockerPamEnvironment(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = (
-            await GenRosdevWorkspace.get_path(options) /
-            'docker' /
-            'rosdev_docker_pam_environment'
-        )
+        path = await GenStore.get_path(options) / 'docker' / 'rosdev_docker_pam_environment'
 
         log.debug(f'{__class__.__name__} {path = }')
         

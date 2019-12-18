@@ -6,8 +6,6 @@ from typing import final, Type
 
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
-from rosdev.gen.home import GenHome
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -20,7 +18,7 @@ class GenBackendWorkspaceMixinBase(GenBackendMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home_base(options: Options) -> Type[GenBackendHomeMixinBase]:
         raise NotImplementedError
 
     @classmethod
@@ -28,10 +26,8 @@ class GenBackendWorkspaceMixinBase(GenBackendMixinBase, ABC):
     @memoize
     async def get_path(cls, options: Options) -> Path:
         path = Path(
-            f'{await GenWorkspace.get_path(options)}'.replace(
-                f'{await GenHome.get_path(options)}',
-                f'{await cls.get_home(options).get_path(options)}',
-                1,
+            f'{Path.workspace()}'.replace(
+                f'{Path.home()}', f'{await cls.get_home_base(options).get_path(options)}', 1
             )
         )
 

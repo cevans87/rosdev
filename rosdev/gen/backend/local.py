@@ -8,9 +8,8 @@ from rosdev.gen.backend.local_base import GenBackendLocalBase
 from rosdev.gen.backend.install.local import GenBackendInstallLocal
 from rosdev.gen.backend.mixin import GenBackendMixin
 from rosdev.gen.backend.pip.packages.local import GenBackendPipPackagesLocal
+from rosdev.gen.backend.store.local import GenBackendStoreLocal
 from rosdev.gen.backend.rsync.local import GenBackendRsyncLocal
-from rosdev.gen.backend.rosdev.home.local import GenBackendRosdevHomeLocal
-from rosdev.gen.backend.rosdev.workspace.local import GenBackendRosdevWorkspaceLocal
 
 
 log = getLogger(__name__)

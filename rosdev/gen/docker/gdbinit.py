@@ -3,9 +3,6 @@ from dataclasses import dataclass
 from logging import getLogger
 from textwrap import dedent
 
-from rosdev.gen.home import GenHome
-from rosdev.gen.host import GenHost
-from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.gen.src import GenSrc
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -21,7 +18,7 @@ class GenDockerGdbinit(Handler):
     @staticmethod
     @memoize
     async def get_container_path(options: Options) -> Path:
-        container_path = await GenHome.get_path(options) / '.gdbinit'
+        container_path = Path.home() / '.gdbinit'
 
         log.debug(f'{GenDockerGdbinit.__name__} {container_path = }')
 
@@ -29,8 +26,8 @@ class GenDockerGdbinit(Handler):
 
     @staticmethod
     @memoize
-    async def get_home_path(options: Options) -> Path:
-        home_path = await GenRosdevHome.get_path(options) / 'docker' / 'gdbinit'
+    async def get_path(options: Options) -> Path:
+        home_path = Path.volume() / 'gdbinit'
         
         log.debug(f'{GenDockerGdbinit.__name__} {home_path = }')
         
@@ -53,11 +50,11 @@ class GenDockerGdbinit(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        if (await cls.get_home_path(options)).exists():
+        if (await cls.get_path(options)).exists():
             return
 
         log.info(f'Creating docker_gdbinit')
-        (await cls.get_home_path(options)).write_text(
+        (await cls.get_path(options)).write_text(
             data=await cls.get_text(options),
         )
         log.info(f'Created docker_gdbinit')

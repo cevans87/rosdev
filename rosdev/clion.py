@@ -17,7 +17,6 @@ from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.ide_base import GenIdeaIdeBase
 from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -43,7 +42,7 @@ class Clion(Handler):
         log.info(f'Starting {await GenIdeaIdeBase.get_name(options)}.')
         await GenHost.execute_shell(
             command=(
-                f'nohup {await cls.get_path(options)} {await GenWorkspace.get_path(options)}'
+                f'nohup {await cls.get_path(options)} {Path.workspace()}'
                 f'< /dev/null > /dev/null 2>&1 &'
             ),
             options=options,

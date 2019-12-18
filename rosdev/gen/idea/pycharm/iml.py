@@ -7,7 +7,6 @@ from textwrap import dedent
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -54,10 +53,7 @@ class GenIdeaPycharmIml(Handler):
     @classmethod
     @memoize
     async def get_path(cls, options: Options) -> Path:
-        path = (
-                await GenIdeaWorkspace.get_path(options) /
-                f'{(await GenWorkspace.get_path(options)).parts[-1]}.iml'
-        )
+        path = await GenIdeaWorkspace.get_path(options) / f'{(Path.workspace()).parts[-1]}.iml'
 
         log.debug(f'{cls.__name__} {path}')
 

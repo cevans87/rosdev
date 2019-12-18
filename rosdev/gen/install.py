@@ -19,29 +19,36 @@ class GenInstall(GenInstallBase):
     @staticmethod
     @memoize
     async def get_container_path(options: Options) -> Path:
-        container_path = Path('/') / 'opt' / 'ros' / await GenDockerImage.get_ros_distro(options)
+        container_path = Path('/opt/ros') / await GenDockerImage.get_ros_distro(options)
 
         log.debug(f'{GenInstall.__name__} {container_path = }')
 
         return container_path
 
     @staticmethod
+    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
     async def main(options: Options) -> None:
-        if (
-                options.docker_container_replace or
-                (not (await GenInstallBase.get_home_path(options)).exists()) or
-                (not (await GenInstallBase.get_id(options))) or
-                (
-                        await GenInstallBase.get_id(options) !=
-                        await GenDockerContainerBase.get_id(options)
-                )
-        ):
-            log.info(f'Installing install.')
-            if (await GenInstallBase.get_home_path(options)).exists():
-                await GenDockerImage.execute(
-                    command=f'sudo rm -rf {await GenInstallBase.get_home_path(options)}',
-                    options=options,
-                )
-            (await GenInstallBase.get_home_path(options)).mkdir(parents=True, exist_ok=True)
-
-            await GenInstallBase.get_id.memoize.reset_call(options)
+        log.info(f'Installing install.')
+        if (await GenInstallBase.get_path(options)).exists():
+            await GenDockerImage.execute(
+                command=f'sudo rm -rf {await GenInstallBase.get_path(options)}',
+                options=options,
+            )
+        (await GenInstallBase.get_path(options)).mkdir(parents=True, exist_ok=True)
+        
+        await GenHost.execute(
+            command=(
+                f'docker run'
+                f' --rm'
+                f' --mount type=volume'
+                f',dst={await GenInstall.get_container_path(options)}'
+                f',volume-driver=local'
+                f',volume-opt=type=none'
+                f',volume-opt=o=bind'
+                f',volume-opt=device={(await GenInstall.get_path(options)).resolve()}'
+                f' {await GenDockerImage.get_tag(options)}'
+                f' bash -c :'
+            ),
+            options=options,
+        )
+        log.info(f'Finished installing install.')

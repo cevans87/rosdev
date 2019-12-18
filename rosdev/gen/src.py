@@ -16,41 +16,29 @@ log = getLogger(__name__)
 class GenSrc(GenSrcBase):
 
     @staticmethod
-    @memoize
+    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
     async def main(options: Options) -> None:
-        if options.release in {'kinetic', 'melodic'}:
-            log.info(f'Not installing src for ROS 1 release "{options.release}".')
-            return
-        elif (
-                options.docker_container_replace or
-                (not (await GenSrcBase.get_home_path(options)).exists()) or
-                (not (await GenSrcBase.get_id(options))) or
-                (
-                        await GenSrcBase.get_id(options) !=
-                        await GenDockerContainerBase.get_id(options)
-                )
-        ):
-            log.info(f'Installing src.')
-            if (await GenSrcBase.get_home_path(options)).exists():
-                await GenDockerImage.execute(
-                    command=f'sudo rm -rf {await GenSrcBase.get_home_path(options)}',
-                    options=options,
-                )
+        log.info(f'Installing src.')
+        if (await GenSrc.get_path(options)).exists():
+            await GenDockerImage.execute(
+                command=f'sudo rm -rf {await GenSrc.get_path(options)}',
+                options=options,
+            )
+        (await GenSrc.get_path(options)).mkdir(parents=True, exist_ok=True)
 
-            release_name = options.release if options.release != 'latest' else 'master'
-            (await GenSrcBase.get_home_path(options)).mkdir(parents=True)
-            for command in [
-                (
-                        f'wget'
-                        f' https://raw.githubusercontent.com/ros2/ros2/{release_name}/ros2.repos'
-                        f' -O {(await GenSrcBase.get_home_path(options)).parent / "ros2.repos"}'
-                ),
-                (
-                        f'vcs import --input'
-                        f' {(await GenSrcBase.get_home_path(options)).parent / "ros2.repos"}'
-                        f' {await GenSrcBase.get_home_path(options)}'
-                ),
-            ]:
-                await GenDockerImage.execute(command=command, options=options)
-                
-            await GenSrcBase.get_id.memoize.reset_call(options)
+        await GenHost.execute(
+            command=(
+                f'docker run'
+                f' --rm'
+                f' --mount type=volume'
+                f',dst={await GenSrc.get_container_path(options)}'
+                f',volume-driver=local'
+                f',volume-opt=type=none'
+                f',volume-opt=o=bind'
+                f',volume-opt=device={(await GenSrc.get_path(options)).resolve()}'
+                f' {await GenDockerImage.get_tag(options)}'
+                f' bash -c :'
+            ),
+            options=options,
+        )
+        log.info(f'Finished installing src.')

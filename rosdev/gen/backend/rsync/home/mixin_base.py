@@ -6,7 +6,6 @@ from typing import final, Type
 
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.gen.backend.rsync.mixin_base import GenBackendRsyncMixinBase
-from rosdev.gen.home import GenHome
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -21,7 +20,7 @@ class GenBackendRsyncHomeMixinBase(GenBackendRsyncMixinBase, ABC):
     @final
     @memoize
     async def get_dst_path(cls, options: Options) -> Path:
-        dst_path = await (await cls.get_home(options)).get_path(options) / '.rosdev'
+        dst_path = await cls.get_home(options).get_path(options) / '.rosdev'
 
         log.debug(f'{cls.__name__} {dst_path = }')
 
@@ -29,14 +28,14 @@ class GenBackendRsyncHomeMixinBase(GenBackendRsyncMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    async def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
-        ...
+    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+        raise NotImplementedError
 
     @classmethod
     @final
     @memoize
     async def get_src_path(cls, options: Options) -> Path:
-        src_path = await GenHome.get_path(options) / '.rosdev'
+        src_path = Path.rosdev()
 
         log.debug(f'{cls.__name__} {src_path = }')
 

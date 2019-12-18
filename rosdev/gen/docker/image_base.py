@@ -7,7 +7,6 @@ from typing import Mapping
 from rosdev.gen.host import GenHost
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
-from rosdev.util.path import Path
 
 log = getLogger(__name__)
 
@@ -24,18 +23,27 @@ class GenDockerImageBase(Handler):
 
         return tag
 
+    # noinspection PyShadowingBuiltins
     @staticmethod
     @memoize
-    async def get_id(options: Options) -> str:
-        # noinspection PyShadowingBuiltins
-        id = (await GenDockerImageBase._get_inspect(options)).get('Id', '')
+    async def get_id(options: Options) -> int:
+        id = 0
+
+        @memoize(db=True, keygen=lambda options: None, size=1)
+        def get_id_inner(options: Options) -> int:
+            return id + 1
+
+        id = get_id_inner(options)
+        if options.docker_image_pull or options.docker_image_replace:
+            get_id_inner.memoize.reset_call(options)
+            id = get_id_inner(options)
 
         log.debug(f'{__class__.__name__} {id = }')
 
         return id
 
     @staticmethod
-    @memoize(db=Path.db(), keygen=lambda options: (options.architecture, options.release))
+    @memoize(db=True, keygen=lambda options: (GenDockerImageBase.get_id(options),), size=1)
     async def _get_inspect(options: Options) -> Mapping:
         lines = await GenHost.execute_shell_and_get_lines(
             command=(

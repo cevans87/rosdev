@@ -2,9 +2,9 @@ from asyncio import gather
 from dataclasses import dataclass
 from frozendict import frozendict
 from logging import getLogger
-from typing import Iterable, Mapping, Tuple, Type, TypeVar
+from typing import Iterable, Mapping, Tuple, Type
 
-from rosdev.gen.backend.base import GenBackendBase
+from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.gen.backend.builder import GenBackendBuilder
 from rosdev.gen.backend.local import GenBackendLocal
 from rosdev.gen.backend.runner import GenBackendRunner
@@ -20,9 +20,6 @@ _backends = frozenset({
 })
 
 
-T = TypeVar('T')
-
-
 @dataclass(frozen=True)
 class GenBackendBackends(Handler):
 
@@ -30,11 +27,11 @@ class GenBackendBackends(Handler):
     async def execute_by_backend(
             command: str,
             options: Options,
-            backends: Iterable[Type[GenBackendBase]] = _backends,
+            backends: Iterable[Type[GenBackendMixinBase]] = _backends,
             err_ok=False,
     ) -> None:
         await gather(*[
-            backend.execute(command=command, options=options, err_ok=err_ok)
+            backend.get_ssh(options).execute(command=command, options=options, err_ok=err_ok)
             for backend in backends
         ])
 
@@ -42,15 +39,15 @@ class GenBackendBackends(Handler):
     async def execute_and_get_lines_by_backend(
             command: str,
             options: Options,
-            backends: Iterable[Type[GenBackendBase]] = _backends,
+            backends: Iterable[Type[GenBackendMixinBase]] = _backends,
             err_ok=False,
-    ) -> Mapping[Type[GenBackendBase], Tuple[str]]:
+    ) -> Mapping[Type[GenBackendMixinBase], Tuple[str]]:
         lines_by_backend = {}
 
         async def execute_and_get_lines_by_backend_inner(
-                backend: Type[GenBackendBase]
+                backend: Type[GenBackendMixinBase]
         ) -> None:
-            lines_by_backend[backend] = await backend.execute_and_get_lines(
+            lines_by_backend[backend] = await backend.get_ssh(options).execute_and_get_lines(
                 command=command, options=options, err_ok=err_ok
             )
         await gather(*[execute_and_get_lines_by_backend_inner(backend) for backend in backends])
@@ -61,15 +58,15 @@ class GenBackendBackends(Handler):
     async def execute_and_get_line_by_backend(
             command: str,
             options: Options,
-            backends: Iterable[Type[GenBackendBase]] = _backends,
+            backends: Iterable[Type[GenBackendMixinBase]] = _backends,
             err_ok=False,
-    ) -> Mapping[Type[GenBackendBase], str]:
+    ) -> Mapping[Type[GenBackendMixinBase], str]:
         line_by_backend = {}
 
         async def execute_and_get_line_by_backend_inner(
-                backend: Type[GenBackendBase]
+                backend: Type[GenBackendMixinBase]
         ) -> None:
-            line_by_backend[backend] = await backend.execute_and_get_line(
+            line_by_backend[backend] = await backend.get_ssh(options).execute_and_get_line(
                 command=command, options=options, err_ok=err_ok
             )
         await gather(*[execute_and_get_line_by_backend_inner(backend) for backend in backends])

@@ -17,7 +17,7 @@ class GenBackendAptSourceMixin(GenBackendAptSourceMixinBase, ABC):
 
     @classmethod
     @memoize(
-        db=Path.db(),
+        db=True,
         keygen=lambda cls, options: (
                 cls.__name__,
                 cls.get_ssh(options).get_uri(options),

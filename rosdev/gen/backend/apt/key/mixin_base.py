@@ -15,8 +15,7 @@ class GenBackendAptKeyMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
     @memoize(
-        db=Path.db(),
-        keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
+        db=True, keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
     )
     async def get_apt_key(cls, options: Options) -> str:
         apt_key = '\n'.join(

@@ -6,7 +6,6 @@ from logging import getLogger
 from rosdev.gen.backend.apt.key.mixin_base import GenBackendAptKeyMixinBase
 from rosdev.gen.backend.apt.key.local_base import GenBackendAptKeyLocalBase
 from rosdev.util.options import Options
-from rosdev.util.path import Path
 
 log = getLogger(__name__)
 
@@ -16,12 +15,12 @@ class GenBackendAptKeyMixin(GenBackendAptKeyMixinBase, ABC):
 
     @classmethod
     @memoize(
-        db=Path.db(),
+        db=True,
         keygen=lambda cls, options: (
                 cls.__name__,
                 cls.get_ssh(options).get_uri(options),
                 GenBackendAptKeyLocalBase.get_apt_key(options),
-        )
+        ),
     )
     async def main(cls, options: Options) -> None:
         if await cls.get_apt_key(options) != await GenBackendAptKeyLocalBase.get_apt_key(options):

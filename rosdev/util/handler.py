@@ -63,7 +63,10 @@ class Handler:
         getters = []
         for class_item_name in cls.__dict__.keys():
             if (
-                    class_item_name.startswith('get_') and
+                    (
+                            class_item_name.startswith('get_') or
+                            class_item_name.startswith('set_')
+                    ) and
                     iscoroutinefunction(class_item := getattr(cls, class_item_name)) and
                     (signature(class_item).parameters == {'options': _options_parameter}) and
                     hasattr(class_item, 'memoize')
@@ -75,7 +78,10 @@ class Handler:
         private_getters = []
         for class_item_name in cls.__dict__.keys():
             if (
-                    class_item_name.startswith('_get_') and
+                    (
+                            class_item_name.startswith('_get_') or
+                            class_item_name.startswith('_set_')
+                    ) and
                     iscoroutinefunction(class_item := getattr(cls, class_item_name)) and
                     (signature(class_item).parameters == {'options': _options_parameter}) and
                     hasattr(class_item, 'memoize')

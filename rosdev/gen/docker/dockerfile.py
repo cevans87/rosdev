@@ -7,8 +7,8 @@ import platform
 from textwrap import dedent, indent
 
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
-from rosdev.gen.home import GenHome
-from rosdev.gen.rosdev.home import GenRosdevHome
+from rosdev.gen.docker.image_base import GenDockerImageBase
+from rosdev.gen.src_base import GenSrcBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -23,14 +23,13 @@ class GenDockerDockerfile(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenRosdevHome.get_path(options) / 'docker' / 'Dockerfile'
+        path = Path.store() / 'docker' / 'Dockerfile'
 
         log.debug(f'{GenDockerDockerfile.__name__} {path = }')
 
         return path
 
     @staticmethod
-    @memoize
     async def get_from(options: Options) -> str:
         if options.release == 'latest':
             from_tag = 'osrf/ros2:nightly'
@@ -42,7 +41,6 @@ class GenDockerDockerfile(Handler):
         return from_tag
 
     @staticmethod
-    @memoize
     async def get_machine(options: Options) -> str:
         machine = {
             'amd64': 'x86_64',
@@ -78,6 +76,18 @@ class GenDockerDockerfile(Handler):
         return install_dbgsym_subtext
 
     @staticmethod
+    async def _get_download_src_subtext(options: Options) -> str:
+        # FIXME the "if in kinetic/melodic" exists to avoid the case where no dbgsym packages
+        #  exist. Change this to be resilient against dbgsym packages not existing.
+        download_src_subtext = dedent(fr'''
+            mkdir -p {await GenSrcBase.get_container_path(options)} && \
+                wget https://raw.githubusercontent.com/ros2/ros2/$ROS_DISTRO/ros2.repos && \
+                vcs import --input ros2.repos {await GenSrcBase.get_container_path(options)}
+        ''').strip() if options.release not in {'kinetic', 'melodic'} else ':'
+
+        return download_src_subtext
+
+    @staticmethod
     async def get_text(options: Options) -> str:
         text = dedent(fr'''
             FROM {await GenDockerDockerfile.get_from(options)}
@@ -94,9 +104,7 @@ class GenDockerDockerfile(Handler):
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
             RUN apt-get update && apt-get update
 
-            RUN {
-                indent(
-                    await GenDockerDockerfile._get_install_dbgsym_subtext(options), """
+            RUN {indent(await GenDockerDockerfile._get_install_dbgsym_subtext(options), """
                 """[1:]).strip()
                 } && \
                 apt-get install -y \
@@ -141,6 +149,11 @@ class GenDockerDockerfile(Handler):
                 rosdep \
                 setuptools \
                 vcstool
+
+            RUN mkdir -p {(await GenSrcBase.get_container_path(options)).parent} && \
+                {indent(await GenDockerDockerfile._get_download_src_subtext(options), """
+                """[1:]).strip()
+                }
                    
             # We won't use this entrypoint.
             RUN rm /ros_entrypoint.sh
@@ -148,11 +161,11 @@ class GenDockerDockerfile(Handler):
             RUN groupadd -r -g {os.getgid()} {getpass.getuser()} && \
                 useradd {getpass.getuser()} -l -r -u {os.getuid()} -g {os.getgid()} -G sudo 1> \
                     /dev/null && \
-                usermod {getpass.getuser()} -d {await GenHome.get_path(options)} && \
-                mkdir -p {await GenHome.get_path(options)} && \
-                chown {getpass.getuser()}:{getpass.getuser()} {await GenHome.get_path(options)} && \
+                usermod {getpass.getuser()} -d {Path.home()} && \
+                mkdir -p {Path.home()} && \
+                chown {getpass.getuser()}:{getpass.getuser()} {Path.home()} && \
                 echo "{getpass.getuser()} ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers && \
-                touch {await GenHome.get_path(options)}/.sudo_as_admin_successful
+                touch {Path.home()}/.sudo_as_admin_successful
 
             # Allow anonymous ssh login
             RUN sed -i -re 's/^{getpass.getuser()}:[^:]+:/{getpass.getuser()}::/' \
@@ -175,16 +188,12 @@ class GenDockerDockerfile(Handler):
         return text
 
     @staticmethod
+    @memoize(db=True, keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
     async def main(options: Options) -> None:
-        if (
-                (await GenDockerDockerfile.get_path(options)).exists() and
-                (not options.docker_image_pull) and
-                (not options.docker_image_replace)
-        ):
-            return
-
         log.info(f'Creating Dockerfile at {await GenDockerDockerfile.get_path(options)}.')
+
         (await GenDockerDockerfile.get_path(options)).write_text(
             await GenDockerDockerfile.get_text(options)
         )
+
         log.info(f'Created Dockerfile at {await GenDockerDockerfile.get_path(options)}.')

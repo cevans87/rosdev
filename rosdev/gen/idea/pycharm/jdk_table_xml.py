@@ -13,7 +13,6 @@ from rosdev.gen.host import GenHost
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -75,7 +74,7 @@ class GenIdeaPycharmJdkTableXml(Handler):
         remote_paths = [Path(remote_path) for remote_path in remote_paths]
         remote_paths = tuple([
             remote_path for remote_path in remote_paths
-            if await GenWorkspace.get_path(options) in remote_path.parents
+            if Path.workspace() in remote_path.parents
         ])
 
         log.debug(f'{remote_paths = }')

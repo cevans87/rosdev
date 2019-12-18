@@ -5,11 +5,9 @@ from logging import getLogger, INFO
 from textwrap import dedent
 from typing import Dict, Mapping
 
+from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.gen.host import GenHost
 from rosdev.gen.install_base import GenInstallBase
-from rosdev.gen.rosdev.home import GenRosdevHome
-from rosdev.gen.rosdev.workspace import GenRosdevWorkspace
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -82,7 +80,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_container_path(options: Options) -> Path:
-        container_path = Path('/') / 'entrypoint.sh'
+        container_path = Path('/entrypoint.sh')
         
         log.debug(f'{__class__.__name__} {container_path = }')
         
@@ -91,7 +89,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenRosdevHome.get_path(options) / 'docker' / 'entrypoint.sh'
+        path = Path.volume() / 'entrypoint.sh'
 
         log.debug(f'{__class__.__name__} {path = }')
         
@@ -120,9 +118,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_quick_setup_overlay_path(options: Options) -> Path:
-        quick_setup_overlay_path = (
-            await GenRosdevWorkspace.get_path(options) / 'docker' / 'quick_setup_overlay.sh'
-        )
+        quick_setup_overlay_path = Path.volume() / 'quick_setup_overlay.sh'
 
         log.debug(f'{__class__.__name__} {quick_setup_overlay_path = }')
         
@@ -155,9 +151,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_quick_setup_underlay_path(options: Options) -> Path:
-        quick_setup_underlay_path = (
-            await GenRosdevWorkspace.get_path(options) / 'docker' / 'quick_setup_underlay.sh'
-        )
+        quick_setup_underlay_path = Path.volume() / 'quick_setup_underlay.sh'
 
         log.debug(f'{__class__.__name__} {quick_setup_underlay_path = }')
         
@@ -190,7 +184,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_setup_overlay_path(options: Options) -> Path:
-        setup_overlay_path = await GenWorkspace.get_path(options) / 'install' / 'local_setup.bash'
+        setup_overlay_path = Path.workspace() / 'install' / 'local_setup.bash'
 
         log.debug(f'{__class__.__name__} {setup_overlay_path = }')
 
@@ -209,7 +203,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_setup_underlay_path(options: Options) -> Path:
-        setup_underlay_path = await GenInstallBase.get_workspace_path(options) / 'setup.bash'
+        setup_underlay_path = await GenInstallBase.get_path(options) / 'setup.bash'
 
         log.debug(f'{__class__.__name__} {setup_underlay_path = }')
 
@@ -228,7 +222,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_overlay_path(options: Options) -> Path:
-        overlay_path = await GenRosdevWorkspace.get_path(options) / 'overlay.sh'
+        overlay_path = Path.store() / 'overlay.sh'
 
         log.debug(f'{__class__.__name__} {overlay_path = }')
         
@@ -237,7 +231,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_underlay_path(options: Options) -> Path:
-        underlay_path = await GenRosdevWorkspace.get_path(options) / 'underlay.sh'
+        underlay_path = Path.store() / 'underlay.sh'
 
         log.debug(f'{__class__.__name__} {underlay_path = }')
         
@@ -265,7 +259,7 @@ class GenDockerEntrypointSh(Handler):
                         ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
-                    echo "Not sourcing underlay from ROS install."
+                    echo "Not sourcing underlay."
                 fi
             elif
                 [[
@@ -332,11 +326,11 @@ class GenDockerEntrypointSh(Handler):
                         ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
                     ]]
                 then
-                    echo "Not sourcing overlay from ROS install."
+                    echo "Not sourcing overlay."
                 fi
             elif
                 [[
-                    -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
+                    ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
                 ]] && [[
                     -f ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
                 ]] && [[ 
@@ -390,19 +384,15 @@ class GenDockerEntrypointSh(Handler):
             exec "$@"
         ''').lstrip()
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
-        if (await cls.get_path(options)).exists():
-            return
-
+    @staticmethod
+    @memoize(db=True, keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
+    async def main(options: Options) -> None:
         log.info(f'Creating docker_container_entrypoint_sh')
 
-        GenHost.write_text(
-            data=await cls.get_text(options),
-            options=options,
-            path=await cls.get_path(options),
+        (await GenDockerEntrypointSh.get_path(options)).write_text(
+            data=await GenDockerEntrypointSh.get_text(options),
         )
         # Make executable
-        (await cls.get_path(options)).chmod(0o755)
+        (await GenDockerEntrypointSh.get_path(options)).chmod(0o755)
 
         log.info(f'Created docker_container_entrypoint_sh')

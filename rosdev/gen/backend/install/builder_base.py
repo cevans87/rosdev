@@ -18,7 +18,7 @@ class GenBackendInstallBuilderBase(GenBackendInstallMixinBase, GenBackendBuilder
     @staticmethod
     @final
     @memoize
-    async def get_home_base(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home_base(options: Options) -> Type[GenBackendHomeMixinBase]:
         home_base = GenBackendHomeBuilderBase
 
         log.debug(f'{GenBackendInstallBuilderBase.__name__} {home_base = }')

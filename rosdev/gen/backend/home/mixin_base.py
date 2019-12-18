@@ -28,7 +28,7 @@ class GenBackendHomeMixinBase(GenBackendMixinBase, ABC):
     @classmethod
     @final
     @memoize(
-        db=Path.db(),
+        db=True,
         keygen=lambda cls, options: (f'{cls.__name__}', cls.get_ssh(options).get_uri(options))
     )
     async def _get_path_str(cls, options: Options) -> str:

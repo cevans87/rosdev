@@ -6,7 +6,6 @@ from logging import getLogger
 from rosdev.gen.backend.apt.packages.local_base import GenBackendAptPackagesLocalBase
 from rosdev.gen.backend.apt.packages.mixin_base import GenBackendAptPackagesMixinBase
 from rosdev.util.options import Options
-from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -17,7 +16,7 @@ class GenBackendAptPackagesMixin(GenBackendAptPackagesMixinBase, ABC):
 
     @classmethod
     @memoize(
-        db=Path.db(),
+        db=True,
         keygen=lambda cls, options: (
             cls.__name__,
             cls.get_ssh(options).get_uri(options),

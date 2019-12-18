@@ -1,12 +1,9 @@
 from atools import memoize
 from dataclasses import dataclass
-import json
 from logging import getLogger
-from typing import Mapping
+import re
 
-from rosdev.gen.home import GenHome
-from rosdev.gen.host import GenHost
-from rosdev.gen.workspace import GenWorkspace
+from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -17,56 +14,49 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenDockerContainerBase(Handler):
 
-    @classmethod
+    # noinspection PyShadowingBuiltins
+    @staticmethod
     @memoize
-    async def get_id(cls, options: Options) -> str:
-        # noinspection PyShadowingBuiltins
-        id = (await cls._get_inspect(options)).get('Image', '')
+    async def get_id(options: Options) -> int:
+        id = 0
 
-        log.debug(f'{cls.__name__} {id = }')
+        @memoize(db=True, keygen=lambda options: None, size=1)
+        def get_id_inner(options: Options) -> int:
+            return id + 1
+
+        id = get_id_inner(options)
+        if options.docker_container_replace:
+            get_id_inner.memoize.reset_call(options)
+            id = get_id_inner(options)
+        
+        id += await GenDockerImageBase.get_id(options)
+
+        log.debug(f'{__class__.__name__} {id = }')
 
         return id
-
-    @classmethod
-    @memoize
-    async def _get_inspect(cls, options: Options) -> Mapping:
-        lines = await GenHost.execute_shell_and_get_lines(
-            command=f'docker container inspect {await cls.get_name(options)} 2> /dev/null',
-            options=options,
-            err_ok=True,
-        )
-        inspect = array[0] if (array := json.loads('\n'.join(lines))) else {}
-
-        log.debug(f'{cls.__name__} {inspect = }')
-
-        return inspect
 
     @staticmethod
     @memoize
     async def get_name(options: Options) -> str:
-        name = (
-            f'rosdev_{options.release}_{options.architecture}_'
-            f'{await GenWorkspace.get_hash(options)}'
+        name = re.sub(
+            r'[^\w.]',
+            '_',
+            (
+                f'rosdev_{Path.workspace().relative_to(Path.home())}'
+                f'_{options.release}'
+                f'_{options.architecture}'
+            ),
         )
 
-        log.debug(f'{GenDockerContainerBase.__name__} {name = }')
+        log.debug(f'{__class__.__name__} {name = }')
 
         return name
-
-    @classmethod
-    @memoize
-    async def get_running(cls, options: Options) -> bool:
-        running = (await cls._get_inspect(options)).get('State', {}).get('Running', False)
-
-        log.debug(f'{cls.__name__} {running = }')
-
-        return running
 
     @staticmethod
     @memoize
     async def get_ssh_path(options: Options) -> Path:
-        ssh_path = await GenHome.get_path(options) / '.ssh'
+        ssh_path = Path.home() / '.ssh'
 
-        log.debug(f'{GenDockerContainerBase.__name__} {ssh_path = }')
+        log.debug(f'{__class__.__name__} {ssh_path = }')
 
         return ssh_path

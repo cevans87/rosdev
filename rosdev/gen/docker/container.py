@@ -2,6 +2,7 @@ from atools import memoize
 from dataclasses import dataclass
 from frozendict import frozendict
 import getpass
+import json
 from logging import getLogger
 from typing import Dict, Mapping, Tuple
 
@@ -10,13 +11,11 @@ from rosdev.gen.docker.gdbinit import GenDockerGdbinit
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.docker.ssh_base import GenDockerSshBase
-from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
 from rosdev.gen.install import GenInstall
-from rosdev.gen.rosdev.home import GenRosdevHome
 from rosdev.gen.src import GenSrc
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 from rosdev.util.uri import Uri
 
 
@@ -124,6 +123,23 @@ class GenDockerContainer(GenDockerContainerBase):
 
     @staticmethod
     @memoize
+    async def _get_inspect(options: Options) -> Mapping:
+        lines = await GenHost.execute_shell_and_get_lines(
+            command=(
+                f'docker container inspect {await GenDockerContainerBase.get_name(options)} 2>'
+                f' /dev/null'
+            ),
+            options=options,
+            err_ok=True,
+        )
+        inspect = array[0] if (array := json.loads('\n'.join(lines))) else {}
+
+        log.debug(f'{__class__.__name__} {inspect = }')
+
+        return inspect
+
+    @staticmethod
+    @memoize
     async def get_ip(options: Options) -> str:
         ip = (await GenDockerContainer._get_inspect(options))['NetworkSettings']['IPAddress']
 
@@ -154,39 +170,26 @@ class GenDockerContainer(GenDockerContainerBase):
         return uri
 
     @staticmethod
-    async def main(options: Options) -> None:
-        if not await GenDockerContainerBase.get_id(options):
-            log.info('Docker container does not exist.')
-        # FIXME saving and comparing ids like this is extremely error-prone and difficult to
-        #  understand. Find a better way.
-        elif (
-                options.docker_container_replace or
-                (
-                        await GenDockerContainerBase.get_id(options) !=
-                        await GenDockerImage.get_id(options)
-                ) or (
-                        await GenDockerContainerBase.get_id(options) !=
-                        await GenInstall.get_id(options)
-                #) or (
-                #        await GenDockerContainerBase.get_id(options) !=
-                #        await GenSrc.get_id(options)
-                )
-        ):
-            log.info('Replacing existing docker container.')
-            await GenHost.execute(
-                command=f'docker container rm -f {await GenDockerContainerBase.get_name(options)}',
-                options=options,
-            )
-        elif not await GenDockerContainerBase.get_running(options):
+    @memoize
+    async def set_running(options: Options) -> None:
+        running = (
+            (await GenDockerContainer._get_inspect(options)).get('State', {}).get('Running', False)
+        )
+        if not running:
             log.info('Restarting stopped docker container.')
             await GenHost.execute(
                 command=f'docker start {await GenDockerContainerBase.get_name(options)}',
                 options=options,
             )
-            return
-        else:
-            log.debug('Docker container is already running.')
-            return
+
+    @staticmethod
+    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
+    async def main(options: Options) -> None:
+        if await GenDockerContainer._get_inspect(options):
+            await GenHost.execute(
+                command=f'docker container rm -f {await GenDockerContainerBase.get_name(options)}',
+                options=options,
+            )
 
         await GenHost.execute(
             command=(
@@ -195,51 +198,51 @@ class GenDockerContainer(GenDockerContainerBase):
                 f' --expose 22'
                 f' --hostname {await GenDockerContainerBase.get_name(options)}'
                 f' --ipc host'
-                f' --mount type=volume'
-                f',dst={await GenInstall.get_container_path(options)}'
-                f',volume-driver=local'
-                f',volume-opt=type=none'
-                f',volume-opt=o=bind'
-                f',volume-opt=device={await GenInstall.get_home_path(options)}'
                 f' --name {await GenDockerContainerBase.get_name(options)}'
                 f' --privileged'
                 f' --publish-all'
                 f' --security-opt seccomp=unconfined'
-                f' --volume {await GenRosdevHome.get_path(options) / "docker"}'
-                f':{await GenRosdevHome.get_path(options) / "docker"}'
                 f' --volume {await GenDockerSshBase.get_path(options)}'
                 f':{await GenDockerSshBase.get_path(options)}'
-                f' --volume {await GenWorkspace.get_path(options)}'
-                f':{await GenWorkspace.get_path(options)}'
+                f' --volume {Path.workspace()}:{Path.workspace()}'
+                f' --volume {Path.volume()}:{Path.volume()}'
                 f'{" --volume /tmp/.X11-unix" if options.docker_container_gui else ""}'
                 f' {await GenDockerImage.get_tag(options)}'
                 f' /sbin/init'
             ),
             options=options,
         )
-        assert await GenDockerContainer.get_running(options)
-        await GenDockerContainer.execute(
-            command=f'sudo chown -R {getpass.getuser()}:{getpass.getuser()}'
-                    f' {(await GenHome.get_path(options)) / ".rosdev"}',
-            options=options,
-        )
-        await GenDockerContainer.execute(
-            command=f'mkdir -p {(await GenInstall.get_home_path(options)).parent}',
-            options=options,
-        )
         await GenDockerContainer.execute(
             command=(
-                f' ln -s'
-                f' {await GenDockerGdbinit.get_home_path(options)}'
-                f' {await GenDockerGdbinit.get_container_path(options)}'
+                f'sudo chown -R {getpass.getuser()}:{getpass.getuser()} {Path.rosdev().resolve()}'
             ),
+            options=options,
+        )
+        await GenDockerContainer.execute(
+            command=f'mkdir -p {Path.store()}',
             options=options,
         )
         await GenDockerContainer.execute(
             command=(
                 f'ln -s'
                 f' {await GenInstall.get_container_path(options)}'
-                f' {await GenInstall.get_home_path(options)}'
+                f' {await GenInstall.get_path(options)}'
+            ),
+            options=options,
+        )
+        await GenDockerContainer.execute(
+            command=(
+                f'ln -s'
+                f' {await GenSrc.get_container_path(options)}'
+                f' {await GenSrc.get_path(options)}'
+            ),
+            options=options,
+        )
+        await GenDockerContainer.execute(
+            command=(
+                f' ln -s'
+                f' {await GenDockerGdbinit.get_path(options)}'
+                f' {await GenDockerGdbinit.get_container_path(options)}'
             ),
             options=options,
         )

@@ -5,7 +5,6 @@ from logging import getLogger
 from pprint import pformat
 
 from rosdev.gen.host import GenHost
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -20,7 +19,9 @@ class GenOverrides(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenWorkspace.get_path(options) / '.rosdev' / 'overrides'
+        # TODO make only the architecture and release live at Path.rosdev(). The rest should live in
+        #  Path.store()
+        path = Path.rosdev() / 'overrides'
 
         log.debug(f'{GenOverrides.__name__} {path = }')
 

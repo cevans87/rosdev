@@ -6,7 +6,6 @@ from typing import final, Type
 from rosdev.gen.backend.rsync.local_base import GenBackendRsyncLocalBase
 from rosdev.gen.backend.rsync.workspace.mixin_base import GenBackendRsyncWorkspaceMixinBase
 from rosdev.gen.backend.workspace.local_base import GenBackendWorkspaceLocalBase
-from rosdev.gen.backend.workspace.mixin_base import GenBackendWorkspaceMixinBase
 from rosdev.util.options import Options
 
 
@@ -21,7 +20,7 @@ class GenBackendRsyncWorkspaceLocalBase(
     @classmethod
     @final
     @memoize
-    def get_workspace(cls, options: Options) -> Type[GenBackendWorkspaceMixinBase]:
+    def get_workspace(cls, options: Options) -> Type[GenBackendWorkspaceLocalBase]:
         home = GenBackendWorkspaceLocalBase
         
         log.debug(f'{cls.__name__} {home = }')

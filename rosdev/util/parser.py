@@ -10,12 +10,12 @@ from dataclasses import asdict, dataclass, field, replace
 from frozendict import frozendict
 from importlib import import_module
 import logging
-from pathlib import Path
 from typing import (
     AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple, Union
 )
 
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 def get_options_with_overrides() -> Options:
@@ -1070,17 +1070,21 @@ def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
         args.append('-h')
         argument_parser.parse_args(args)
 
+    # TODO everything below belongs in main
     for k, v in args.__dict__.items():
         if isinstance(v, list):
             setattr(args, k, frozenset(v))
-
-    handler = getattr(
-        import_module(args.rosdev_handler_module),
-        args.rosdev_handler_class
-    )
-    del args.__dict__['rosdev_handler_module']
-    del args.__dict__['rosdev_handler_class']
-
-    parsed_options = replace(options, **args.__dict__)
     
+    rosdev_handler_module = args.__dict__.pop('rosdev_handler_module')
+    rosdev_handler_class = args.__dict__.pop('rosdev_handler_class')
+
+    parsed_options: Options = replace(options, **args.__dict__)
+
+    from atools import memoize
+    from rosdev.util.path import Path
+    Path.set_store(Path.rosdev() / parsed_options.release / parsed_options.architecture)
+    memoize.set_default_db_path(Path.store() / 'db')
+
+    handler = getattr(import_module(rosdev_handler_module), rosdev_handler_class)
+
     return handler.run(parsed_options), parsed_options

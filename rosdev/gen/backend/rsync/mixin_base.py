@@ -38,7 +38,7 @@ class GenBackendRsyncMixinBase(GenBackendMixinBase, ABC):
     @final
     @memoize
     async def get_flags(cls, options: Options) -> str:
-        rsync_flags_parts = ['--recursive']
+        rsync_flags_parts = ['--links', '--recursive']
         identity_path = await cls.get_ssh(options).get_identity_path(options)
         if identity_path is not None:
             rsync_flags_parts.append(fr'-e \"ssh -i {identity_path}\"')

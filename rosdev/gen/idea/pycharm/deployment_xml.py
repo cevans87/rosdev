@@ -7,7 +7,6 @@ from textwrap import dedent
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -30,7 +29,7 @@ class GenIdeaPycharmDeploymentXml(Handler):
                         <serverdata>
                           <mappings>
                             <mapping
-                                deploy="{await GenWorkspace.get_path(options)}" 
+                                deploy="{Path.workspace()}" 
                                 local="$PROJECT_DIR$" />
                           </mappings>
                           <excludedPaths>

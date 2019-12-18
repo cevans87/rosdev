@@ -4,7 +4,6 @@ from logging import getLogger
 from uuid import UUID, uuid4
 
 from rosdev.gen.host import GenHost
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -18,7 +17,7 @@ class GenIdeaWorkspace(Handler):
     @classmethod
     @memoize
     async def get_path(cls, options: Options) -> Path:
-        path = await GenWorkspace.get_path(options) / '.idea'
+        path = Path.workspace() / '.idea'
 
         log.debug(f'{cls.__name__} {path = }')
 

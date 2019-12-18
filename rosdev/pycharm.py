@@ -16,7 +16,6 @@ from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
 from rosdev.gen.idea.pycharm.misc_xml import GenIdeaPycharmMiscXml
 from rosdev.gen.idea.pycharm.modules_xml import GenIdeaPycharmModulesXml
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -42,7 +41,7 @@ class Pycharm(Handler):
         log.info(f'Starting {await GenIdeaIdeBase.get_name(options)}.')
         await GenHost.execute_shell(
             command=(
-                f'nohup {await cls.get_path(options)} {await GenWorkspace.get_path(options)}'
+                f'nohup {await cls.get_path(options)} {Path.workspace()}'
                 f' < /dev/null > /dev/null 2>&1 &'
             ),
             options=options,

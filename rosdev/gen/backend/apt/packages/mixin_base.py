@@ -6,7 +6,6 @@ from typing import final, FrozenSet
 
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.util.options import Options
-from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -17,14 +16,11 @@ class GenBackendAptPackagesMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
     @final
-    @memoize(
-        db=Path.db(),
-        keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
-    )
+    @memoize(db=True, keygen=lambda cls, options: cls.get_ssh(options).get_uri(options))
     async def get_apt_packages(cls, options: Options) -> FrozenSet[str]:
         apt_packages = frozenset(
             await cls.get_ssh(options).execute_and_get_lines(
-                command=f'apt list --installed | grep -o "^[^/]*"',
+                command='apt list --installed | grep -o "^[^/]*"',
                 options=options,
             )
         )

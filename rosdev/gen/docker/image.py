@@ -6,10 +6,9 @@ from typing import Tuple
 from rosdev.gen.docker.dockerfile import GenDockerDockerfile
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.gen.docker.image_base import GenDockerImageBase
-from rosdev.gen.home import GenHome
 from rosdev.gen.host import GenHost
-from rosdev.gen.workspace import GenWorkspace
 from rosdev.util.options import Options
+from rosdev.util.path import Path
 
 
 log = getLogger(__name__)
@@ -24,8 +23,8 @@ class GenDockerImage(GenDockerImageBase):
             command=(
                 f'docker run --rm'
                 f' -e {await GenDockerEntrypointSh.get_log_level_env_name(options)}'
-                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
-                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' -v {Path.home()}:{Path.home()}'
+                f' -v {Path.workspace()}:{Path.workspace()}'
                 f' {await GenDockerImage.get_tag(options)}'
                 f' {command}'
             ),
@@ -39,8 +38,8 @@ class GenDockerImage(GenDockerImageBase):
         return await GenHost.execute_and_get_lines(
             command=(
                 f'docker run --rm'
-                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
-                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' -v {Path.home()}:{Path.home()}'
+                f' -v {Path.workspace()}:{Path.workspace()}'
                 f' {await GenDockerImage.get_tag(options)}'
                 f' {command}'
             ),
@@ -53,8 +52,8 @@ class GenDockerImage(GenDockerImageBase):
         return await GenHost.execute_and_get_line(
             command=(
                 f'docker run --rm'
-                f' -v {await GenHome.get_path(options)}:{await GenHome.get_path(options)}'
-                f' -v {await GenWorkspace.get_path(options)}:{await GenWorkspace.get_path(options)}'
+                f' -v {Path.home()}:{Path.home()}'
+                f' -v {Path.workspace()}:{Path.workspace()}'
                 f' {await GenDockerImage.get_tag(options)}'
                 f' {command}'
             ),
@@ -77,14 +76,8 @@ class GenDockerImage(GenDockerImageBase):
         return ros_distro
 
     @staticmethod
-    @memoize
+    @memoize(db=True, keygen=lambda options: GenDockerImage.get_id(options), size=1)
     async def main(options: Options) -> None:
-        if not await GenDockerImageBase.get_id(options):
-            log.info('Docker image does not exist.')
-        elif (not options.docker_image_pull) and (not options.docker_image_replace):
-            log.debug('Docker image is already built.')
-            return
-
         log.info(f'Creating docker image {await GenDockerImageBase.get_tag(options)}.')
         await GenHost.execute(
             command=(
