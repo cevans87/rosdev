@@ -1,13 +1,13 @@
 from asyncio import gather
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger
-from typing import Iterable, Mapping, Tuple, Type
+from typing import Iterable, Tuple, Type
 
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.gen.backend.builder import GenBackendBuilder
 from rosdev.gen.backend.local import GenBackendLocal
 from rosdev.gen.backend.runner import GenBackendRunner
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -41,7 +41,7 @@ class GenBackendBackends(Handler):
             options: Options,
             backends: Iterable[Type[GenBackendMixinBase]] = _backends,
             err_ok=False,
-    ) -> Mapping[Type[GenBackendMixinBase], Tuple[str]]:
+    ) -> FrozenDict[Type[GenBackendMixinBase], Tuple[str]]:
         lines_by_backend = {}
 
         async def execute_and_get_lines_by_backend_inner(
@@ -60,7 +60,7 @@ class GenBackendBackends(Handler):
             options: Options,
             backends: Iterable[Type[GenBackendMixinBase]] = _backends,
             err_ok=False,
-    ) -> Mapping[Type[GenBackendMixinBase], str]:
+    ) -> FrozenDict[Type[GenBackendMixinBase], str]:
         line_by_backend = {}
 
         async def execute_and_get_line_by_backend_inner(

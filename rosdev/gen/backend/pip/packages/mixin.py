@@ -18,10 +18,10 @@ class GenBackendPipPackagesMixin(GenBackendPipPackagesMixinBase, ABC):
     @memoize(
         db=True,
         keygen=lambda cls, options: (
-                cls.__name__,
                 cls.get_ssh(options).get_uri(options),
                 GenBackendPipPackagesLocalBase.get_pip_packages(options),
-        )
+        ),
+        size=3,
     )
     async def main(cls, options: Options) -> None:
         if (

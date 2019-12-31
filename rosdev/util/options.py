@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger
 from platform import machine
-from typing import Mapping, Tuple
+from typing import Tuple
+
+from rosdev.util.frozendict import frozendict, FrozenDict
 
 
 log = getLogger(__name__)
@@ -19,9 +20,9 @@ class Options:
     colcon_build_args: str = ''
     docker_container_ccache: bool = True
     docker_container_gui: bool = False
-    docker_container_ports: Mapping[int, int] = frozendict()  # container:host
+    docker_container_ports: FrozenDict[int, int] = frozendict()  # container:host
     docker_container_replace: bool = False
-    docker_container_volumes: Mapping[str, str] = frozendict()  # host:container
+    docker_container_volumes: FrozenDict[str, str] = frozendict()  # host:container
     docker_entrypoint_sh_quick_setup_overlay: bool = True
     docker_entrypoint_sh_quick_setup_underlay: bool = True
     docker_entrypoint_sh_setup_overlay: bool = True
@@ -30,6 +31,8 @@ class Options:
     docker_image_replace: bool = False
     dry_run: bool = False
     executable: str = ''
+    handler_class: str = ''
+    handler_module: str = ''
     idea_ide_name: str = ''
     idea_ide_path: str = ''
     idea_uuid: str = ''
@@ -41,8 +44,3 @@ class Options:
     run_main: bool = True
     run_validate_options: bool = True
     sanitizer: str = ''
-
-    def __post_init__(self) -> None:
-        assert not ((self.architecture != 'amd64') and (self.release == 'latest')), (
-            f'Not supported: {self.architecture = }, {self.release = }'
-        )

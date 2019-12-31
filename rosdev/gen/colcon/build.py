@@ -1,11 +1,11 @@
 from atools import memoize
-from frozendict import frozendict
 from typing import Mapping
 
 from rosdev.gen.docker.container import Container
 from rosdev.gen.install import Install
 from rosdev.gen.rosdep.config import Config as RosdepConfig
 from rosdev.gen.rosdep.install import Install as RosdepInstall
+from rosdev.util.frozendict import frozendict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 

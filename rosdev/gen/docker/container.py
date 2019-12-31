@@ -1,10 +1,9 @@
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
 import getpass
 import json
 from logging import getLogger
-from typing import Dict, Mapping, Tuple
+from typing import Dict, Tuple
 
 from rosdev.gen.docker.container_base import GenDockerContainerBase
 from rosdev.gen.docker.gdbinit import GenDockerGdbinit
@@ -14,6 +13,7 @@ from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.host import GenHost
 from rosdev.gen.install import GenInstall
 from rosdev.gen.src import GenSrc
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 from rosdev.util.uri import Uri
@@ -83,7 +83,7 @@ class GenDockerContainer(GenDockerContainerBase):
 
     @staticmethod
     @memoize
-    async def get_environment(options: Options) -> Mapping[str, str]:
+    async def get_environment(options: Options) -> FrozenDict[str, str]:
         required_environment_keys = frozenset({
             'AMENT_PREFIX_PATH',
             'CMAKE_PREFIX_PATH',
@@ -115,7 +115,7 @@ class GenDockerContainer(GenDockerContainerBase):
         if missing_environment_keys:
             log.warning(f'{missing_environment_keys = }')
 
-        environment: Mapping[str, str] = frozendict(environment)
+        environment: FrozenDict[str, str] = frozendict(environment)
 
         log.debug(f'{__class__.__name__} {environment = }')
 
@@ -123,7 +123,7 @@ class GenDockerContainer(GenDockerContainerBase):
 
     @staticmethod
     @memoize
-    async def _get_inspect(options: Options) -> Mapping:
+    async def _get_inspect(options: Options) -> FrozenDict:
         lines = await GenHost.execute_shell_and_get_lines(
             command=(
                 f'docker container inspect {await GenDockerContainerBase.get_name(options)} 2>'

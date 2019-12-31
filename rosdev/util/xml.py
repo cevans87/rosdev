@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from frozendict import frozendict
 import getpass
 from logging import getLogger
 from lxml import etree
@@ -8,8 +7,9 @@ from lxml import etree
 from lxml.etree import Element, _Element
 import re
 from textwrap import dedent
-from typing import Dict, FrozenSet, List, Mapping, Optional
+from typing import Dict, FrozenSet, List, Optional
 
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.path import Path
 
 
@@ -31,7 +31,7 @@ _FIND_DEDUP_REGEX = re.compile(
 @dataclass(frozen=True)
 class _ElementKey:
     tag: str
-    attrib: Mapping[str, str] = frozendict()
+    attrib: FrozenDict[str, str] = frozendict()
     child_keys: FrozenSet[_ElementKey] = frozenset()
 
     @staticmethod

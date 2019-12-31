@@ -1,13 +1,12 @@
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger, INFO
 from textwrap import dedent
-from typing import Dict, Mapping
+from typing import Dict
 
 from rosdev.gen.docker.image_base import GenDockerImageBase
-from rosdev.gen.host import GenHost
 from rosdev.gen.install_base import GenInstallBase
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -21,7 +20,7 @@ class GenDockerEntrypointSh(Handler):
 
     @staticmethod
     @memoize
-    async def get_environment(options: Options) -> Mapping[str, str]:
+    async def get_environment(options: Options) -> FrozenDict[str, str]:
         environment: Dict[str, str] = {}
         if options.docker_entrypoint_sh_quick_setup_overlay:
             environment[
@@ -58,7 +57,7 @@ class GenDockerEntrypointSh(Handler):
                 f'{await GenDockerEntrypointSh.get_setup_underlay_path(options)}'
             )
 
-        environment: Mapping[str, str] = frozendict(environment)
+        environment: FrozenDict[str, str] = frozendict(environment)
         
         log.debug(f'{__class__.__name__} {environment = }')
         

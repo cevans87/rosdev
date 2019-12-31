@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger
-from typing import Mapping, Type
+from typing import Type
 
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.gen.backend.mixin_base import GenBackendMixinBase
 from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -26,7 +26,7 @@ class GenBackendEntrypointhMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
     @memoize
-    async def get_environment(cls, options: Options) -> Mapping[str, str]:
+    async def get_environment(cls, options: Options) -> FrozenDict[str, str]:
         environment = frozendict({
             k: v.replace(
                 f'{Path.home()}', f'{await cls.get_home(options).get_path(options)}',

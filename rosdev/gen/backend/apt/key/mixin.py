@@ -17,10 +17,10 @@ class GenBackendAptKeyMixin(GenBackendAptKeyMixinBase, ABC):
     @memoize(
         db=True,
         keygen=lambda cls, options: (
-                cls.__name__,
                 cls.get_ssh(options).get_uri(options),
                 GenBackendAptKeyLocalBase.get_apt_key(options),
         ),
+        size=3,
     )
     async def main(cls, options: Options) -> None:
         if await cls.get_apt_key(options) != await GenBackendAptKeyLocalBase.get_apt_key(options):

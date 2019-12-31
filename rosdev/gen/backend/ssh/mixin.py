@@ -2,11 +2,11 @@ from abc import ABC
 from asyncssh import connect
 from atools import memoize
 from dataclasses import dataclass
-from frozendict import frozendict
 from logging import getLogger
-from typing import List, Optional, Mapping, Tuple
+from typing import List, Optional, Tuple
 
 from rosdev.gen.backend.ssh.mixin_base import GenBackendSshMixinBase
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 from rosdev.util.uri import Uri
@@ -26,7 +26,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
     async def _execute(
             capture_output: bool,
             command: str,
-            environment: Mapping[str, str],
+            environment: FrozenDict[str, str],
             err_ok: bool,
             identity_path: Optional[Path],
             options: Options,
@@ -76,7 +76,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             cls,
             command: str,
             options: Options,
-            environment: Mapping[str, str] = frozendict(),
+            environment: FrozenDict[str, str] = frozendict(),
             err_ok: bool = False,
             path: Optional[Path] = None,
             sudo: bool = False,
@@ -98,7 +98,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             cls,
             command: str,
             options: Options,
-            environment: Mapping[str, str] = frozendict(),
+            environment: FrozenDict[str, str] = frozendict(),
             err_ok: bool = False,
             path: Optional[Path] = None,
             sudo: bool = False,
@@ -121,7 +121,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             command: str,
             options: Options,
             err_ok: bool = False,
-            environment: Mapping[str, str] = frozendict(),
+            environment: FrozenDict[str, str] = frozendict(),
             path: Optional[Path] = None,
             sudo: bool = False,
     ) -> str:

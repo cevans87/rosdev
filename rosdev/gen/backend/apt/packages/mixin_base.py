@@ -16,7 +16,7 @@ class GenBackendAptPackagesMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
     @final
-    @memoize(db=True, keygen=lambda cls, options: cls.get_ssh(options).get_uri(options))
+    @memoize(db=True, keygen=lambda cls, options: cls.get_ssh(options).get_uri(options), size=3)
     async def get_apt_packages(cls, options: Options) -> FrozenSet[str]:
         apt_packages = frozenset(
             await cls.get_ssh(options).execute_and_get_lines(

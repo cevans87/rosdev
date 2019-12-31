@@ -34,7 +34,6 @@ class GenDockerImage(GenDockerImageBase):
 
     @staticmethod
     async def execute_and_get_lines(*, command: str, options: Options, err_ok=False) -> Tuple[str]:
-        await GenDockerImage.run(options)
         return await GenHost.execute_and_get_lines(
             command=(
                 f'docker run --rm'

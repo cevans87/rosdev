@@ -53,10 +53,6 @@ class GenDockerDockerfile(Handler):
         return machine
 
     @staticmethod
-    async def get_qemu_path(options: Options) -> str:
-        return f'/usr/bin/qemu-{await GenDockerDockerfile.get_machine(options)}-static'
-
-    @staticmethod
     async def _get_install_dbgsym_subtext(options: Options) -> str:
         # FIXME the "if in kinetic/melodic" exists to avoid the case where no dbgsym packages
         #  exist. Change this to be resilient against dbgsym packages not existing.
@@ -72,7 +68,7 @@ class GenDockerDockerfile(Handler):
                 xargs -d "\n" -- apt-get install -y && \
                 rm a.txt b.txt
         ''').strip() if options.release not in {'kinetic', 'melodic'} else ':'
-        
+
         return install_dbgsym_subtext
 
     @staticmethod
@@ -92,21 +88,12 @@ class GenDockerDockerfile(Handler):
         text = dedent(fr'''
             FROM {await GenDockerDockerfile.get_from(options)}
 
-            # qemu static binaries
-            #{
-                f'VOLUME {GenDockerDockerfile.get_qemu_path(options)}' if (
-                    (platform.machine() != await GenDockerDockerfile.get_machine(options)) and
-                    (platform.system() != 'Darwin')
-                ) else '# not needed'
-            }
-            
             # XXX arm32v7 and arm64v8 return error code 100 if we only apt-get update once.
             # see https://github.com/rocker-org/shiny/issues/19#issuecomment-308357402
-            RUN apt-get update && apt-get update
-
-            RUN {indent(await GenDockerDockerfile._get_install_dbgsym_subtext(options), """
-                """[1:]).strip()
-                } && \
+            RUN apt-get update && \
+                apt-get update && \
+                {indent(await GenDockerDockerfile._get_install_dbgsym_subtext(options), """
+                    """[1:]).strip()} && \
                 apt-get install -y \
                     build-essential \
                     ccache \
@@ -150,10 +137,8 @@ class GenDockerDockerfile(Handler):
                 setuptools \
                 vcstool
 
-            RUN mkdir -p {(await GenSrcBase.get_container_path(options)).parent} && \
-                {indent(await GenDockerDockerfile._get_download_src_subtext(options), """
-                """[1:]).strip()
-                }
+            RUN {indent(await GenDockerDockerfile._get_download_src_subtext(options), """
+                """[1:]).strip()}
                    
             # We won't use this entrypoint.
             RUN rm /ros_entrypoint.sh

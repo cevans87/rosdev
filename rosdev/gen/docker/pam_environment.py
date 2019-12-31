@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.docker.container import GenDockerContainer
-from rosdev.gen.store import GenStore
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -27,7 +26,7 @@ class GenDockerPamEnvironment(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = await GenStore.get_path(options) / 'docker' / 'rosdev_docker_pam_environment'
+        path = Path.volume() / 'rosdev_docker_pam_environment'
 
         log.debug(f'{__class__.__name__} {path = }')
         

@@ -1,19 +1,20 @@
 from __future__ import annotations
 from argcomplete import autocomplete
+from atools import memoize
 # noinspection PyProtectedMember
 from argparse import (
     Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, REMAINDER, SUPPRESS
 )
 import ast
 from collections import ChainMap
-from dataclasses import asdict, dataclass, field, replace
-from frozendict import frozendict
+from dataclasses import asdict, dataclass, field, InitVar, replace
 from importlib import import_module
 import logging
 from typing import (
     AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple, Union
 )
 
+from rosdev.util.frozendict import frozendict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -36,9 +37,6 @@ def get_options_with_overrides() -> Options:
             override[k] = v
 
     return Options(**ChainMap(*overrides))
-
-
-options = get_options_with_overrides()
 
 
 def gen_flag_parser() -> ArgumentParser:
@@ -74,7 +72,8 @@ class Positional:
         )
 
 
-positional = Positional()
+def get_positional(options: Options) -> Positional:
+    return Positional()
 
 
 @dataclass(frozen=True)
@@ -85,15 +84,20 @@ class Choices:
     idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    release = tuple(sorted({'crystal', 'dashing', 'eloquent', 'kinetic', 'melodic'}) + ['latest'])
+    release = tuple(
+        sorted({'crystal', 'dashing', 'eloquent', 'kinetic', 'melodic'}) + ['latest']
+    )
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 
-choices = Choices()
+def get_choices(options: Options) -> Choices:
+    return Choices()
 
 
 @dataclass(frozen=True)
 class Flag:
+    options: InitVar[Options]
+
     architecture: ArgumentParser = field(default_factory=gen_flag_parser)
     backend_ssh_builder_uri: ArgumentParser = field(default_factory=gen_flag_parser)
     backend_ssh_builder_identity_path: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -121,7 +125,9 @@ class Flag:
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, options: Options) -> None:
+        choices = get_choices(options)
+
         self.architecture.add_argument(
             '--architecture', '-a',
             default=options.architecture,
@@ -246,7 +252,9 @@ class Flag:
             )
         )
 
-        docker_container_ccache_group = self.docker_container_ccache.add_mutually_exclusive_group()
+        docker_container_ccache_group = (
+            self.docker_container_ccache.add_mutually_exclusive_group()
+        )
         docker_container_ccache_group.add_argument(
             '--docker-container-ccache',
             action='store_true',
@@ -304,7 +312,7 @@ class Flag:
                         container_port, host_port = value.split(':')
                     except ValueError:
                         container_port, host_port = value, value
-                        
+
                     container_port, host_port = int(container_port), int(host_port)
 
                     docker_container_ports[container_port] = host_port
@@ -506,11 +514,11 @@ class Flag:
                     values,
                     option_string=None
             ) -> None:
-                module = import_module(namespace.rosdev_handler_module)
-                if hasattr(namespace, 'rosdev_handler_class'):
+                module = import_module(namespace.handler_module)
+                if hasattr(namespace, 'handler_class'):
                     _parser.description = getattr(
                         module,
-                        namespace.rosdev_handler_class
+                        namespace.handler_class
                     ).__doc__
                 else:
                     _parser.description = module.__doc__
@@ -528,7 +536,7 @@ class Flag:
             dest=SUPPRESS,
             help='show this help message and exit',
         )
-        
+
         self.idea_ide_name.add_argument(
             '--idea-ide-name',
             default=options.idea_ide_name,
@@ -647,7 +655,8 @@ class Flag:
         )
 
 
-flag = Flag()
+def get_flag(options: Options) -> Flag:
+    return Flag(options=options)
 
 
 @dataclass(frozen=True)
@@ -724,17 +733,17 @@ class Parser:
                 ],
             )
 
-        rosdev_handler_module = '.'.join([*prev_sub_commands, self.sub_command])
-        argument_parser.set_defaults(rosdev_handler_module=rosdev_handler_module)
+        handler_module = '.'.join([*prev_sub_commands, self.sub_command])
+        argument_parser.set_defaults(handler_module=handler_module)
 
         if not self.sub_parser_by_sub_command:
-            rosdev_handler_class_parts = []
+            handler_class_parts = []
 
             for sub_command in [*prev_sub_commands[1:], self.sub_command]:
                 for sub_command_part in sub_command.split('_'):
-                    rosdev_handler_class_parts.append(sub_command_part.capitalize())
-            rosdev_handler_class = ''.join(rosdev_handler_class_parts)
-            argument_parser.set_defaults(rosdev_handler_class=rosdev_handler_class)
+                    handler_class_parts.append(sub_command_part.capitalize())
+            handler_class = ''.join(handler_class_parts)
+            argument_parser.set_defaults(handler_class=handler_class)
         else:
             sub_argument_parser = argument_parser.add_subparsers(required=True)
             for sub_parser in self.sub_parser_by_sub_command.values():
@@ -747,314 +756,376 @@ class Parser:
         return argument_parser
 
 
-parser = Parser(
-    sub_command='rosdev',
-    flags=frozenset({
-        flag.architecture,
-        flag.dry_run,
-        flag.help,
-        flag.log_level,
-        flag.release,
-        flag.run_main,
-        flag.run_validate_options,
-    })
-)
+def get_parser(options: Options) -> Parser:
+    flag = get_flag(options)
+    positional = get_positional(options)
+    
+    parser = Parser(
+        sub_command='rosdev',
+        flags=frozenset({
+            flag.architecture,
+            flag.dry_run,
+            flag.help,
+            flag.log_level,
+            flag.release,
+            flag.run_main,
+            flag.run_validate_options,
+        })
+    )
 
-parser = parser.merged_with(
-    sub_commands='bash',
-    flags=frozenset({
-        flag.docker_container_ccache,
-        flag.docker_container_gui,
-        flag.docker_container_ports,
-        flag.docker_container_replace,
-        flag.docker_container_volumes,
-        flag.docker_entrypoint_sh_setup_overlay,
-        flag.docker_entrypoint_sh_setup_underlay,
-        flag.docker_image_pull,
-        flag.docker_image_replace,
-    }),
-)
+    parser = parser.merged_with(
+        sub_commands='bash',
+        flags=frozenset({
+            flag.docker_container_ccache,
+            flag.docker_container_gui,
+            flag.docker_container_ports,
+            flag.docker_container_replace,
+            flag.docker_container_volumes,
+            flag.docker_entrypoint_sh_setup_overlay,
+            flag.docker_entrypoint_sh_setup_underlay,
+            flag.docker_image_pull,
+            flag.docker_image_replace,
+        }),
+    )
 
-parser = parser.merged_with(
-    sub_commands='bisect',
-    positionals=(
-        positional.command,
-    ),
-    flags=frozenset({
-        flag.build_type,
-        flag.colcon_build_args,
-        flag.docker_image_pull,
-        flag.sanitizer,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='bisect',
+        positionals=(
+            positional.command,
+        ),
+        flags=frozenset({
+            flag.build_type,
+            flag.colcon_build_args,
+            flag.docker_image_pull,
+            flag.sanitizer,
+        })
+    )
 
-parser = parser.merged_with(
-    sub_commands='build',
-    positionals=(
-        positional.remainder,
-    ),
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    }),
-)
+    parser = parser.merged_with(
+        sub_commands='build',
+        positionals=(
+            positional.remainder,
+        ),
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        }),
+    )
 
-parser = parser.merged_with(
-    sub_commands='clion',
-    flags=frozenset({
-        flag.build_type,
-        flag.docker_entrypoint_sh_setup_overlay,
-        flag.docker_entrypoint_sh_setup_underlay,
-        flag.docker_image_pull,
-        flag.sanitizer,
-    }),
-)
+    parser = parser.merged_with(
+        sub_commands='clion',
+        flags=frozenset({
+            flag.build_type,
+            flag.docker_entrypoint_sh_setup_overlay,
+            flag.docker_entrypoint_sh_setup_underlay,
+            flag.docker_image_pull,
+            flag.sanitizer,
+        }),
+    )
 
-parser = parser.merged_with(sub_commands='gen architecture')
+    parser = parser.merged_with(sub_commands='gen architecture')
 
-parser = parser.merged_with(
-    sub_commands='gen backend apt key builder',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend apt key runner',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend apt packages builder',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend apt packages runner',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend apt source builder',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend apt source runner',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend builder',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend builder_base',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend endpoints',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend runner',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend runner_base',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend ssh builder',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend ssh builder_base',
-    flags=frozenset({
-        flag.backend_ssh_builder_identity_path,
-        flag.backend_ssh_builder_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend ssh runner',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
-parser = parser.merged_with(
-    sub_commands='gen backend ssh runner_base',
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='gen backend apt key builder',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend apt key runner',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend apt packages builder',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend apt packages runner',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend apt source builder',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend apt source runner',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend builder',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend builder_base',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend endpoints',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend runner',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend runner_base',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend ssh builder',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend ssh builder_base',
+        flags=frozenset({
+            flag.backend_ssh_builder_identity_path,
+            flag.backend_ssh_builder_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend ssh runner',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    parser = parser.merged_with(
+        sub_commands='gen backend ssh runner_base',
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
 
-parser = parser.merged_with(
-    sub_commands='gen colcon build',
-    flags=frozenset({
-        flag.build_type,
-        flag.colcon_build_args,
-        flag.docker_image_pull,
-        flag.sanitizer,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='gen colcon build',
+        flags=frozenset({
+            flag.build_type,
+            flag.colcon_build_args,
+            flag.docker_image_pull,
+            flag.sanitizer,
+        })
+    )
 
-parser = parser.merged_with(
-    sub_commands='gen docker',
-    flags=frozenset({
-        flag.docker_container_ports,
-        flag.docker_container_replace,
-        flag.docker_container_volumes,
-        flag.docker_entrypoint_sh_setup_overlay,
-        flag.docker_entrypoint_sh_setup_underlay,
-        flag.docker_image_pull,
-        flag.docker_image_replace,
-    })
-)
-parser = parser.merged_with(sub_commands='gen docker container')
-parser = parser.merged_with(sub_commands='gen docker container_base')
-parser = parser.merged_with(sub_commands='gen docker dockerfile')
-parser = parser.merged_with(sub_commands='gen docker entrypoint_sh')
-parser = parser.merged_with(sub_commands='gen docker gdbinit')
-parser = parser.merged_with(sub_commands='gen docker image')
-parser = parser.merged_with(sub_commands='gen docker install')
-parser = parser.merged_with(sub_commands='gen docker pam_environment')
-parser = parser.merged_with(sub_commands='gen docker ssh')
-parser = parser.merged_with(sub_commands='gen docker ssh_base')
+    parser = parser.merged_with(
+        sub_commands='gen docker',
+        flags=frozenset({
+            flag.docker_container_ports,
+            flag.docker_container_replace,
+            flag.docker_container_volumes,
+            flag.docker_entrypoint_sh_setup_overlay,
+            flag.docker_entrypoint_sh_setup_underlay,
+            flag.docker_image_pull,
+            flag.docker_image_replace,
+        })
+    )
+    parser = parser.merged_with(sub_commands='gen docker container')
+    parser = parser.merged_with(sub_commands='gen docker container_base')
+    parser = parser.merged_with(sub_commands='gen docker dockerfile')
+    parser = parser.merged_with(sub_commands='gen docker entrypoint_sh')
+    parser = parser.merged_with(sub_commands='gen docker gdbinit')
+    parser = parser.merged_with(sub_commands='gen docker image')
+    parser = parser.merged_with(sub_commands='gen docker install')
+    parser = parser.merged_with(sub_commands='gen docker pam_environment')
+    parser = parser.merged_with(sub_commands='gen docker ssh')
+    parser = parser.merged_with(sub_commands='gen docker ssh_base')
 
-parser = parser.merged_with(sub_commands='gen home')
-parser = parser.merged_with(sub_commands='gen host')
+    parser = parser.merged_with(sub_commands='gen home')
+    parser = parser.merged_with(sub_commands='gen host')
 
-parser = parser.merged_with(
-    sub_commands='gen idea',
-    flags=frozenset({
-        flag.docker_entrypoint_sh_setup_overlay,
-        flag.docker_entrypoint_sh_setup_underlay,
-        flag.idea_ide_name,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='gen idea',
+        flags=frozenset({
+            flag.docker_entrypoint_sh_setup_overlay,
+            flag.docker_entrypoint_sh_setup_underlay,
+            flag.idea_ide_name,
+        })
+    )
 
-parser = parser.merged_with(sub_commands='gen idea c_kdbx')
-parser = parser.merged_with(sub_commands='gen idea c_pwd')
-parser = parser.merged_with(sub_commands='gen idea home')
-parser = parser.merged_with(sub_commands='gen idea ide_base')
-parser = parser.merged_with(sub_commands='gen idea security_xml')
-parser = parser.merged_with(sub_commands='gen idea workspace_xml')
+    parser = parser.merged_with(sub_commands='gen idea c_kdbx')
+    parser = parser.merged_with(sub_commands='gen idea c_pwd')
+    parser = parser.merged_with(sub_commands='gen idea home')
+    parser = parser.merged_with(sub_commands='gen idea ide_base')
+    parser = parser.merged_with(sub_commands='gen idea security_xml')
+    parser = parser.merged_with(sub_commands='gen idea workspace_xml')
 
-parser = parser.merged_with(sub_commands='gen idea clion cpp_toolchains_xml')
-parser = parser.merged_with(sub_commands='gen idea clion deployment_xml')
-parser = parser.merged_with(sub_commands='gen idea clion iml')
-parser = parser.merged_with(sub_commands='gen idea clion misc_xml')
-parser = parser.merged_with(sub_commands='gen idea clion modules_xml')
-parser = parser.merged_with(sub_commands='gen idea clion webservers_xml')
-parser = parser.merged_with(sub_commands='gen idea clion workspace_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion cpp_toolchains_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion deployment_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion iml')
+    parser = parser.merged_with(sub_commands='gen idea clion misc_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion modules_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion webservers_xml')
+    parser = parser.merged_with(sub_commands='gen idea clion workspace_xml')
 
-parser = parser.merged_with(sub_commands='gen idea pycharm deployment_xml')
-parser = parser.merged_with(sub_commands='gen idea pycharm iml')
-parser = parser.merged_with(sub_commands='gen idea pycharm jdk_table_xml')
-parser = parser.merged_with(sub_commands='gen idea pycharm misc_xml')
-parser = parser.merged_with(sub_commands='gen idea pycharm modules_xml')
-parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm deployment_xml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm iml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm jdk_table_xml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm misc_xml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm modules_xml')
+    parser = parser.merged_with(sub_commands='gen idea pycharm webservers_xml')
 
-parser = parser.merged_with(
-    sub_commands='gen install',
-    flags=frozenset({
-        flag.docker_image_pull,
-    })
-)
-parser = parser.merged_with(sub_commands='gen install_base')
+    parser = parser.merged_with(
+        sub_commands='gen install',
+        flags=frozenset({
+            flag.docker_image_pull,
+        })
+    )
+    parser = parser.merged_with(sub_commands='gen install_base')
 
-parser = parser.merged_with(
-    sub_commands='gen overrides',
-    flags=frozenset(asdict(flag).values())
-)
+    parser = parser.merged_with(
+        sub_commands='gen overrides',
+        flags=frozenset(asdict(flag).values())
+    )
 
-parser = parser.merged_with(
-    sub_commands='gen rosdep config',
-)
+    parser = parser.merged_with(
+        sub_commands='gen rosdep config',
+    )
 
-parser = parser.merged_with(
-    sub_commands='gen rosdep install',
-    flags=frozenset({
-        flag.docker_image_pull,
-        flag.rosdep_install_args,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='gen rosdep install',
+        flags=frozenset({
+            flag.docker_image_pull,
+            flag.rosdep_install_args,
+        })
+    )
 
-parser = parser.merged_with(sub_commands='gen rosdev home')
-parser = parser.merged_with(sub_commands='gen rosdev workspace')
+    parser = parser.merged_with(sub_commands='gen rosdev home')
+    parser = parser.merged_with(sub_commands='gen rosdev workspace')
 
-parser = parser.merged_with(
-    sub_commands='gen src',
-    flags=frozenset({
-        flag.docker_image_pull,
-    })
-)
-parser = parser.merged_with(sub_commands='gen src_base')
+    parser = parser.merged_with(
+        sub_commands='gen src',
+        flags=frozenset({
+            flag.docker_image_pull,
+        })
+    )
+    parser = parser.merged_with(sub_commands='gen src_base')
 
-parser = parser.merged_with(sub_commands='gen workspace')
+    parser = parser.merged_with(sub_commands='gen workspace')
 
-parser = parser.merged_with(
-    sub_commands='install',
-    positionals=(
-        positional.remainder,
-    ),
-)
+    parser = parser.merged_with(
+        sub_commands='install',
+        positionals=(
+            positional.remainder,
+        ),
+    )
 
-parser = parser.merged_with(
-    sub_commands='launch',
-    positionals=(
-        positional.remainder,
-    ),
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='launch',
+        positionals=(
+            positional.remainder,
+        ),
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
 
-parser = parser.merged_with(sub_commands='pycharm')
+    parser = parser.merged_with(sub_commands='pycharm')
 
-parser = parser.merged_with(
-    sub_commands='run',
-    positionals=(
-        positional.remainder,
-    ),
-    flags=frozenset({
-        flag.backend_ssh_runner_identity_path,
-        flag.backend_ssh_runner_uri,
-    })
-)
+    parser = parser.merged_with(
+        sub_commands='run',
+        positionals=(
+            positional.remainder,
+        ),
+        flags=frozenset({
+            flag.backend_ssh_runner_identity_path,
+            flag.backend_ssh_runner_uri,
+        })
+    )
+    
+    return parser
+
+
+@memoize(db=Path.rosdev() / 'db', keygen=lambda options: Path.workspace())
+def get_sticky_options(options: Options) -> Options:
+    @memoize(
+        db=Path.rosdev() / 'db',
+        keygen=lambda options: (Path.workspace(), options.architecture, options.release),
+    )
+    def get_sticky_options_inner(options: Options) -> Options:
+        options = replace(
+            options,
+            backend_ssh_builder_identity_path=options.backend_ssh_builder_identity_path,
+            backend_ssh_builder_uri=options.backend_ssh_builder_uri,
+            backend_ssh_runner_identity_path=options.backend_ssh_runner_identity_path,
+            backend_ssh_runner_uri=options.backend_ssh_runner_uri,
+        )
+
+        return options
+
+    options = replace(
+        options,
+        architecture=options.architecture,
+        release=options.release,
+    )
+    options = get_sticky_options_inner(options)
+    
+    return options
+
+
+def set_sticky_options(options: Options) -> None:
+    get_sticky_options.memoize.reset_call(options)
+    get_sticky_options(options)
+
+
+def get_options(args: Namespace) -> Options:
+    options = Options()
+    parser = get_parser(options)
+    argument_parser = parser.get_argument_parser()
+    autocomplete(argument_parser)
+
+    import sys
+    # noinspection PyBroadException
+    try:
+        args = argument_parser.parse_args(sys.argv[1:])
+    except Exception:
+        argument_parser.print_help()
+        import sys
+        sys.exit(1)
+
+    for k, v in args.__dict__.items():
+        if isinstance(v, list):
+            setattr(args, k, frozenset(v))
+
+    options = replace(options,**args.__dict__)
+    
+    return options
 
 
 def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):

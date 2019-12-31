@@ -17,9 +17,7 @@ class GenBackendAptSourceMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
     @final
-    @memoize(
-        db=True, keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
-    )
+    @memoize(db=True, keygen=lambda cls, options: cls.get_ssh(options).get_uri(options), size=3)
     async def get_apt_source(cls, options: Options) -> str:
         apt_source = '\n'.join(
             await cls.get_ssh(options).execute_and_get_lines(

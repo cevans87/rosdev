@@ -18,10 +18,10 @@ class GenBackendAptPackagesMixin(GenBackendAptPackagesMixinBase, ABC):
     @memoize(
         db=True,
         keygen=lambda cls, options: (
-            cls.__name__,
             cls.get_ssh(options).get_uri(options),
             GenBackendAptPackagesLocalBase.get_apt_packages(options),
-        )
+        ),
+        size=3,
     )
     async def main(cls, options: Options) -> None:
         if (

@@ -1,10 +1,12 @@
+from asyncio import gather
 from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
-from rosdev.gen.backend.endpoints import GenBackendEndpoints
-from rosdev.gen.backend.sync.apt.packages import GenBackendSyncAptPackages
-
+from rosdev.gen.backend.apt.packages.mixin_base import GenBackendAptPackagesMixinBase
+from rosdev.gen.backend.builder import GenBackendBuilder
+from rosdev.gen.backend.local import GenBackendLocal
+from rosdev.gen.backend.runner import GenBackendRunner
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 
@@ -19,10 +21,16 @@ class Install(Handler):
     @staticmethod
     @memoize
     async def main(options: Options) -> None:
-        await GenBackendEndpoints.execute_by_endpoint(
-            command=(
-                f'rosdep install'
-                f'{" " + " ".join(options.remainder) if options.remainder else ""}'
-            ),
-            options=options,
+        await GenBackendAptPackagesMixinBase.get_apt_packages.memoize.reset()
+        await gather(
+            *[
+                backend.get_ssh(options).execute(
+                    command=(
+                        f'rosdep install'
+                        f'{" " + " ".join(options.remainder) if options.remainder else ""}'
+                    ),
+                    options=options,
+                )
+                for backend in [GenBackendBuilder, GenBackendLocal, GenBackendRunner]
+            ]
         )

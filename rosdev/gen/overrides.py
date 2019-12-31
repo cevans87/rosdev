@@ -1,10 +1,10 @@
 from atools import memoize
 from dataclasses import asdict, dataclass
-from frozendict import frozendict
 from logging import getLogger
 from pprint import pformat
 
 from rosdev.gen.host import GenHost
+from rosdev.util.frozendict import frozendict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -20,7 +20,9 @@ class GenOverrides(Handler):
     @memoize
     async def get_path(options: Options) -> Path:
         # TODO make only the architecture and release live at Path.rosdev(). The rest should live in
-        #  Path.store()
+        #  Path.store(). Alternatively, find a way to memoize the options object with a few
+        #  "sticky" flags, like architecture and release. Also, we could then force architecture
+        #  and release to be specified at least once if the flags default to None.
         path = Path.rosdev() / 'overrides'
 
         log.debug(f'{GenOverrides.__name__} {path = }')

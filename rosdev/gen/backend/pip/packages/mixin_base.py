@@ -15,9 +15,7 @@ log = getLogger(__name__)
 class GenBackendPipPackagesMixinBase(GenBackendMixinBase, ABC):
 
     @classmethod
-    @memoize(
-        db=True, keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
-    )
+    @memoize(db=True, keygen=lambda cls, options: cls.get_ssh(options).get_uri(options), size=3)
     async def get_pip_packages(cls, options: Options) -> FrozenSet[str]:
         # FIXME use pip freeze to get packages in correct format.
         pip_packages = frozenset(
