@@ -10,9 +10,7 @@ from collections import ChainMap
 from dataclasses import asdict, dataclass, field, InitVar, replace
 from importlib import import_module
 import logging
-from typing import (
-    AbstractSet, Awaitable, FrozenSet, List, Mapping, Optional, Sequence, Tuple, Union
-)
+from typing import AbstractSet, FrozenSet, List, Mapping, Optional, Sequence, Tuple, Union
 
 from rosdev.util.frozendict import frozendict
 from rosdev.util.options import Options
@@ -1073,39 +1071,33 @@ def get_parser(options: Options) -> Parser:
 
 
 @memoize(db=Path.rosdev() / 'db', keygen=lambda options: Path.workspace())
-def get_sticky_options(options: Options) -> Options:
-    @memoize(
-        db=Path.rosdev() / 'db',
-        keygen=lambda options: (Path.workspace(), options.architecture, options.release),
-    )
-    def get_sticky_options_inner(options: Options) -> Options:
-        options = replace(
-            options,
-            backend_ssh_builder_identity_path=options.backend_ssh_builder_identity_path,
-            backend_ssh_builder_uri=options.backend_ssh_builder_uri,
-            backend_ssh_runner_identity_path=options.backend_ssh_runner_identity_path,
-            backend_ssh_runner_uri=options.backend_ssh_runner_uri,
-        )
-
-        return options
-
-    options = replace(
-        options,
-        architecture=options.architecture,
-        release=options.release,
-    )
-    options = get_sticky_options_inner(options)
-    
+def _get_major_sticky_options(options: Options) -> Options:
     return options
 
 
-def set_sticky_options(options: Options) -> None:
-    get_sticky_options.memoize.reset_call(options)
-    get_sticky_options(options)
+@memoize(
+    db=Path.rosdev() / 'db',
+    keygen=lambda options: (Path.workspace(), options.architecture, options.release),
+)
+def _get_minor_sticky_options(options: Options) -> Options:
+    return options
 
 
-def get_options(args: Namespace) -> Options:
-    options = Options()
+def _get_sticky_options(options: Options = Options()) -> Options:
+    options = _get_major_sticky_options(options)
+    options = _get_minor_sticky_options(options)
+
+    return options
+
+
+def _set_sticky_options(options: Options) -> None:
+    _get_major_sticky_options.memoize.reset_call(options)
+    _get_minor_sticky_options.memoize.reset_call(options)
+    _get_sticky_options(options)
+
+
+def get_options(args: Optional[Namespace]) -> Options:
+    options = _get_sticky_options()
     parser = get_parser(options)
     argument_parser = parser.get_argument_parser()
     autocomplete(argument_parser)
@@ -1113,7 +1105,7 @@ def get_options(args: Namespace) -> Options:
     import sys
     # noinspection PyBroadException
     try:
-        args = argument_parser.parse_args(sys.argv[1:])
+        args = argument_parser.parse_args(sys.argv[1:] if args is None else args)
     except Exception:
         argument_parser.print_help()
         import sys
@@ -1124,38 +1116,6 @@ def get_options(args: Namespace) -> Options:
             setattr(args, k, frozenset(v))
 
     options = replace(options,**args.__dict__)
+    _set_sticky_options(options)
     
     return options
-
-
-def get_handler_and_options(args: Optional[List[str]]) -> (Awaitable, Options):
-    argument_parser = parser.get_argument_parser()
-    autocomplete(argument_parser)
-
-    import sys
-    args = args if args is not None else sys.argv[1:]
-    # noinspection PyBroadException
-    try:
-        args = argument_parser.parse_args(args)
-    except Exception:
-        args.append('-h')
-        argument_parser.parse_args(args)
-
-    # TODO everything below belongs in main
-    for k, v in args.__dict__.items():
-        if isinstance(v, list):
-            setattr(args, k, frozenset(v))
-    
-    rosdev_handler_module = args.__dict__.pop('rosdev_handler_module')
-    rosdev_handler_class = args.__dict__.pop('rosdev_handler_class')
-
-    parsed_options: Options = replace(options, **args.__dict__)
-
-    from atools import memoize
-    from rosdev.util.path import Path
-    Path.set_store(Path.rosdev() / parsed_options.release / parsed_options.architecture)
-    memoize.set_default_db_path(Path.store() / 'db')
-
-    handler = getattr(import_module(rosdev_handler_module), rosdev_handler_class)
-
-    return handler.run(parsed_options), parsed_options

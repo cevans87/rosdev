@@ -1,40 +1,31 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from importlib import import_module
-import logging
 from typing import List, Optional
-from rosdev.util.parser import get_options
-
-log = logging.getLogger(__package__)
 
 
 def main(args: Optional[List[str]] = None) -> int:
-    options = get_options()
+    from rosdev.util.parser import get_options
+    options = get_options(args)
 
-    rosdev_handler_module = args.__dict__.pop('rosdev_handler_module')
-    rosdev_handler_class = args.__dict__.pop('rosdev_handler_class')
-
-    from rosdev.util.options import Options
-
-    parsed_options: Options = replace(options, **args.__dict__)
+    from rosdev.util.path import Path
+    Path.set_store(Path.rosdev() / options.release / options.architecture)
 
     from atools import memoize
-    from rosdev.util.path import Path
-    Path.set_store(Path.rosdev() / parsed_options.release / parsed_options.architecture)
     memoize.set_default_db_path(Path.store() / 'db')
 
-    handler = getattr(import_module(rosdev_handler_module), rosdev_handler_class)
-
-    return handler.run(parsed_options), parsed_options
-
+    import logging
     import sys
+    log = logging.getLogger(__package__)
     stream_handler = logging.StreamHandler(sys.stdout)
     # noinspection PyProtectedMember,PyUnresolvedReferences
     stream_handler.setLevel(logging._nameToLevel[options.log_level])
     # noinspection PyProtectedMember,PyUnresolvedReferences
     log.setLevel(logging._nameToLevel[options.log_level])
     log.addHandler(stream_handler)
+
+    from importlib import import_module
+    handler = getattr(import_module(options.handler_module), options.handler_class)
 
     async def run_handler():
         await handler
