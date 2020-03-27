@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Tuple
@@ -7,6 +6,7 @@ from rosdev.gen.docker.dockerfile import GenDockerDockerfile
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.gen.host import GenHost
+from rosdev.util.atools import memoize, memoize_db
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -65,7 +65,7 @@ class GenDockerImage(GenDockerImageBase):
     async def get_ros_distro(options: Options) -> str:
         ros_distro = [
             v
-            for env in (await GenDockerImage._get_inspect(options))['Config']['Env']
+            for env in (await GenDockerImage._get_inspect_json(options))['Config']['Env']
             for k, v in [env.split('=')]
             if k == 'ROS_DISTRO'
         ][0]
@@ -75,9 +75,10 @@ class GenDockerImage(GenDockerImageBase):
         return ros_distro
 
     @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerImage.get_id(options), size=1)
+    @memoize_db(keygen=lambda options: GenDockerImage.get_id(options), size=1)
     async def main(options: Options) -> None:
         log.info(f'Creating docker image {await GenDockerImageBase.get_tag(options)}.')
+        GenDockerImageBase._get_inspect_json.memoize.reset()
         await GenHost.execute(
             command=(
                 f'docker image build {(await GenDockerDockerfile.get_path(options)).parent}'

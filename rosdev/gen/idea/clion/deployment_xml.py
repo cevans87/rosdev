@@ -4,7 +4,6 @@ from logging import getLogger
 from lxml import etree
 from textwrap import dedent
 
-from rosdev.gen.host import GenHost
 from rosdev.gen.idea.clion.webservers_xml import GenIdeaClionWebserversXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.util.handler import Handler
@@ -18,9 +17,9 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class GenIdeaClionDeploymentXml(Handler):
     
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_bytes(cls, options: Options) -> bytes:
+    async def get_bytes(options: Options) -> bytes:
         element = etree.fromstring(
             parser=etree.XMLParser(remove_blank_text=True),
             text=dedent(f'''
@@ -30,9 +29,7 @@ class GenIdeaClionDeploymentXml(Handler):
                       <paths name="{await GenIdeaClionWebserversXml.get_name(options)}">
                         <serverdata>
                           <mappings>
-                            <mapping
-                                deploy="{Path.workspace()}" 
-                                local="$PROJECT_DIR$" />
+                            <mapping deploy="{Path.workspace()}" local="$PROJECT_DIR$" />
                           </mappings>
                           <excludedPaths>
                             <excludedPath path="/" />
@@ -48,23 +45,22 @@ class GenIdeaClionDeploymentXml(Handler):
         # noinspection PyShadowingBuiltins
         bytes = etree.tostring(element, pretty_print=True, xml_declaration=True, encoding='UTF-8')
 
-        log.debug(f'{cls.__name__} {bytes = }')
+        log.debug(f'{__class__.__name__} {bytes = }')
 
         return bytes
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
+    async def get_path(options: Options) -> Path:
         path = await GenIdeaWorkspace.get_path(options) / 'deployment.xml'
 
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{__class__.__name__} {path = }')
 
         return path
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
-        GenHost.write_bytes(
-            data=await cls.get_bytes(options),
-            options=options,
-            path=await cls.get_path(options),
+    @staticmethod
+    @memoize
+    async def main(options: Options) -> None:
+        (await GenIdeaClionDeploymentXml.get_path(options)).write_bytes(
+            data=await GenIdeaClionDeploymentXml.get_bytes(options)
         )

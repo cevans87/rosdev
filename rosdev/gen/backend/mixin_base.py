@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
 
 from rosdev.gen.backend.ssh.mixin import GenBackendSshMixin
 from rosdev.gen.backend.ssh.local import GenBackendSshLocal
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 

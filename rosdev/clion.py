@@ -17,6 +17,7 @@ from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.ide_base import GenIdeaIdeBase
 from rosdev.gen.idea.security_xml import GenIdeaSecurityXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
+from rosdev.gen.rosdep.install import GenRosdepInstall
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -28,12 +29,12 @@ log = getLogger(__name__)
 @dataclass(frozen=True)
 class Clion(Handler):
 
-    @classmethod
+    @staticmethod
     @memoize
-    async def get_path(cls, options: Options) -> Path:
+    async def get_path(options: Options) -> Path:
         path = Path(await GenHost.execute_and_get_line(command='which clion', options=options))
 
-        log.debug(f'{cls.__name__} {path = }')
+        log.debug(f'{__class__.__name__} {path = }')
 
         return path
 

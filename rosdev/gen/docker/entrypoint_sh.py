@@ -1,11 +1,11 @@
-from atools import memoize
 from dataclasses import dataclass
-from logging import getLogger, INFO
+from logging import getLogger, DEBUG
 from textwrap import dedent
 from typing import Dict
 
 from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.gen.install_base import GenInstallBase
+from rosdev.util.atools import memoize, memoize_db
 from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
@@ -20,55 +20,43 @@ class GenDockerEntrypointSh(Handler):
 
     @staticmethod
     @memoize
-    async def get_environment(options: Options) -> FrozenDict[str, str]:
-        environment: Dict[str, str] = {}
+    async def get_path_by_env_key(options: Options) -> FrozenDict[str, Path]:
+        path_by_env_key: Dict[str, Path] = {}
         if options.docker_entrypoint_sh_quick_setup_overlay:
-            environment[
-                await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)
-            ] = (
-                f'{await GenDockerEntrypointSh.get_quick_setup_overlay_path(options)}'
-            )
-            environment[
-                await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_name(options)
-            ] = (
-                f'{(await GenDockerEntrypointSh.get_quick_setup_overlay_path(options)).parent}'
-            )
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)
+            ] = await GenDockerEntrypointSh.get_quick_setup_overlay_path(options)
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_key(options)
+            ] = (await GenDockerEntrypointSh.get_quick_setup_overlay_path(options)).parent
         if options.docker_entrypoint_sh_quick_setup_underlay:
-            environment[
-                await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)
-            ] = (
-                f'{await GenDockerEntrypointSh.get_quick_setup_underlay_path(options)}'
-            )
-            environment[
-                await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_name(options)
-            ] = (
-                f'{(await GenDockerEntrypointSh.get_quick_setup_underlay_path(options)).parent}'
-            )
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)
+            ] = await GenDockerEntrypointSh.get_quick_setup_underlay_path(options)
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_key(options)
+            ] = (await GenDockerEntrypointSh.get_quick_setup_underlay_path(options)).parent
         if options.docker_entrypoint_sh_setup_overlay:
-            environment[
-                await GenDockerEntrypointSh.get_setup_overlay_path_env_name(options)
-            ] = (
-                f'{await GenDockerEntrypointSh.get_setup_overlay_path(options)}'
-            )
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_setup_overlay_path_env_key(options)
+            ] = await GenDockerEntrypointSh.get_setup_overlay_path(options)
         if options.docker_entrypoint_sh_setup_underlay:
-            environment[
-                await GenDockerEntrypointSh.get_setup_underlay_path_env_name(options)
-            ] = (
-                f'{await GenDockerEntrypointSh.get_setup_underlay_path(options)}'
-            )
+            path_by_env_key[
+                await GenDockerEntrypointSh.get_setup_underlay_path_env_key(options)
+            ] = await GenDockerEntrypointSh.get_setup_underlay_path(options)
 
-        environment: FrozenDict[str, str] = frozendict(environment)
+        path_by_env_key: FrozenDict[str, Path] = frozendict(path_by_env_key)
         
-        log.debug(f'{__class__.__name__} {environment = }')
+        log.debug(f'{__class__.__name__} {path_by_env_key = }')
         
-        return environment
+        return path_by_env_key
 
     @staticmethod
     @memoize
     async def get_environment_flags(options: Options) -> str:
         environment_flags = ' '.join([
             f'-e {k}={v}'
-            for k, v in (await GenDockerEntrypointSh.get_environment(options)).items()
+            for k, v in (await GenDockerEntrypointSh.get_path_by_env_key(options)).items()
         ])
         
         log.debug(f'{__class__.__name__} {environment_flags = }')
@@ -88,7 +76,7 @@ class GenDockerEntrypointSh(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = Path.volume() / 'entrypoint.sh'
+        path = Path.docker() / 'entrypoint.sh'
 
         log.debug(f'{__class__.__name__} {path = }')
         
@@ -126,7 +114,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_quick_setup_overlay_path_env_name(options: Options) -> str:
+    async def get_quick_setup_overlay_path_env_key(options: Options) -> str:
         quick_setup_overlay_path_env_name = (
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH'
         )
@@ -138,7 +126,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_quick_setup_overlay_path_parent_env_name(options: Options) -> str:
+    async def get_quick_setup_overlay_path_parent_env_key(options: Options) -> str:
         quick_setup_overlay_path_parent_env_name = (
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_OVERLAY_PATH_PARENT'
         )
@@ -159,7 +147,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_quick_setup_underlay_path_env_name(options: Options) -> str:
+    async def get_quick_setup_underlay_path_env_key(options: Options) -> str:
         quick_setup_underlay_path_env_name = (
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH'
         )
@@ -171,7 +159,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_quick_setup_underlay_path_parent_env_name(options: Options) -> str:
+    async def get_quick_setup_underlay_path_parent_env_key(options: Options) -> str:
         quick_setup_underlay_path_parent_env_name = (
             'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_QUICK_SETUP_UNDERLAY_PATH_PARENT'
         )
@@ -192,7 +180,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_setup_overlay_path_env_name(options: Options) -> str:
+    async def get_setup_overlay_path_env_key(options: Options) -> str:
         setup_overlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_OVERLAY_PATH'
 
         log.debug(f'{__class__.__name__} {setup_overlay_path_env_name = }')
@@ -211,7 +199,7 @@ class GenDockerEntrypointSh(Handler):
     # noinspection PyUnusedLocal
     @staticmethod
     @memoize
-    async def get_setup_underlay_path_env_name(options: Options) -> str:
+    async def get_setup_underlay_path_env_key(options: Options) -> str:
         setup_underlay_path_env_name = 'ROSDEV_GEN_DOCKER_ENTRYPOINT_SH_SETUP_UNDERLAY_PATH'
 
         log.debug(f'{__class__.__name__} {setup_underlay_path_env_name = }')
@@ -246,135 +234,135 @@ class GenDockerEntrypointSh(Handler):
 
             if 
                 [[ 
-                    -z ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_name(options)}}}
+                    -z ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_key(options)}}}
                 ]] || [[ 
-                    ! -f ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_name(options)}}}
+                    ! -f ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_key(options)}}}
                 ]]
             then
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Not sourcing underlay."
                 fi
             elif
                 [[
-                    ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)}}}
+                    ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)}}}
                 ]] && [[ 
-                    -f ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)}}}
+                    -f ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)}}}
                 ]] && [[  
-                    ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)}}} -nt \
-                    ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_name(options)}}}
+                    ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)}}} -nt \
+                    ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_key(options)}}}
                 ]]
             then
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Sourcing cached quick setup underlay."
                 fi
-                source ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)}}}
+                source ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)}}}
             else
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Sourcing setup underlay."
                 fi
-                source ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_name(options)}}}
+                source ${{{await GenDockerEntrypointSh.get_setup_underlay_path_env_key(options)}}}
                 if
                     [[ 
-                        ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_name(options)}}}
+                        ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_key(options)}}}
                     ]] && [[ 
-                        -d ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_name(options)}}}
+                        -d ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_parent_env_key(options)}}}
                     ]]
                 then
                     if
                         [[
                             ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                         ]] && [[
-                            ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                            ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                         ]]
                     then
                         echo "Caching underlay to enable quick setup."
                     fi
-                    declare -px > ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_name(options)}}}
+                    declare -px > ${{{await GenDockerEntrypointSh.get_quick_setup_underlay_path_env_key(options)}}}
                 fi
             fi
 
             if 
                 [[
-                    -z ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_name(options)}}}
+                    -z ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_key(options)}}}
                 ]] || [[
-                    ! -f ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_name(options)}}}
+                    ! -f ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_key(options)}}}
                 ]]
             then
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Not sourcing overlay."
                 fi
             elif
                 [[
-                    ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
+                    ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)}}}
                 ]] && [[
-                    -f ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
+                    -f ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)}}}
                 ]] && [[ 
-                    ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}} -nt \
-                    ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_name(options)}}}
+                    ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)}}} -nt \
+                    ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_key(options)}}}
                 ]]
             then
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Sourcing cached quick setup overlay."
                 fi
-                source ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
+                source ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)}}}
             else
                 if
                     [[
                         ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                     ]] && [[
-                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                        ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                     ]]
                 then
                     echo "Sourcing setup overlay."
                 fi
-                source ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_name(options)}}}
+                source ${{{await GenDockerEntrypointSh.get_setup_overlay_path_env_key(options)}}}
                 if
                     [[
-                        ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_name(options)}}}
+                        ! -z ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_key(options)}}}
                     ]] && [[ 
-                        -d ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_name(options)}}}
+                        -d ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_parent_env_key(options)}}}
                     ]]
                 then
                     if
                         [[
                             ! -z ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}}
                         ]] && [[
-                            ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {INFO}
+                            ${{{await GenDockerEntrypointSh.get_log_level_env_name(options)}}} -le {DEBUG}
                         ]]
                     then
                         echo "Caching overlay to enable quick setup."
                     fi
-                    declare -px > ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_name(options)}}}
+                    declare -px > ${{{await GenDockerEntrypointSh.get_quick_setup_overlay_path_env_key(options)}}}
                 fi
             fi
 
@@ -384,7 +372,7 @@ class GenDockerEntrypointSh(Handler):
         ''').lstrip()
 
     @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
+    @memoize_db(keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
     async def main(options: Options) -> None:
         log.info(f'Creating docker_container_entrypoint_sh')
 

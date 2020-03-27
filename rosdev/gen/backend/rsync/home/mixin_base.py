@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
 
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.gen.backend.rsync.mixin_base import GenBackendRsyncMixinBase
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -20,7 +20,7 @@ class GenBackendRsyncHomeMixinBase(GenBackendRsyncMixinBase, ABC):
     @final
     @memoize
     async def get_dst_path(cls, options: Options) -> Path:
-        dst_path = await cls.get_home(options).get_path(options) / '.rosdev'
+        dst_path = await cls.get_home_base(options).get_path(options) / '.rosdev'
 
         log.debug(f'{cls.__name__} {dst_path = }')
 
@@ -28,7 +28,7 @@ class GenBackendRsyncHomeMixinBase(GenBackendRsyncMixinBase, ABC):
 
     @staticmethod
     @abstractmethod
-    def get_home(options: Options) -> Type[GenBackendHomeMixinBase]:
+    def get_home_base(options: Options) -> Type[GenBackendHomeMixinBase]:
         raise NotImplementedError
 
     @classmethod

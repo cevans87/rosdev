@@ -1,11 +1,11 @@
 from abc import ABC
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final
 
 from rosdev.gen.backend.ssh.local import GenBackendSshLocal
 from rosdev.gen.backend.rsync.mixin_base import GenBackendRsyncMixinBase
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 log = getLogger(__name__)

@@ -16,6 +16,7 @@ from rosdev.gen.idea.pycharm.jdk_table_xml import GenIdeaPycharmJdkTableXml
 from rosdev.gen.idea.pycharm.misc_xml import GenIdeaPycharmMiscXml
 from rosdev.gen.idea.pycharm.modules_xml import GenIdeaPycharmModulesXml
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
+from rosdev.gen.rosdep.install import GenRosdepInstall
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path

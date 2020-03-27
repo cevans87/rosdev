@@ -1,7 +1,5 @@
-from atools import memoize
 from dataclasses import dataclass
 import getpass
-import json
 from logging import getLogger
 from typing import Dict, Tuple
 
@@ -13,6 +11,7 @@ from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.host import GenHost
 from rosdev.gen.install import GenInstall
 from rosdev.gen.src import GenSrc
+from rosdev.util.atools import memoize, memoize_db
 from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -123,25 +122,8 @@ class GenDockerContainer(GenDockerContainerBase):
 
     @staticmethod
     @memoize
-    async def _get_inspect(options: Options) -> FrozenDict:
-        lines = await GenHost.execute_shell_and_get_lines(
-            command=(
-                f'docker container inspect {await GenDockerContainerBase.get_name(options)} 2>'
-                f' /dev/null'
-            ),
-            options=options,
-            err_ok=True,
-        )
-        inspect = array[0] if (array := json.loads('\n'.join(lines))) else {}
-
-        log.debug(f'{__class__.__name__} {inspect = }')
-
-        return inspect
-
-    @staticmethod
-    @memoize
     async def get_ip(options: Options) -> str:
-        ip = (await GenDockerContainer._get_inspect(options))['NetworkSettings']['IPAddress']
+        ip = (await GenDockerContainer._get_inspect_json(options))['NetworkSettings']['IPAddress']
 
         log.debug(f'{__class__.__name__} {ip = }')
 
@@ -152,7 +134,7 @@ class GenDockerContainer(GenDockerContainerBase):
     async def get_port(options: Options) -> int:
         port = int(
             (
-                await GenDockerContainer._get_inspect(options)
+                await GenDockerContainer._get_inspect_json(options)
             )['NetworkSettings']['Ports']['22/tcp'][0]['HostPort']
         )
 
@@ -170,26 +152,14 @@ class GenDockerContainer(GenDockerContainerBase):
         return uri
 
     @staticmethod
-    @memoize
-    async def set_running(options: Options) -> None:
-        running = (
-            (await GenDockerContainer._get_inspect(options)).get('State', {}).get('Running', False)
-        )
-        if not running:
-            log.info('Restarting stopped docker container.')
-            await GenHost.execute(
-                command=f'docker start {await GenDockerContainerBase.get_name(options)}',
-                options=options,
-            )
-
-    @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
-    async def main(options: Options) -> None:
-        if await GenDockerContainer._get_inspect(options):
+    @memoize_db(keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
+    async def _main_inner(options: Options) -> None:
+        if await GenDockerContainer._get_inspect_json(options):
             await GenHost.execute(
                 command=f'docker container rm -f {await GenDockerContainerBase.get_name(options)}',
                 options=options,
             )
+        GenDockerContainer._get_inspect_json.memoize.reset()
 
         await GenHost.execute(
             command=(
@@ -247,3 +217,18 @@ class GenDockerContainer(GenDockerContainerBase):
             options=options,
         )
         log.info(f'Created docker container {await GenDockerContainer.get_name(options)}.')
+
+    @staticmethod
+    @memoize
+    async def main(options: Options) -> None:
+
+        await GenDockerContainer._main_inner(options)
+
+        if not (await GenDockerContainer._get_inspect_json(options))['State']['Running']:
+            GenDockerContainer._get_inspect_json.memoize.reset()
+
+            log.info('Restarting stopped docker container.')
+            await GenHost.execute(
+                command=f'docker start {await GenDockerContainerBase.get_name(options)}',
+                options=options,
+            )

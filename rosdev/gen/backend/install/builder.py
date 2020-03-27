@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -7,6 +6,7 @@ from rosdev.gen.backend.install.builder_base import GenBackendInstallBuilderBase
 from rosdev.gen.backend.install.mixin import GenBackendInstallMixin
 from rosdev.gen.backend.rsync.home.builder import GenBackendRsyncHomeBuilder
 from rosdev.gen.backend.rsync.home.mixin import GenBackendRsyncHomeMixin
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 

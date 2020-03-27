@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
@@ -7,7 +6,7 @@ from textwrap import dedent
 from rosdev.gen.idea.clion.webservers_xml import GenIdeaClionWebserversXml
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
-from rosdev.gen.host import GenHost
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -59,10 +58,9 @@ class GenIdeaClionCppToolchainsXml(Handler):
 
         return text
 
-    @classmethod
-    async def main(cls, options: Options) -> None:
-        GenHost.write_text(
-            data=await cls.get_text(options),
-            options=options,
-            path=await cls.get_path(options),
+    @staticmethod
+    @memoize
+    async def main(options: Options) -> None:
+        (await GenIdeaClionCppToolchainsXml.get_path(options)).write_text(
+            data=await GenIdeaClionCppToolchainsXml.get_text(options)
         )

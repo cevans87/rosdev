@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
@@ -6,6 +5,7 @@ from rosdev.gen.docker.container_base import GenDockerContainerBase
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.host import GenHost
 from rosdev.gen.src_base import GenSrcBase
+from rosdev.util.atools import memoize_db
 from rosdev.util.options import Options
 
 
@@ -16,7 +16,7 @@ log = getLogger(__name__)
 class GenSrc(GenSrcBase):
 
     @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
+    @memoize_db(keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
     async def main(options: Options) -> None:
         log.info(f'Installing src.')
         if (await GenSrc.get_path(options)).exists():

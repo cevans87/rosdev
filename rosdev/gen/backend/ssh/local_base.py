@@ -1,10 +1,10 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Optional
 
 from rosdev.gen.backend.ssh.mixin_base import GenBackendSshMixinBase
 from rosdev.gen.docker.container import GenDockerContainer
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 from rosdev.util.uri import Uri

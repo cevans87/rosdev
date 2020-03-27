@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
@@ -6,6 +5,7 @@ from rosdev.gen.docker.container_base import GenDockerContainerBase
 from rosdev.gen.docker.image import GenDockerImage
 from rosdev.gen.host import GenHost
 from rosdev.gen.install_base import GenInstallBase
+from rosdev.util.atools import memoize, memoize_db
 from rosdev.util.options import Options
 from rosdev.util.path import Path
 
@@ -26,7 +26,7 @@ class GenInstall(GenInstallBase):
         return container_path
 
     @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
+    @memoize_db(keygen=lambda options: GenDockerContainerBase.get_id(options), size=1)
     async def main(options: Options) -> None:
         log.info(f'Installing install.')
         if (await GenInstallBase.get_path(options)).exists():

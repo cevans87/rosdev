@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -6,6 +5,7 @@ from typing import final, Type
 from rosdev.gen.backend.rsync.local_base import GenBackendRsyncLocalBase
 from rosdev.gen.backend.rsync.workspace.mixin_base import GenBackendRsyncWorkspaceMixinBase
 from rosdev.gen.backend.workspace.local_base import GenBackendWorkspaceLocalBase
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 
@@ -20,9 +20,9 @@ class GenBackendRsyncWorkspaceLocalBase(
     @classmethod
     @final
     @memoize
-    def get_workspace(cls, options: Options) -> Type[GenBackendWorkspaceLocalBase]:
-        home = GenBackendWorkspaceLocalBase
+    def get_workspace_base(cls, options: Options) -> Type[GenBackendWorkspaceLocalBase]:
+        workspace_base = GenBackendWorkspaceLocalBase
         
-        log.debug(f'{cls.__name__} {home = }')
+        log.debug(f'{cls.__name__} {workspace_base = }')
         
-        return home
+        return workspace_base

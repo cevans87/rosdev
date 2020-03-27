@@ -13,11 +13,10 @@ log = getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class Bash(Handler):
+class Shell(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        log.info('Starting bash.')
         os.execlpe(
             'docker',
             *(

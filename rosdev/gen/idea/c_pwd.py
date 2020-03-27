@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from base64 import b64decode, b64encode
 # noinspection PyPackageRequirements
@@ -12,8 +11,8 @@ from Crypto.Util import Padding
 from logging import getLogger
 from textwrap import dedent
 
-from rosdev.gen.host import GenHost
 from rosdev.gen.idea.home import GenIdeaHome
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -37,11 +36,9 @@ class GenIdeaCPwd(Handler):
     @classmethod
     @memoize
     async def get_decoded_data(cls, options: Options) -> bytes:
-        try:
-            decoded_data = b64decode(
-                GenHost.read_bytes(path=await cls.get_path(options)).strip().split()[-1]
-            )
-        except FileNotFoundError:
+        if (await cls.get_path(options)).is_file():
+            decoded_data = b64decode((await cls.get_path(options)).read_bytes().strip().split()[-1])
+        else:
             iv = Random.new().read(AES.block_size)
             cipher = AES.new(key=b'Proxy Config Sec', mode=AES.MODE_CBC, iv=iv)
             decoded_data = b64decode(b64encode(bytes([
@@ -120,8 +117,4 @@ class GenIdeaCPwd(Handler):
 
     @classmethod
     async def main(cls, options: Options) -> None:
-        GenHost.write_bytes(
-            data=await cls.get_bytes(options),
-            options=options,
-            path=await cls.get_path(options),
-        )
+        (await cls.get_path(options)).write_bytes(await cls.get_bytes(options))

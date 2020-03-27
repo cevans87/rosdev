@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
@@ -8,6 +7,7 @@ from rosdev.gen.docker.ssh import GenDockerSsh
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path

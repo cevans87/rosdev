@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -6,6 +5,7 @@ from typing import final, Type
 from rosdev.gen.backend.local_base import GenBackendLocalBase
 from rosdev.gen.backend.home.runner_base import GenBackendHomeRunnerBase
 from rosdev.gen.backend.workspace.mixin_base import GenBackendWorkspaceMixinBase
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 log = getLogger(__name__)

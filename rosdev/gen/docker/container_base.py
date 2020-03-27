@@ -1,9 +1,12 @@
-from atools import memoize
 from dataclasses import dataclass
+import json
 from logging import getLogger
 import re
 
 from rosdev.gen.docker.image_base import GenDockerImageBase
+from rosdev.gen.host import GenHost
+from rosdev.util.atools import memoize, memoize_db
+from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -18,22 +21,38 @@ class GenDockerContainerBase(Handler):
     @staticmethod
     @memoize
     async def get_id(options: Options) -> int:
-        id = 0
+        @memoize_db
+        def get_id_inner() -> int:
+            return 0
 
-        @memoize(db=True, keygen=lambda options: None, size=1)
-        def get_id_inner(options: Options) -> int:
-            return id + 1
+        if (
+                options.docker_container_replace or
+                not (await GenDockerContainerBase._get_inspect_json(options))  # container is gone
+        ):
+            get_id_inner.memoize.update()(get_id_inner() + 1)
 
-        id = get_id_inner(options)
-        if options.docker_container_replace:
-            get_id_inner.memoize.reset_call(options)
-            id = get_id_inner(options)
-        
-        id += await GenDockerImageBase.get_id(options)
+        id = get_id_inner() + await GenDockerImageBase.get_id(options)
 
         log.debug(f'{__class__.__name__} {id = }')
 
         return id
+
+    @staticmethod
+    @memoize_db(keygen=lambda options: GenDockerContainerBase.get_name(options))
+    async def _get_inspect_json(options: Options) -> FrozenDict:
+        lines = await GenHost.execute_shell_and_get_lines(
+            command=(
+                f'docker container inspect {await GenDockerContainerBase.get_name(options)} 2>'
+                f' /dev/null'
+            ),
+            options=options,
+            err_ok=True,
+        )
+        inspect_json = frozendict(array[0] if (array := json.loads('\n'.join(lines))) else {})
+
+        log.debug(f'{__class__.__name__} {inspect_json = }')
+
+        return inspect_json
 
     @staticmethod
     @memoize

@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from lxml import etree
@@ -7,6 +6,7 @@ from textwrap import dedent
 from rosdev.gen.host import GenHost
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path

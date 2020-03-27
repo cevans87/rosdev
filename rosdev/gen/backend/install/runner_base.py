@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -8,6 +7,7 @@ from rosdev.gen.backend.install.mixin_base import GenBackendInstallMixinBase
 from rosdev.gen.backend.home.runner_base import GenBackendHomeRunnerBase
 from rosdev.gen.backend.home.mixin_base import GenBackendHomeMixinBase
 from rosdev.util.options import Options
+from rosdev.util.atools import memoize
 
 log = getLogger(__name__)
 

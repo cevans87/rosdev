@@ -1,10 +1,10 @@
 from abc import ABC
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.backend.apt.packages.local_base import GenBackendAptPackagesLocalBase
 from rosdev.gen.backend.apt.packages.mixin_base import GenBackendAptPackagesMixinBase
+from rosdev.util.atools import memoize_db
 from rosdev.util.options import Options
 
 
@@ -15,8 +15,7 @@ log = getLogger(__name__)
 class GenBackendAptPackagesMixin(GenBackendAptPackagesMixinBase, ABC):
 
     @classmethod
-    @memoize(
-        db=True,
+    @memoize_db(
         keygen=lambda cls, options: (
             cls.get_ssh(options).get_uri(options),
             GenBackendAptPackagesLocalBase.get_apt_packages(options),

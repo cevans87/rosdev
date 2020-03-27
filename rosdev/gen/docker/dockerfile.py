@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 import getpass
 from logging import getLogger
@@ -9,6 +8,7 @@ from textwrap import dedent, indent
 from rosdev.gen.docker.entrypoint_sh import GenDockerEntrypointSh
 from rosdev.gen.docker.image_base import GenDockerImageBase
 from rosdev.gen.src_base import GenSrcBase
+from rosdev.util.atools import memoize, memoize_db
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -23,7 +23,7 @@ class GenDockerDockerfile(Handler):
     @staticmethod
     @memoize
     async def get_path(options: Options) -> Path:
-        path = Path.store() / 'docker' / 'Dockerfile'
+        path = Path.docker() / 'Dockerfile'
 
         log.debug(f'{GenDockerDockerfile.__name__} {path = }')
 
@@ -173,7 +173,7 @@ class GenDockerDockerfile(Handler):
         return text
 
     @staticmethod
-    @memoize(db=True, keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
+    @memoize_db(keygen=lambda options: GenDockerImageBase.get_id(options), size=1)
     async def main(options: Options) -> None:
         log.info(f'Creating Dockerfile at {await GenDockerDockerfile.get_path(options)}.')
 

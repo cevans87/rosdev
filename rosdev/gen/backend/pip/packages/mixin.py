@@ -1,10 +1,10 @@
 from abc import ABC
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
 from rosdev.gen.backend.pip.packages.local_base import GenBackendPipPackagesLocalBase
 from rosdev.gen.backend.pip.packages.mixin_base import GenBackendPipPackagesMixinBase
+from rosdev.util.atools import memoize_db
 from rosdev.util.options import Options
 
 
@@ -15,8 +15,7 @@ log = getLogger(__name__)
 class GenBackendPipPackagesMixin(GenBackendPipPackagesMixinBase, ABC):
 
     @classmethod
-    @memoize(
-        db=True,
+    @memoize_db(
         keygen=lambda cls, options: (
                 cls.get_ssh(options).get_uri(options),
                 GenBackendPipPackagesLocalBase.get_pip_packages(options),

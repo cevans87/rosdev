@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 
-from typing import List, Optional
 
-
-def main(args: Optional[List[str]] = None) -> int:
-    from rosdev.util.parser import get_options
-    options = get_options(args)
-
-    from rosdev.util.path import Path
-    Path.set_store(Path.rosdev() / options.release / options.architecture)
-
-    from atools import memoize
-    memoize.set_default_db_path(Path.store() / 'db')
+def main() -> int:
+    from rosdev.util.options import Options
+    options = Options.of_args()
 
     import logging
     import sys
@@ -27,16 +19,19 @@ def main(args: Optional[List[str]] = None) -> int:
     from importlib import import_module
     handler = getattr(import_module(options.handler_module), options.handler_class)
 
-    async def run_handler():
-        await handler
+    if options.reset_caches:
+        # FIXME even though our module is already loaded, some memoize decorators (like those used
+        #  on inner functions) may not be evaluated yet. Such decorators will not be reset.
+        from rosdev.util.atools import memoize
+        memoize.reset_all()
 
     import asyncio
     # FIXME add signal handler to cancel coroutines
-    asyncio.run(run_handler())
+    asyncio.run(handler.run(options))
 
     return 0
 
 
 if __name__ == '__main__':
     import sys
-    sys.exit(main(sys.argv[1:]))
+    sys.exit(main())

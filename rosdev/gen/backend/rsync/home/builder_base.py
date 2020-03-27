@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -6,6 +5,7 @@ from typing import final, Type
 from rosdev.gen.backend.home.builder_base import GenBackendHomeBuilderBase
 from rosdev.gen.backend.rsync.builder_base import GenBackendRsyncBuilderBase
 from rosdev.gen.backend.rsync.home.mixin_base import GenBackendRsyncHomeMixinBase
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 
@@ -18,9 +18,9 @@ class GenBackendRsyncHomeBuilderBase(GenBackendRsyncHomeMixinBase, GenBackendRsy
     @staticmethod
     @final
     @memoize
-    def get_home(options: Options) -> Type[GenBackendHomeBuilderBase]:
-        home = GenBackendHomeBuilderBase
+    def get_home_base(options: Options) -> Type[GenBackendHomeBuilderBase]:
+        home_base = GenBackendHomeBuilderBase
 
-        log.debug(f'{__class__.__name__} {home = }')
+        log.debug(f'{__class__.__name__} {home_base = }')
 
-        return home
+        return home_base

@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 
@@ -6,6 +5,7 @@ from rosdev.gen.docker.container import GenDockerContainer
 from rosdev.gen.docker.pam_environment import GenDockerPamEnvironment
 from rosdev.gen.docker.ssh_base import GenDockerSshBase
 from rosdev.gen.host import GenHost
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 from rosdev.util.uri import Uri
 

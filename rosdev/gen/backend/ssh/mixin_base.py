@@ -18,9 +18,9 @@ class GenBackendSshMixinBase(Handler, ABC):
     @staticmethod
     @abstractmethod
     async def get_identity_path(options: Options) -> Optional[Path]:
-        ...
+        raise NotImplementedError
 
     @staticmethod
     @abstractmethod
     async def get_uri(options: Options) -> Uri:
-        ...
+        raise NotImplementedError

@@ -1,4 +1,3 @@
-from atools import memoize
 from dataclasses import dataclass
 import getpass
 from logging import getLogger
@@ -13,6 +12,7 @@ from rosdev.gen.host import GenHost
 from rosdev.gen.idea.home import GenIdeaHome
 from rosdev.gen.idea.pycharm.webservers_xml import GenIdeaPycharmWebserversXml
 from rosdev.gen.idea.workspace import GenIdeaWorkspace
+from rosdev.util.atools import memoize
 from rosdev.util.handler import Handler
 from rosdev.util.options import Options
 from rosdev.util.path import Path

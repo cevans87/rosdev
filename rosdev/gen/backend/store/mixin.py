@@ -1,10 +1,10 @@
 from abc import ABC
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final
 
 from rosdev.gen.backend.store.mixin_base import GenBackendStoreMixinBase
+from rosdev.util.atools import memoize_db
 from rosdev.util.options import Options
 
 
@@ -16,9 +16,7 @@ class GenBackendStoreMixin(GenBackendStoreMixinBase, ABC):
 
     @classmethod
     @final
-    @memoize(
-        db=True, keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options))
-    )
+    @memoize_db(keygen=lambda cls, options: (cls.__name__, cls.get_ssh(options).get_uri(options)))
     async def main(cls, options: Options) -> None:
         if await cls.is_local(options):
             return

@@ -1,11 +1,11 @@
 from abc import ABC
 from asyncssh import connect
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from rosdev.gen.backend.ssh.mixin_base import GenBackendSshMixinBase
+from rosdev.util.atools import memoize
 from rosdev.util.frozendict import frozendict, FrozenDict
 from rosdev.util.options import Options
 from rosdev.util.path import Path
@@ -26,7 +26,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
     async def _execute(
             capture_output: bool,
             command: str,
-            environment: FrozenDict[str, str],
+            environment: FrozenDict[str, Any],
             err_ok: bool,
             identity_path: Optional[Path],
             options: Options,
@@ -47,7 +47,8 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
         command = (
             f'{f"cd {path} && " if path is not None else ""}'
             f'{"sudo " if sudo else ""}'
-            f'bash -l -c "{"".join(f"{k}={v} " for k, v in environment.items())} {command}"'
+            f'bash -l -c "'
+            f'{"".join(f"{k}={v} " for k, v in environment.items())} {command}"'
         )
         log.debug(f'execute {uri = } {err_ok = } {command = }')
         output_lines: List[str] = []
@@ -76,7 +77,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             cls,
             command: str,
             options: Options,
-            environment: FrozenDict[str, str] = frozendict(),
+            environment: FrozenDict[str, Any] = frozendict(),
             err_ok: bool = False,
             path: Optional[Path] = None,
             sudo: bool = False,
@@ -98,7 +99,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             cls,
             command: str,
             options: Options,
-            environment: FrozenDict[str, str] = frozendict(),
+            environment: FrozenDict[str, Any] = frozendict(),
             err_ok: bool = False,
             path: Optional[Path] = None,
             sudo: bool = False,
@@ -121,7 +122,7 @@ class GenBackendSshMixin(GenBackendSshMixinBase, ABC):
             command: str,
             options: Options,
             err_ok: bool = False,
-            environment: FrozenDict[str, str] = frozendict(),
+            environment: FrozenDict[str, Any] = frozendict(),
             path: Optional[Path] = None,
             sudo: bool = False,
     ) -> str:

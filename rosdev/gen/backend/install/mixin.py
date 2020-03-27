@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from atools import memoize
 from dataclasses import dataclass
 from logging import getLogger
 from typing import final, Type
@@ -7,6 +6,7 @@ from typing import final, Type
 from rosdev.gen.backend.install.mixin_base import GenBackendInstallMixinBase
 from rosdev.gen.backend.rsync.home.mixin import GenBackendRsyncHomeMixin
 from rosdev.gen.install import GenInstall
+from rosdev.util.atools import memoize
 from rosdev.util.options import Options
 
 
