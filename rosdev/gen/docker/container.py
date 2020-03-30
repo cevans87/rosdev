@@ -128,7 +128,7 @@ class GenDockerContainer(GenDockerContainerBase):
         log.debug(f'{__class__.__name__} {ip = }')
 
         return ip
-    
+
     @staticmethod
     @memoize
     async def get_port(options: Options) -> int:
@@ -146,9 +146,9 @@ class GenDockerContainer(GenDockerContainerBase):
     @memoize
     async def get_uri(options) -> Uri:
         uri = Uri(f'ssh://localhost:{await GenDockerContainer.get_port(options)}')
-        
+
         log.debug(f'{__class__.__name__} {uri = }')
-        
+
         return uri
 
     @staticmethod

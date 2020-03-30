@@ -36,4 +36,4 @@ class GenBackendAptPackagesMixin(GenBackendAptPackagesMixinBase, ABC):
                 options=options,
                 sudo=True,
             )
-            await cls.get_apt_packages.memoize.reset_call(cls, options)
+            await cls.get_apt_packages.memoize.remove(cls, options)

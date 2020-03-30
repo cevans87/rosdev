@@ -2,12 +2,9 @@ from __future__ import annotations
 from argcomplete import autocomplete
 from atools import memoize
 # noinspection PyProtectedMember
-from argparse import (
-    Action, ArgumentParser, _HelpAction, Namespace, _SubParsersAction, REMAINDER, SUPPRESS
-)
+from argparse import Action, ArgumentParser, Namespace, _SubParsersAction, REMAINDER, SUPPRESS
 from collections import ChainMap
 from dataclasses import dataclass, field, InitVar, replace
-from importlib import import_module
 import logging
 from platform import machine
 import sys
@@ -46,6 +43,7 @@ class Options:
     executable: str = ''
     handler_class: str = ''
     handler_module: str = ''
+    help: str = ''
     idea_ide_name: str = ''
     idea_ide_path: str = ''
     idea_uuid: str = ''
@@ -53,7 +51,7 @@ class Options:
     package: str = ''
     release: str = 'latest'
     remainder: str = ''
-    reset_caches: bool = False
+    reset_cache: bool = False
     run_main: bool = True
     run_validate_options: bool = True
     sanitizer: str = ''
@@ -208,7 +206,7 @@ class Flag:
     idea_uuid: ArgumentParser = field(default_factory=gen_flag_parser)
     log_level: ArgumentParser = field(default_factory=gen_flag_parser)
     release: ArgumentParser = field(default_factory=gen_flag_parser)
-    reset_caches: ArgumentParser = field(default_factory=gen_flag_parser)
+    reset_cache: ArgumentParser = field(default_factory=gen_flag_parser)
     run_main: ArgumentParser = field(default_factory=gen_flag_parser)
     run_validate_options: ArgumentParser = field(default_factory=gen_flag_parser)
     sanitizer: ArgumentParser = field(default_factory=gen_flag_parser)
@@ -593,7 +591,7 @@ class Flag:
             )
         )
 
-        class HelpAction(_HelpAction):
+        class HelpAction(Action):
 
             def __call__(
                     self,
@@ -602,26 +600,12 @@ class Flag:
                     values,
                     option_string=None
             ) -> None:
-                module = import_module(namespace.handler_module)
-                if hasattr(namespace, 'handler_class'):
-                    _parser.description = getattr(
-                        module,
-                        namespace.handler_class
-                    ).__doc__
-                else:
-                    _parser.description = module.__doc__
-
-                super().__call__(
-                    parser=_parser,
-                    namespace=namespace,
-                    values=values,
-                    option_string=option_string
-                )
+                setattr(namespace, self.dest, _parser.format_help())
 
         self.help.add_argument(
             '--help', '-h',
             action=HelpAction,
-            dest=SUPPRESS,
+            nargs=0,
             help='show this help message and exit',
         )
 
@@ -656,24 +640,24 @@ class Flag:
             help=f'ROS release to build. Currently: {options.release}',
         )
 
-        reset_caches_group = self.reset_caches.add_mutually_exclusive_group()
-        reset_caches_group.add_argument(
-            '--reset-caches',
-            default=options.reset_caches,
+        reset_cache_group = self.reset_cache.add_mutually_exclusive_group()
+        reset_cache_group.add_argument(
+            '--reset-cache',
+            default=options.reset_cache,
             action='store_true',
             help=(
-                SUPPRESS if options.reset_caches else
-                f'Reset persistent memoize caches. Currently: {options.reset_caches}'
+                SUPPRESS if options.reset_cache else
+                f'Reset persistent memoize cache. Currently: {options.reset_cache}'
             )
         )
-        reset_caches_group.add_argument(
-            '--no-reset-caches',
-            dest='reset_caches',
-            default=options.reset_caches,
+        reset_cache_group.add_argument(
+            '--no-reset-cache',
+            dest='reset_cache',
+            default=options.reset_cache,
             action='store_false',
             help=(
-                SUPPRESS if not options.reset_caches else
-                f'Do not reset persistent memoize caches. Currently: {options.reset_caches}'
+                SUPPRESS if not options.reset_cache else
+                f'Do not reset persistent memoize cache. Currently: {options.reset_cache}'
             )
         )
 
@@ -846,12 +830,7 @@ class Parser:
         argument_parser = self.get_argument_parser()
         autocomplete(argument_parser)
         # noinspection PyBroadException
-        try:
-            parsed_args = argument_parser.parse_args(args)
-        except Exception:
-            argument_parser.print_help()
-            import sys
-            sys.exit(1)
+        parsed_args = argument_parser.parse_args(args)
 
         for k, v in parsed_args.__dict__.items():
             if isinstance(v, list):
@@ -876,7 +855,7 @@ class Parser:
                 flag.help,
                 flag.log_level,
                 flag.release,
-                flag.reset_caches,
+                flag.reset_cache,
                 flag.run_main,
                 flag.run_validate_options,
             })

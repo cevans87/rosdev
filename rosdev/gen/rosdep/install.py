@@ -37,7 +37,7 @@ class GenRosdepInstall(Handler):
     @staticmethod
     @memoize_db(keygen=lambda options: None, size=1)
     async def _main_inner(options: Options) -> None:
-        await GenBackendAptPackagesMixinBase.get_apt_packages.memoize.reset_call(
+        await GenBackendAptPackagesMixinBase.get_apt_packages.memoize.remove(
             GenBackendAptPackagesLocalBase, options
         )
         await GenBackendEntrypointShLocal.execute(
@@ -56,5 +56,5 @@ class GenRosdepInstall(Handler):
     async def main(options: Options) -> None:
         if options.handler_module == __name__ or 'rosdev.install' == __name__:
             GenRosdepInstall._main_inner.memoize.reset()
-            
+
         await GenRosdepInstall._main_inner(options)

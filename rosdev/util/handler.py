@@ -50,7 +50,7 @@ class Handler:
                     (module_item is not Handler)
             ):
                 dependencies.append(module_item)
-                
+
         log.debug(
             f'{cls.__name__} dependencies {[dependency.__name__ for dependency in dependencies]}'
         )
@@ -69,7 +69,7 @@ class Handler:
                     hasattr(class_item, 'memoize')
             ):
                 getters.append(class_item)
-                
+
         getters_future = ensure_future(gather(*[getter(options) for getter in getters]))
 
         private_getters = []

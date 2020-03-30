@@ -30,4 +30,4 @@ class GenBackendAptKeyMixin(GenBackendAptKeyMixinBase, ABC):
                 options=options,
                 sudo=True,
             )
-            await cls.get_apt_key.memoize.reset_call(cls, options)
+            await cls.get_apt_key.memoize.remove(cls, options)

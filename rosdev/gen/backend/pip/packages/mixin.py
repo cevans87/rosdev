@@ -35,4 +35,4 @@ class GenBackendPipPackagesMixin(GenBackendPipPackagesMixinBase, ABC):
                 options=options,
                 sudo=True,
             )
-            await cls.get_pip_packages.memoize.reset_call(cls, options)
+            await cls.get_pip_packages.memoize.remove(cls, options)

@@ -35,4 +35,4 @@ class GenBackendAptSourceMixin(GenBackendAptSourceMixinBase, ABC):
                 options=options,
                 sudo=True,
             )
-            await cls.get_apt_source.memoize.reset_call(cls, options)
+            await cls.get_apt_source.memoize.remove(cls, options)

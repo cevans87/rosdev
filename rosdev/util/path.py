@@ -25,7 +25,7 @@ class Path(PosixPath):
             cls._db = cls.store() / 'db'
 
         return cls._db
-    
+
     @classmethod
     def docker(cls) -> Path:
         if cls._docker is None:
@@ -47,7 +47,7 @@ class Path(PosixPath):
             path.symlink_to(os.path.relpath(f'{global_path}', f'{cls.cwd()}'))
 
             cls._rosdev = path
-        
+
         return cls._rosdev
 
     @classmethod
@@ -58,7 +58,7 @@ class Path(PosixPath):
             cls._store = cls.rosdev() / options.release / options.architecture
             if not cls._store.exists():
                 cls._store.mkdir(parents=True)
-                
+
         return cls._store
 
     @classmethod
@@ -83,7 +83,7 @@ class Path(PosixPath):
             assert Path.home() in path.parents, 'Workspace must be in a subdirectory of home.'
 
             cls._workspace = path
-        
+
         return cls._workspace
 
     def read_bytes(self) -> bytes:
