@@ -171,7 +171,8 @@ class Choices:
     idea_ide_name = tuple(sorted({'CLion', 'PyCharm'}))
     # noinspection PyProtectedMember
     log_level = tuple([name for _, name in sorted(logging._levelToName.items())])
-    release = tuple(sorted({'dashing', 'eloquent', 'kinetic', 'melodic'}) + ['latest'])
+    # TODO get release options dynamically, memoize, and invalidate on bad input?
+    release = tuple(sorted({'dashing', 'eloquent', 'foxy', 'kinetic', 'melodic'}) + ['latest'])
     sanitizer = tuple(sorted({'asan', 'lsan', 'msan', 'tsan', 'ubsan'}))
 
 

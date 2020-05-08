@@ -17,19 +17,22 @@ class GenIdeaHome(Handler):
     @classmethod
     @memoize
     async def get_path(cls, options: Options) -> Path:
+        search_pattern = f'{await GenIdeaIdeBase.get_name(options)}*'
         if sys.platform == 'darwin':
-            search_path = Path.home() / 'Library' / 'Preferences'
-            search_pattern = f'{await GenIdeaIdeBase.get_name(options)}*'
+            paths = (Path.home() / 'Library' / 'Preferences').glob(search_pattern)
+        else:
+            paths = (Path.home() / '.config' / 'JetBrains').glob(search_pattern)
+
+        if paths:
+            path = sorted(paths)[-1]
         else:
             search_pattern = f'.{await GenIdeaIdeBase.get_name(options)}*'
-        ide_paths = sorted(Path.home().glob(search_pattern))
-        assert ide_paths, (
-            f'Could not find any {await GenIdeaIdeBase.get_name(options)} settings directories in'
-            f' {Path.home()}'
-        )
-        path = ide_paths[-1]
-        if sys.platform != 'darwin':
-            path /= 'config'
+            paths = Path.home().glob(search_pattern)
+            assert paths, (
+                f'Could not find any {await GenIdeaIdeBase.get_name(options)} settings directories'
+                f' in {Path.home()}'
+            )
+            path = sorted(paths)[-1] / 'config'
 
         log.debug(f'{cls.__name__} {path = }')
 

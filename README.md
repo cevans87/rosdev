@@ -76,37 +76,8 @@ cevans@strahd:~/ros2_ws$ rosdev shell
 <snip lots of first-time build output>
 ```
 
-### (Optional) Set up remote build backend
-If this step is skipped, builds fall back to the local backend.
-
-A build backend may significantly reduce your build times. This is especially true if your
-development machine is weak, it is a Mac (Docker for Mac incurs significant virtualization
-overhead), or you are cross-compiling. For example, on my Macbook Pro 2015, cross-compiling a
-project to arm64v8 took ~10 minutes. With my backend set to an EC2 Graviton a1.xlarge instance,
-building took ~30 seconds.
-
-Steps
-1. Follow the instructions in [backend setup](#optional-backend-setup).
-2. Use the `--backend-builder-uri` and, if needed, `--backend-builder-identity-path`. Like
-   `--architecture` and `--release`, these flags are sticky.
-   ```bash
-   cevans@strahd:~/ros2_ws$ rosdev build --backend-builder-uri ssh://[user[:password]@]ip[:port]
-   ```
-
-### (Optional) Set up a remote runner backend
-If this step is skipped, runs fall back to the local backend.
-
-It is often desirable or necessary to run remotely, such as on a Raspberry Pi.
-
-Steps
-1. Follow the instructions in [backend setup](#optional-backend-setup).
-2. Use the `--backend-runner-uri` and, if needed, `--backend-runner-identity-path`. Like
-   `--architecture` and `--release`, these flags are sticky.
-   ```bash
-   cevans@strahd:~/ros2_ws$ rosdev run --backend-runner-uri ssh://[user[:password]@]ip[:port]
-   ```
-
 ### (Optional) Backend setup
+Additional backends are useful alternatives to the default local backend for building or running.
 The backend is required to run the same OS and architecture as your local backend. You can determine
 the OS and architecture of your local backend as follows.
 ```bash
@@ -119,25 +90,72 @@ aarch64
 In this case, Ubuntu 18.04.3 and aarch (arm64v8).
 
 * Create a backend machine with the same OS and architecture, such as an EC2 Graviton instance or a
-  Raspberry Pi.
-* Ensure that you can ssh into the machine from your local host without a password prompt.
-    * (recommended) For EC2, download the associated identity `.pem` file...
-         * (recommended) into your local `~/.ssh` folder.
-         * elsewhere on your filesystem. You'll specify the location of the file to rosdev with the
-           `--backend-<backend_type>-identity-path` flag.
-    * (recommended) For other machines such as a Raspberry Pi, it means enabling ssh-server on the
-      backend, creating a ssh key pair on your local host, and uploading your public key ssh.
-      ```bash
-      cevans@strahd:~/ros2_ws$ ssh-keygen
-      cevans@strahd:~/ros2_ws$ ssh-copy-id remote_user@10.0.0.50:22
-      cevans@strahd:~/ros2_ws$ rosdev build --backend-builder-uri ssh://remote_user@10.0.0.50:22
-      ```
+Raspberry Pi.
+* Ensure that you can ssh into the machine from your local host.
+    * (recommended) For EC2, download the associated identity `.pem` file. You'll specify the
+    location of the file to rosdev with the `--backend-<backend_type>-identity-path` flag.
+        ```bash
+        cevans@strahd:~/ros2_ws$ rosdev build \
+            --backend-builder-uri ssh://remote_user@10.0.0.50:22 \
+            --backend-builder-identity-path ~/Downloads/my_ec2_identity.pem
+        ```
+    * (recommended) For other machines such as a Raspberry Pi, enable ssh-server on the backend
+    host, create an ssh key pair on your local host, and upload your public key ssh to the backend
+    host.
+        ```bash
+        cevans@strahd:~/ros2_ws$ ssh-keygen
+        cevans@strahd:~/ros2_ws$ ssh-copy-id remote_user@10.0.0.50:22
+        cevans@strahd:~/ros2_ws$ rosdev build --backend-builder-uri ssh://remote_user@10.0.0.50:22
+        ```
     * (discouraged) Alternatively, if you use password authentication, you may provide the password
-      in the backend URI.
-      ```bash
-      cevans@strahd:~/ros2_ws$ rosdev run \
-        --backend-runner-uri ssh://cevans:my_runner_password@10.0.0.51:22
-      ```
+    in the backend URI.
+        ```bash
+        cevans@strahd:~/ros2_ws$ rosdev run \
+            --backend-runner-uri ssh://cevans:my_runner_password@10.0.0.51:22 \
+            demo_nodes_cpp talker
+        ```
+You may unset the optional backends at any time with the `--no-backend-<backend_type>-uri` flag.
+This may be useful if you need to develop while temporarily without an internet connection. The
+backend will fall back to the local backend.
+
+### (Optional) Set up builder backend
+If this step is skipped, `rosdev build` fall back to the local backend.
+
+A build backend may significantly reduce your build times. This is especially true if your
+development machine is weak, it is a Mac (Docker for Mac incurs significant virtualization
+overhead), or you are cross-compiling. For example, on my Macbook Pro 2015, cross-compiling a
+project to arm64v8 took ~10 minutes. With my backend set to an EC2 Graviton a1.xlarge instance,
+building took ~30 seconds.
+
+Steps
+1. Follow the instructions in [backend setup](#optional-backend-setup).
+2. Use the `--backend-builder-uri` and, if needed, `--backend-builder-identity-path`. Like
+`--architecture` and `--release`, these flags are sticky and only need to be specified once.
+    ```bash
+    cevans@strahd:~/ros2_ws$ rosdev build
+    # or, for the first time on an EC2 backend.
+    cevans@strahd:~/ros2_ws$ rosdev build \
+        --backend-builder-uri ssh://my_ec2_user@my_ec2_ip \
+        --backend-builder-identity-path ~/Downloads/my_ec2_identity.pem \
+        "--packages-up-to demo_nodes_cpp"
+    ```
+
+### (Optional) Set up a runner backend
+If this step is skipped, `rosdev run` falls back to the local backend.
+
+It is often desirable or necessary to run remotely, such as on a Raspberry Pi.
+
+Steps
+1. Follow the instructions in [backend setup](#optional-backend-setup).
+2. Use the `--backend-runner-uri` and, if needed, `--backend-runner-identity-path`. Like
+`--architecture` and `--release`, these flags are sticky and only need to be specified once.
+    ```bash
+    cevans@strahd:~/ros2_ws$ rosdev run demo_nodes_cpp talker
+    # or, for the first time on a Raspberry Pi backend.
+    cevans@strahd:~/ros2_ws$ rosdev run 
+        --backend-runner-uri ssh://pi:raspberry@my_raspberry_pi_ip \
+        demo_nodes_cpp talker
+    ```
 
 ### Installing dependencies
 Dependencies need to be installed in almost exactly the same way as with `rosdep install`. Rosdev
@@ -166,8 +184,8 @@ cevans@strahd:~/ros2_ws$ rosdev run --backend-runner-uri ssh://cevans@10.0.0.1 \
 ```
 
 ### Launching
-Launching is almost exactly the same as with `roslaunch` or `ros2 launch` (the local backend if a
-builder backend is not currently specified).
+Launching is almost exactly the same as with `roslaunch` or `ros2 launch`. It will run on your
+runner backend (the local backend if a builder backend is not currently specified).
 ```bash
 cevans@strahd:~/ros2_ws$ rosdev launch demo_nodes_cpp talker_listener
 cevans@strahd:~/ros2_ws$ rosdev launch --backend-runner-uri ssh://cevans@10.0.0.1 \
